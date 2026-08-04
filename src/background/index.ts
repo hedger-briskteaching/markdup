@@ -1,1 +1,1 @@
-console.debug('[Review GitHub Markdown] background service worker ready')
+console.debug('[Markdup] background service worker ready')

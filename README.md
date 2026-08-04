@@ -1,8 +1,8 @@
-# Review GitHub Markdown
+# Markdup
 
-Chrome extension that improves the experience of reviewing markdown files on GitHub.
+Rich Markdown review for pull requests — **markdown** source, **markup** preview.
 
-Built with Vite, CRXJS, React, TypeScript, and Tailwind CSS.
+Chrome extension for reviewing `.md` files on GitHub with a rendered Before/After diff. Built with Vite, CRXJS, React, TypeScript, and Tailwind CSS.
 
 ## Prerequisites
 
@@ -28,12 +28,12 @@ pnpm dev
 2. Turn on **Developer mode** (toggle in the top-right)
 3. Click **Load unpacked**
 4. Select this project’s `dist` folder
-5. Confirm **Review GitHub Markdown** appears in the extensions list and is enabled
+5. Confirm **Markdup** appears in the extensions list and is enabled
 
 ### Use the extension
 
 1. Open any page on [github.com](https://github.com)
-2. You should see a small **Review GitHub Markdown — active** badge in the bottom-right corner of the page
+2. You should see a small **Markdup — active** badge in the bottom-right corner of the page
 3. Click the extension icon in the Chrome toolbar to open the popup
 
 If the badge does not appear:
@@ -64,6 +64,7 @@ This type-checks and writes an optimized bundle to `dist/`. Load that folder wit
 | `pnpm dev` | Dev server with hot reload (output in `dist/`) |
 | `pnpm build` | Production build into `dist/` |
 | `pnpm type-check` | TypeScript check only |
+| `pnpm test` | Run unit tests |
 
 ## Project layout
 
