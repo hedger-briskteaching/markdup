@@ -757,8 +757,9 @@ export type ReplyReviewCommentInput = {
 }
 
 /**
- * Reply to an existing review comment. Prefers GraphQL on a pending review
- * so the reply stays in the draft; falls back to REST with in_reply_to.
+ * Reply to an existing review comment (must be a top-level root, not a reply).
+ * Uses the dedicated replies endpoint — POST .../comments with in_reply_to
+ * returns 404 for pending-review threads.
  */
 export async function replyToReviewComment(
   input: ReplyReviewCommentInput,
@@ -768,16 +769,9 @@ export async function replyToReviewComment(
     throw new Error('Connect to GitHub before posting a reply.')
   }
   const login = await getStoredLogin()
-  const parent = await githubFetch<ApiComment>(
-    `/repos/${input.owner}/${input.repo}/pulls/comments/${input.inReplyToId}`,
-    { token },
-  )
-  const parentNodeId = parent.node_id
-  if (!parentNodeId) {
-    return replyViaRest(input, token)
-  }
 
-  let pending =
+  // Prefer GraphQL on the pending review so the reply stays in the draft.
+  const pending =
     login != null
       ? await findPendingReview(
           input.owner,
@@ -788,55 +782,82 @@ export async function replyToReviewComment(
         )
       : null
 
-  if (!pending) {
-    // Published threads: REST reply is enough.
-    return replyViaRest(input, token)
+  if (pending) {
+    try {
+      return await addReplyViaThreadGraphql({
+        token,
+        owner: input.owner,
+        repo: input.repo,
+        pullNumber: input.pullNumber,
+        reviewNodeId: pending.nodeId,
+        reviewDatabaseId: pending.id,
+        inReplyToId: input.inReplyToId,
+        body: input.body,
+      })
+    } catch (error) {
+      // Fall through to the REST replies endpoint.
+      if (!(error instanceof GitHubApiError) || error.status !== 404) {
+        // Keep trying REST for transient GraphQL shape issues; rethrow hard auth.
+        const message =
+          error instanceof Error ? error.message.toLowerCase() : ''
+        if (message.includes('bad credentials') || message.includes('401')) {
+          throw error
+        }
+      }
+    }
   }
 
-  try {
-    return await addReplyGraphql({
-      token,
-      reviewNodeId: pending.nodeId,
-      reviewDatabaseId: pending.id,
-      inReplyToNodeId: parentNodeId,
-      inReplyToId: input.inReplyToId,
-      body: input.body,
-      path: parent.path,
-    })
-  } catch {
-    return replyViaRest(input, token)
-  }
+  return replyViaRest(input, token)
 }
 
 async function replyViaRest(
   input: ReplyReviewCommentInput,
   token: string,
 ): Promise<PullReviewComment> {
+  // https://docs.github.com/en/rest/pulls/comments#create-a-reply-for-a-review-comment
   const raw = await githubFetch<ApiComment>(
-    `/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}/comments`,
+    `/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}/comments/${input.inReplyToId}/replies`,
     {
       token,
       method: 'POST',
       body: {
         body: input.body,
-        in_reply_to: input.inReplyToId,
       },
     },
   )
   return normalizeComment(raw)
 }
 
-async function addReplyGraphql(args: {
+/**
+ * Resolve the review thread that owns `inReplyToId`, then add a reply via
+ * addPullRequestReviewThreadReply (works on pending drafts).
+ */
+async function addReplyViaThreadGraphql(args: {
   token: string
+  owner: string
+  repo: string
+  pullNumber: number
   reviewNodeId: string
   reviewDatabaseId: number
-  inReplyToNodeId: string
   inReplyToId: number
   body: string
-  path: string
 }): Promise<PullReviewComment> {
+  const threadId = await findReviewThreadNodeIdForComment(
+    args.owner,
+    args.repo,
+    args.pullNumber,
+    args.inReplyToId,
+    args.token,
+  )
+  if (!threadId) {
+    throw new GitHubApiError(
+      'Could not find the review thread for this comment.',
+      404,
+    )
+  }
+
   const data = await githubGraphql<{
-    addPullRequestReviewComment: {
+    addPullRequestReviewThreadReply: {
       comment: GraphqlReviewComment & {
         replyTo: { databaseId: number } | null
       }
@@ -845,13 +866,13 @@ async function addReplyGraphql(args: {
     args.token,
     `mutation(
       $pullRequestReviewId: ID!
+      $pullRequestReviewThreadId: ID!
       $body: String!
-      $inReplyTo: ID!
     ) {
-      addPullRequestReviewComment(input: {
+      addPullRequestReviewThreadReply(input: {
         pullRequestReviewId: $pullRequestReviewId
+        pullRequestReviewThreadId: $pullRequestReviewThreadId
         body: $body
-        inReplyTo: $inReplyTo
       }) {
         comment {
           databaseId
@@ -867,19 +888,19 @@ async function addReplyGraphql(args: {
     }`,
     {
       pullRequestReviewId: args.reviewNodeId,
+      pullRequestReviewThreadId: threadId,
       body: args.body,
-      inReplyTo: args.inReplyToNodeId,
     },
   )
 
-  const node = data.addPullRequestReviewComment.comment
+  const node = data.addPullRequestReviewThreadReply.comment
   if (!node) {
     throw new Error('GitHub did not return the reply comment.')
   }
   return {
     id: node.databaseId,
     body: node.body,
-    path: args.path,
+    path: '',
     side: null,
     line: null,
     startLine: null,
@@ -892,6 +913,71 @@ async function addReplyGraphql(args: {
     pullRequestReviewId:
       node.pullRequestReview?.databaseId ?? args.reviewDatabaseId,
   }
+}
+
+async function findReviewThreadNodeIdForComment(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  commentDatabaseId: number,
+  token: string,
+): Promise<string | null> {
+  type ThreadLookup = {
+    repository: {
+      pullRequest: {
+        reviewThreads: {
+          pageInfo: { hasNextPage: boolean; endCursor: string | null }
+          nodes: Array<{
+            id: string
+            comments: { nodes: Array<{ databaseId: number | null }> }
+          }>
+        }
+      } | null
+    } | null
+  }
+
+  let after: string | null = null
+  for (let page = 0; page < 20; page += 1) {
+    const data: ThreadLookup = await githubGraphql<ThreadLookup>(
+      token,
+      `query($owner: String!, $repo: String!, $number: Int!, $after: String) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $number) {
+            reviewThreads(first: 50, after: $after) {
+              pageInfo { hasNextPage endCursor }
+              nodes {
+                id
+                comments(first: 50) {
+                  nodes { databaseId }
+                }
+              }
+            }
+          }
+        }
+      }`,
+      { owner, repo, number: pullNumber, after },
+    )
+
+    const connection = data.repository?.pullRequest?.reviewThreads
+    if (!connection) return null
+
+    for (const thread of connection.nodes) {
+      if (
+        thread.comments.nodes.some(
+          (c: { databaseId: number | null }) =>
+            c.databaseId === commentDatabaseId,
+        )
+      ) {
+        return thread.id
+      }
+    }
+
+    if (!connection.pageInfo.hasNextPage || !connection.pageInfo.endCursor) {
+      break
+    }
+    after = connection.pageInfo.endCursor
+  }
+  return null
 }
 
 export type UpdateReviewCommentInput = {
