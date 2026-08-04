@@ -1,6 +1,6 @@
 # Markdup
 
-Rich Markdown review for pull requests — **markdown** source, **markup** preview.
+Markdup — A better way to review Markdown files.
 
 Chrome extension for reviewing `.md` files on GitHub with a rendered Before/After diff. Built with Vite, CRXJS, React, TypeScript, and Tailwind CSS.
 

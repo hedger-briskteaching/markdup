@@ -3,8 +3,7 @@ import { defineManifest } from '@crxjs/vite-plugin'
 export default defineManifest({
   manifest_version: 3,
   name: 'Markdup',
-  description:
-    'Rich Markdown review for pull requests — markdown source, markup preview.',
+  description: 'Markdup — A better way to review Markdown files.',
   version: '0.1.0',
   // Fixed public key → stable extension ID for all unpacked installs:
   // knlaahnhnocjejneaobpbbnfibfnoiei

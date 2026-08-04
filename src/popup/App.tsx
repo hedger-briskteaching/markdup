@@ -7,6 +7,10 @@ type UiState =
   | { kind: 'disconnected' }
   | { kind: 'error'; message: string }
 
+const LOGO_URL = chrome.runtime.getURL('icons/logo.svg')
+
+const TAGLINE = 'A better way to review Markdown files.'
+
 export default function App() {
   const [state, setState] = useState<UiState>({ kind: 'loading' })
 
@@ -54,66 +58,54 @@ export default function App() {
   }
 
   return (
-    <main className="flex w-[300px] flex-col gap-3 p-4 font-sans text-slate-900">
-      <div>
-        <h1 className="text-base font-semibold tracking-tight">Markdup</h1>
-        <p className="mt-1 text-sm leading-snug text-slate-600">
-          Rich Markdown review for pull requests.
-        </p>
-      </div>
+    <main className="flex w-[320px] flex-col gap-5 p-5 font-sans text-slate-900">
+      <header className="flex items-start gap-3">
+        <img
+          src={LOGO_URL}
+          alt=""
+          width={96}
+          height={96}
+          className="size-24 shrink-0 rounded-[20px]"
+        />
+        <div className="min-w-0 flex-1">
+          <h1 className="text-base font-semibold tracking-tight">Markdup</h1>
+          <p className="mt-1.5 text-sm leading-snug text-slate-600">
+            {TAGLINE}
+          </p>
+        </div>
+      </header>
 
       {state.kind === 'loading' && (
-        <p className="text-sm text-slate-500">
-          Markdup reads the GitHub connection status…
-        </p>
+        <p className="text-sm text-slate-500">Checking GitHub connection…</p>
       )}
 
       {state.kind === 'connected' && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-4">
           <p className="text-sm text-slate-700">
             Connected as{' '}
             <span className="font-semibold">@{state.login}</span>
           </p>
-          <p className="text-xs leading-snug text-slate-500">
-            The access token stays only in this browser. Open Settings to remove
-            it or read how access works.
-          </p>
-          <button
-            type="button"
-            className="rounded-md bg-[#124C5F] px-3 py-1.5 text-left text-sm font-medium text-white hover:bg-[#0e3d4c]"
-            onClick={openSettings}
-          >
+          <button type="button" className="rgm-popup-cta" onClick={openSettings}>
             Open Settings
           </button>
         </div>
       )}
 
       {state.kind === 'disconnected' && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-slate-600">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm leading-snug text-slate-600">
             Markdup is not connected to GitHub on this browser.
           </p>
-          <p className="text-xs leading-snug text-slate-500">
-            Connect in Settings. Markdup stores the token only on this computer.
-          </p>
-          <button
-            type="button"
-            className="rounded-md bg-[#124C5F] px-3 py-1.5 text-left text-sm font-medium text-white hover:bg-[#0e3d4c]"
-            onClick={openSettings}
-          >
+          <button type="button" className="rgm-popup-cta" onClick={openSettings}>
             Open Settings
           </button>
         </div>
       )}
 
       {state.kind === 'error' && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-red-600">{state.message}</p>
-          <button
-            type="button"
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-            onClick={openSettings}
-          >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm leading-snug text-red-600">{state.message}</p>
+          <button type="button" className="rgm-popup-cta" onClick={openSettings}>
             Open Settings
           </button>
         </div>
