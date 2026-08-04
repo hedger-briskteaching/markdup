@@ -21,7 +21,7 @@ import {
   validateToken,
 } from './github/auth'
 import { fetchFileSnapshot } from './github/contents'
-import { createReviewComment, fetchThreadIndex } from './github/pulls'
+import { createReviewComment, fetchThreadIndex, replyToReviewComment, updateReviewComment, deleteReviewComment } from './github/pulls'
 
 async function broadcast(event: ExtensionEvent): Promise<void> {
   const tabs = await chrome.tabs.query({ url: ['https://github.com/*'] })
@@ -218,6 +218,60 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           error instanceof Error
             ? error.message
             : 'Failed to create the review comment'
+        sendResponse({ error: message })
+      })
+    return true
+  }
+
+  if (request?.type === 'REPLY_REVIEW_COMMENT') {
+    void replyToReviewComment({
+      owner: request.owner,
+      repo: request.repo,
+      pullNumber: request.pullNumber,
+      inReplyToId: request.inReplyToId,
+      body: request.body,
+    })
+      .then((comment: ReviewCommentDto) => sendResponse(comment))
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to reply to the review comment'
+        sendResponse({ error: message })
+      })
+    return true
+  }
+
+  if (request?.type === 'UPDATE_REVIEW_COMMENT') {
+    void updateReviewComment({
+      owner: request.owner,
+      repo: request.repo,
+      commentId: request.commentId,
+      body: request.body,
+    })
+      .then((comment: ReviewCommentDto) => sendResponse(comment))
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to update the review comment'
+        sendResponse({ error: message })
+      })
+    return true
+  }
+
+  if (request?.type === 'DELETE_REVIEW_COMMENT') {
+    void deleteReviewComment({
+      owner: request.owner,
+      repo: request.repo,
+      commentId: request.commentId,
+    })
+      .then(() => sendResponse({ ok: true as const }))
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to delete the review comment'
         sendResponse({ error: message })
       })
     return true

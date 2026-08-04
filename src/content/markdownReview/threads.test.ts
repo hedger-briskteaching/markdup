@@ -193,6 +193,80 @@ describe('renderThreadCards', () => {
     expect(card?.textContent).toContain('Still drafting')
   })
 
+  it('renders every comment in the thread as Markdown', () => {
+    const text = 'Hello.\n'
+    const rows = alignMarkdown(text, text)
+    const host = renderRowsForTest(rows, {
+      baseText: text,
+      headText: text,
+      path: 'README.md',
+      viewerLogin: 'hedger',
+    })
+    setRichViewContext(host, {
+      baseText: text,
+      headText: text,
+      rows,
+      path: 'README.md',
+      viewerLogin: 'hedger',
+      threads: [
+        {
+          rootId: 1,
+          path: 'README.md',
+          side: 'RIGHT',
+          startLine: 1,
+          line: 1,
+          pending: false,
+          comments: [
+            {
+              id: 1,
+              body: 'Root **bold**',
+              path: 'README.md',
+              side: 'RIGHT',
+              line: 1,
+              startLine: 1,
+              originalLine: null,
+              inReplyToId: null,
+              userLogin: 'alice',
+              createdAt: '2026-01-01T00:00:00Z',
+              commitId: 'sha',
+              htmlUrl: 'https://example.com',
+              pullRequestReviewId: null,
+            },
+            {
+              id: 2,
+              body: 'Reply `code`',
+              path: 'README.md',
+              side: 'RIGHT',
+              line: 1,
+              startLine: 1,
+              originalLine: null,
+              inReplyToId: 1,
+              userLogin: 'hedger',
+              createdAt: '2026-01-02T00:00:00Z',
+              commitId: 'sha',
+              htmlUrl: 'https://example.com',
+              pullRequestReviewId: null,
+            },
+          ],
+        },
+      ],
+    })
+    renderThreadCards(host)
+
+    expect(host.textContent).toContain('bold')
+    expect(host.textContent).toContain('code')
+    expect(host.textContent).not.toContain('more reply')
+    expect(host.querySelectorAll('.rgm-thread-comment')).toHaveLength(2)
+    expect(host.textContent).toContain('Reply')
+    // Own comment gets Edit/Delete; alice's does not.
+    const actions = [...host.querySelectorAll('.rgm-thread-comment')].map(
+      (el) => el.textContent,
+    )
+    expect(actions.some((t) => t?.includes('Edit') && t.includes('Delete'))).toBe(
+      true,
+    )
+  })
+
   it('upserts a new pending thread from a created comment', () => {
     const next = upsertThreadFromComment(
       [],

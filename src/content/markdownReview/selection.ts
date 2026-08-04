@@ -32,6 +32,8 @@ export type RichViewContext = {
    * Default empty = all unchanged sections start collapsed.
    */
   expandedUnchangedIds?: Set<string>
+  /** Signed-in GitHub login for own-comment edit/delete. */
+  viewerLogin?: string
 }
 
 const contexts = new WeakMap<Element, RichViewContext>()

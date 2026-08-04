@@ -122,6 +122,170 @@ const CSS = `
   );
 }
 
+.rgm-comment-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0 0 10px;
+  border: 1px solid var(--rgm-bp-300, var(--borderColor-default, #c4cbd1));
+  border-radius: 6px;
+  background: var(--bgColor-default, #ffffff);
+  overflow: hidden;
+}
+
+.rgm-comment-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--rgm-bp-200, var(--borderColor-muted, #e0e7ed));
+  background: var(--rgm-bp-25, var(--bgColor-muted, #f7f8f9));
+}
+
+.rgm-comment-editor-btn {
+  margin: 0;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fgColor-default, #1f2328);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.rgm-comment-editor-btn:hover {
+  background: var(--control-transparent-bgColor-hover, rgba(208, 215, 222, 0.32));
+}
+
+.rgm-comment-editor-surface {
+  min-height: 72px;
+}
+
+.rgm-comment-editor-content {
+  min-height: 72px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--fgColor-default, #1f2328);
+  outline: none;
+}
+
+.rgm-comment-editor-content.rgm-comment-editor-empty::before {
+  content: attr(data-placeholder);
+  color: var(--fgColor-muted, #656d76);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+.rgm-comment-editor-content p {
+  margin: 0 0 0.5em;
+}
+
+.rgm-comment-editor-content p:last-child {
+  margin-bottom: 0;
+}
+
+.rgm-comment-editor-content pre {
+  margin: 0.5em 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--bgColor-muted, #f6f8fa);
+  overflow: auto;
+  font-size: 12px;
+}
+
+.rgm-md-body {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--rgm-bp-800, var(--fgColor-default, #1f2328));
+}
+
+.rgm-md-body > *:first-child {
+  margin-top: 0;
+}
+
+.rgm-md-body > *:last-child {
+  margin-bottom: 0;
+}
+
+.rgm-md-body p {
+  margin: 0 0 0.6em;
+}
+
+.rgm-md-body ul,
+.rgm-md-body ol {
+  margin: 0 0 0.6em;
+  padding-left: 1.25em;
+}
+
+.rgm-md-body code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--bgColor-muted, #f6f8fa);
+  font-size: 0.92em;
+}
+
+.rgm-md-body pre {
+  margin: 0.5em 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--bgColor-muted, #f6f8fa);
+  overflow: auto;
+  font-size: 12px;
+}
+
+.rgm-md-body a {
+  color: var(--fgColor-accent, #0969da);
+}
+
+.rgm-thread-comment {
+  padding: 10px 12px 0;
+}
+
+.rgm-thread-comment + .rgm-thread-comment {
+  border-top: 1px solid var(--rgm-bp-200, var(--borderColor-muted, #e0e7ed));
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.rgm-thread-comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.rgm-thread-action {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--fgColor-accent, #0969da);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rgm-thread-action:hover {
+  text-decoration: underline;
+}
+
+.rgm-thread-action-danger {
+  color: var(--fgColor-danger, #cf222e);
+}
+
+.rgm-thread-reply,
+.rgm-thread-edit {
+  margin: 10px 12px;
+  padding: 10px;
+  border: 1px solid var(--rgm-bp-200, var(--borderColor-muted, #e0e7ed));
+  border-radius: 6px;
+  background: var(--bgColor-default, #ffffff);
+}
+
 [data-rgm-rich] .rgm-rich-header {
   display: grid;
   grid-template-columns: 1fr 1fr;

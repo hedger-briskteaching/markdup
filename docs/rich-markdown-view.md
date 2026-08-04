@@ -32,6 +32,19 @@ The view is read-only. Selection maps to a source line range for comments.
 3. Hovering or focusing a thread card highlights the exact text it targets;
    leaving clears the highlight.
 
+## Comment threads (create / reply / edit / delete)
+
+1. Thread cards render **every** comment in `comments[]` as read-only Markdown
+   (same schema + DOMSerializer as the rich view).
+2. Create / reply / edit use a shared **ProseMirror CommentEditor** (WYSIWYG).
+   On submit the editor serializes to markdown via `docToMarkdown`. There is
+   no separate Write/Preview mode.
+3. Reply / Edit / Delete call GitHub (`REPLY_REVIEW_COMMENT`,
+   `UPDATE_REVIEW_COMMENT`, `DELETE_REVIEW_COMMENT`), then
+   `syncThreadsFromServer` (full replace). Edit/Delete only appear on comments
+   authored by the signed-in user (`viewerLogin` on rich context).
+4. The reviewed PR Markdown file stays read-only — WYSIWYG is comment-only.
+
 ## Selection → source range
 
 1. Each rich cell has `data-block-id`, `data-side` (`LEFT` / `RIGHT`), and `data-src-from` / `data-src-to`.

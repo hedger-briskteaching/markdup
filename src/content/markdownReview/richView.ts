@@ -24,6 +24,7 @@ export type ShowRichViewOptions = {
   baseSha?: string
   headSha?: string
   commentable?: CommentableLines
+  viewerLogin?: string
 }
 
 function findDiffBody(region: Element): HTMLElement | null {
@@ -81,6 +82,7 @@ export function showRichView(
     baseSha: options.baseSha,
     headSha: options.headSha,
     commentable: options.commentable,
+    viewerLogin: options.viewerLogin,
     expandedUnchangedIds: expanded,
   })
   root.replaceChildren(buildRichRoot(rows, expanded))
@@ -181,6 +183,7 @@ export function renderRowsForTest(
     baseSha: options.baseSha,
     headSha: options.headSha,
     commentable: options.commentable,
+    viewerLogin: options.viewerLogin,
     expandedUnchangedIds: expanded,
   })
   host.appendChild(buildRichRoot(rows, expanded))

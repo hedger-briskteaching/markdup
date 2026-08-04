@@ -17,7 +17,8 @@ Use this file after an editor restart. Work lives in **`/Users/hedger/Documents/
   Commit: `bca77f0`
 - Comment selection bubble + thread cards (Open / Re-anchored)
 - GraphQL thread sync (full replace, post-create polling) + page reload on rich → source after posts
-- Collapsible unchanged sections: `buildViewSections`, +/- fold bars, auto-expand for synced threads — local pending commit
+- Collapsible unchanged sections: `buildViewSections`, +/- fold bars, auto-expand for synced threads
+- Full comment threads: Markdown bodies, ProseMirror WYSIWYG create/reply/edit, delete own comments — local pending commit
 
 ### Auth notes
 
@@ -25,7 +26,7 @@ Use this file after an editor restart. Work lives in **`/Users/hedger/Documents/
 - **Option 2:** Personal access token paste in Settings (fallback when an org blocks the OAuth App)
 - Local PAT backup may live in gitignored `.env` as `MARKDUP_GITHUB_PAT` — the extension does **not** read `.env`; paste into Settings
 
-Tests: **129 passing** last run
+Tests: **150+ passing** last run
 
 ---
 
@@ -33,7 +34,7 @@ Tests: **129 passing** last run
 
 1. **GitHub is the only store.** Rich view is a disposable projection. No parallel comment IDs.
 2. **Client threads always match production.** After mount or create, replace local thread state from `FETCH_THREAD_INDEX` (GraphQL `reviewThreads` — REST omits line/side for pending drafts). Full replace only. Post-create polls until the new comment id appears, or surfaces a sync error.
-3. **Rich view is read-only.** Reviewer can select text and add a comment. No WYSIWYG edit of Markdown.
+3. **Rich file view is read-only.** Reviewer can select text and add a comment. No WYSIWYG edit of the PR Markdown file. Comment bodies use a ProseMirror editor that saves markdown.
 4. **Comments map to source line ranges** (`path`, `side`, `startLine`, `startCol`, `endLine`, `endCol`), then create PR review comments on GitHub.
 5. **Auth:** Both OAuth Device Flow and PAT paste are supported. OAuth App “Markdup”, scope `repo`, client id in `src/shared/githubAuth.ts`. Use PAT when an org blocks the OAuth App.
 6. **Surface:** Chrome extension on `github.com` PR Files (not a first-party GitHub UI).
@@ -88,12 +89,12 @@ Ship in this order.
 | 0 | **Commit rich view** | Clean tree | Done (`336ad01`) |
 | 1 | **Selection → source range** | Map DOM selection to `{side, lines, cols, quotedText}` | Done (`bca77f0`) |
 | 2 | **List / create review comments** | `ThreadIndex` from API; create from rich composer | Done (`bca77f0`) |
-| 3 | **Thread cards on rows** | Place open threads under After (and Before when LEFT) | Done — Open / Re-anchored chips + Show |
+| 3 | **Thread cards on rows** | Place open threads under After (and Before when LEFT) | Done — full thread + reply/edit/delete + WYSIWYG |
 | 4 | **ViewFocus toggle** | Preserve scroll / thread when Source ⇄ Rich | Spec acceptance: within one row height |
 | 5 | **Outline + stepper + filter** | Nav chrome | Operate on full `RowModel[]` |
 | 6 | **Re-anchor + virtualize** | New commits; long docs | Never drop threads silently |
 
-**v1 write surface:** create review comments only (no suggest-change).
+**v1 write surface:** create, reply, edit, and delete review comments (no suggest-change). Comment bodies use ProseMirror WYSIWYG backed by markdown. The PR file view stays read-only.
 
 ---
 
@@ -119,8 +120,8 @@ Ship in this order.
 
 | Topic | Decision |
 | --- | --- |
-| Renderer | ProseMirror schema + DOMSerializer for display; readonly (no edit) |
-| Parse | remark + GFM + front matter → mdast → PM |
+| Renderer | ProseMirror schema + DOMSerializer for file display (readonly); CommentEditor WYSIWYG for comment bodies |
+| Parse | remark + GFM + front matter → mdast → PM; `docToMarkdown` for comment submit |
 | Diff grain | Block rows; word diff on text-like changed blocks |
 | `.mdx` | In path detect later; fail closed if JSX breaks parse |
 | Design tokens | Hex in injected CSS for now (`styles.ts`); Brisk tokens later if needed |
@@ -129,9 +130,10 @@ Ship in this order.
 
 ## Explicit non-goals (for now)
 
-- WYSIWYG Markdown editor
+- WYSIWYG editing of the reviewed Markdown file (comment bodies only)
 - Mermaid live render
 - Virtualization for 1000+ line files
 - Fine-grained OAuth scopes (still `repo`)
 - Reusing GitHub session cookies for `api.github.com`
 - Loading secrets from `.env` into the extension (Settings paste only)
+- Suggest-change blocks / resolve thread / reactions

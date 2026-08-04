@@ -122,6 +122,10 @@ async function mountRichView(region: Element): Promise<void> {
       snapshot.baseText ?? '',
       snapshot.headText ?? '',
     )
+    const viewerLogin = await fetchViewerLogin()
+    if (region.getAttribute('data-rgm-mode') !== 'rich') {
+      return
+    }
     showRichView(region, rows, {
       baseText: snapshot.baseText ?? '',
       headText: snapshot.headText ?? '',
@@ -134,6 +138,7 @@ async function mountRichView(region: Element): Promise<void> {
       commentable: commentableFromDto(
         snapshot.commentable ?? { left: [], right: [] },
       ),
+      viewerLogin,
     })
 
     void loadThreadIndex(region, snapshot)
@@ -181,4 +186,18 @@ async function loadThreadIndex(
     // Keep the markdown view; thread cards stay empty until a later sync.
     console.warn('[Markdup] thread sync failed', result.error)
   }
+}
+
+async function fetchViewerLogin(): Promise<string | undefined> {
+  try {
+    const status = (await chrome.runtime.sendMessage({
+      type: 'AUTH_STATUS',
+    })) as { authenticated?: boolean; login?: string }
+    if (status?.authenticated && status.login) {
+      return status.login
+    }
+  } catch {
+    // Auth status unavailable — edit/delete stay hidden.
+  }
+  return undefined
 }

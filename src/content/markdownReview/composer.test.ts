@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { alignMarkdown } from '../../markdown/align'
+import { getCommentEditorForTest } from './commentEditor'
 import { bindComposer } from './composer'
 import { renderRowsForTest } from './richView'
 import { setRichMode } from './richStub'
@@ -249,10 +250,8 @@ describe('bindComposer', () => {
     expect(composer.style.top).not.toBe('')
     expect(composer.style.left).not.toBe('')
 
-    const textarea = host.querySelector<HTMLTextAreaElement>(
-      '.rgm-composer-input',
-    )!
-    textarea.value = 'Looks good'
+    const editorHost = host.querySelector<HTMLElement>('.rgm-comment-editor')!
+    getCommentEditorForTest(editorHost)!.setMarkdown('Looks good')
     host.querySelector<HTMLButtonElement>('.rgm-composer-btn-primary')!.click()
 
     await vi.waitFor(() => {

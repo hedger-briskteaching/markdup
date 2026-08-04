@@ -33,6 +33,7 @@ export type {
   ReviewSide,
   SourceRange,
 } from './sourceRange'
+export { docToMarkdown } from './toMarkdown'
 
 /**
  * Parse Markdown source into a ProseMirror document.

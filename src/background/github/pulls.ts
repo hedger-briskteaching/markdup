@@ -67,6 +67,7 @@ export type CreateReviewCommentInput = {
 
 type ApiComment = {
   id: number
+  node_id?: string
   body: string
   path: string
   side?: string | null
@@ -745,4 +746,197 @@ function normalizeSide(raw: ApiComment): ReviewSide | null {
     return 'RIGHT'
   }
   return null
+}
+
+export type ReplyReviewCommentInput = {
+  owner: string
+  repo: string
+  pullNumber: number
+  inReplyToId: number
+  body: string
+}
+
+/**
+ * Reply to an existing review comment. Prefers GraphQL on a pending review
+ * so the reply stays in the draft; falls back to REST with in_reply_to.
+ */
+export async function replyToReviewComment(
+  input: ReplyReviewCommentInput,
+): Promise<PullReviewComment> {
+  const token = await getAccessToken()
+  if (!token) {
+    throw new Error('Connect to GitHub before posting a reply.')
+  }
+  const login = await getStoredLogin()
+  const parent = await githubFetch<ApiComment>(
+    `/repos/${input.owner}/${input.repo}/pulls/comments/${input.inReplyToId}`,
+    { token },
+  )
+  const parentNodeId = parent.node_id
+  if (!parentNodeId) {
+    return replyViaRest(input, token)
+  }
+
+  let pending =
+    login != null
+      ? await findPendingReview(
+          input.owner,
+          input.repo,
+          input.pullNumber,
+          token,
+          login,
+        )
+      : null
+
+  if (!pending) {
+    // Published threads: REST reply is enough.
+    return replyViaRest(input, token)
+  }
+
+  try {
+    return await addReplyGraphql({
+      token,
+      reviewNodeId: pending.nodeId,
+      reviewDatabaseId: pending.id,
+      inReplyToNodeId: parentNodeId,
+      inReplyToId: input.inReplyToId,
+      body: input.body,
+      path: parent.path,
+    })
+  } catch {
+    return replyViaRest(input, token)
+  }
+}
+
+async function replyViaRest(
+  input: ReplyReviewCommentInput,
+  token: string,
+): Promise<PullReviewComment> {
+  const raw = await githubFetch<ApiComment>(
+    `/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}/comments`,
+    {
+      token,
+      method: 'POST',
+      body: {
+        body: input.body,
+        in_reply_to: input.inReplyToId,
+      },
+    },
+  )
+  return normalizeComment(raw)
+}
+
+async function addReplyGraphql(args: {
+  token: string
+  reviewNodeId: string
+  reviewDatabaseId: number
+  inReplyToNodeId: string
+  inReplyToId: number
+  body: string
+  path: string
+}): Promise<PullReviewComment> {
+  const data = await githubGraphql<{
+    addPullRequestReviewComment: {
+      comment: GraphqlReviewComment & {
+        replyTo: { databaseId: number } | null
+      }
+    }
+  }>(
+    args.token,
+    `mutation(
+      $pullRequestReviewId: ID!
+      $body: String!
+      $inReplyTo: ID!
+    ) {
+      addPullRequestReviewComment(input: {
+        pullRequestReviewId: $pullRequestReviewId
+        body: $body
+        inReplyTo: $inReplyTo
+      }) {
+        comment {
+          databaseId
+          body
+          url
+          createdAt
+          commit { oid }
+          author { login }
+          pullRequestReview { databaseId }
+          replyTo { databaseId }
+        }
+      }
+    }`,
+    {
+      pullRequestReviewId: args.reviewNodeId,
+      body: args.body,
+      inReplyTo: args.inReplyToNodeId,
+    },
+  )
+
+  const node = data.addPullRequestReviewComment.comment
+  if (!node) {
+    throw new Error('GitHub did not return the reply comment.')
+  }
+  return {
+    id: node.databaseId,
+    body: node.body,
+    path: args.path,
+    side: null,
+    line: null,
+    startLine: null,
+    originalLine: null,
+    inReplyToId: node.replyTo?.databaseId ?? args.inReplyToId,
+    userLogin: node.author?.login ?? '',
+    createdAt: node.createdAt,
+    commitId: node.commit?.oid ?? '',
+    htmlUrl: node.url,
+    pullRequestReviewId:
+      node.pullRequestReview?.databaseId ?? args.reviewDatabaseId,
+  }
+}
+
+export type UpdateReviewCommentInput = {
+  owner: string
+  repo: string
+  commentId: number
+  body: string
+}
+
+export async function updateReviewComment(
+  input: UpdateReviewCommentInput,
+): Promise<PullReviewComment> {
+  const token = await getAccessToken()
+  if (!token) {
+    throw new Error('Connect to GitHub before editing a comment.')
+  }
+  const raw = await githubFetch<ApiComment>(
+    `/repos/${input.owner}/${input.repo}/pulls/comments/${input.commentId}`,
+    {
+      token,
+      method: 'PATCH',
+      body: { body: input.body },
+    },
+  )
+  return normalizeComment(raw)
+}
+
+export type DeleteReviewCommentInput = {
+  owner: string
+  repo: string
+  commentId: number
+}
+
+export async function deleteReviewComment(
+  input: DeleteReviewCommentInput,
+): Promise<void> {
+  const token = await getAccessToken()
+  if (!token) {
+    throw new Error('Connect to GitHub before deleting a comment.')
+  }
+  await githubFetch(
+    `/repos/${input.owner}/${input.repo}/pulls/comments/${input.commentId}`,
+    {
+      token,
+      method: 'DELETE',
+    },
+  )
 }

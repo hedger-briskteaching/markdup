@@ -3,15 +3,26 @@ import {
   buildViewSections,
   findUnchangedSectionForRow,
 } from '../../markdown/viewSections'
-import type { ReviewCommentDto, ReviewThreadDto } from '../../shared/messages'
+import type {
+  ReviewCommentDto,
+  ReviewThreadDto,
+} from '../../shared/messages'
+import {
+  mountCommentEditor,
+  type CommentEditorHandle,
+} from './commentEditor'
+import { markCommentsDirty } from './composer'
+import { renderMarkdownBody } from './markdownBody'
 import {
   applyThreadHoverHighlight,
   clearThreadHoverHighlight,
   getRichViewContext,
   isUnchangedSectionExpanded,
   paintCommentedMarks,
+  type RichViewContext,
   type SourceRange,
 } from './selection'
+import { syncThreadsFromServer } from './syncThreads'
 
 /**
  * Insert or replace a thread built from a newly created review comment.
@@ -50,7 +61,6 @@ export function upsertThreadFromComment(
 /**
  * Render review thread cards under matching rich rows.
  * LEFT threads attach to Before; RIGHT to After.
- * Falls back to the nearest row when an exact block match is missing.
  */
 export function renderThreadCards(richRoot: Element): void {
   clearThreadCards(richRoot)
@@ -76,14 +86,13 @@ export function renderThreadCards(richRoot: Element): void {
       : null
 
     if (!rowEl && rowId) {
-      // Row exists but is folded away — the card stays hidden with it.
       const section = findUnchangedSectionForRow(sections, rowId)
       if (section && !isUnchangedSectionExpanded(richRoot, section.id)) {
         continue
       }
     }
 
-    const card = buildThreadCard(thread, fileName)
+    const card = buildThreadCard(thread, fileName, root, ctx)
     attachHoverHighlight(card, root, rangeForThread(thread))
 
     if (rowEl) {
@@ -98,7 +107,6 @@ export function renderThreadCards(richRoot: Element): void {
       continue
     }
 
-    // Last resort: keep the thread visible at the bottom of the rich view.
     body.appendChild(card)
   }
 
@@ -141,11 +149,6 @@ function attachHoverHighlight(
 
 const textInteractionsBound = new WeakSet<Element>()
 
-/**
- * Clicking commented text scrolls to (and flashes) its thread card.
- * Plain clicks only — an active text selection means the user is
- * selecting, not navigating.
- */
 function bindThreadTextInteractions(richRoot: HTMLElement): void {
   if (textInteractionsBound.has(richRoot)) return
   textInteractionsBound.add(richRoot)
@@ -158,7 +161,7 @@ function bindThreadTextInteractions(richRoot: HTMLElement): void {
     if (
       !target ||
       target.closest(
-        '[data-rgm-thread-card], [data-rgm-composer], [data-rgm-comment-bubble], [data-rgm-fold]',
+        '[data-rgm-thread-card], [data-rgm-composer], [data-rgm-comment-bubble], [data-rgm-fold], .rgm-comment-editor',
       )
     ) {
       return
@@ -171,7 +174,6 @@ function bindThreadTextInteractions(richRoot: HTMLElement): void {
   })
 }
 
-/** Hit-test the click point against the painted commented-mark boxes. */
 function threadIdAtPoint(richRoot: Element, event: MouseEvent): string | null {
   const layer = richRoot.querySelector('[data-rgm-commented-layer]')
   if (!layer) return null
@@ -190,7 +192,6 @@ function threadIdAtPoint(richRoot: Element, event: MouseEvent): string | null {
   return null
 }
 
-/** jsdom / no-layout fallback: cells tinted as commented carry the thread id. */
 function threadIdFromFallbackCell(target: Element): string | null {
   return (
     target
@@ -251,7 +252,6 @@ export function findRowIdForThread(
     }
   }
 
-  // Closest block by line distance (outdated / gap lines).
   let bestId: string | null = null
   let bestDist = Number.POSITIVE_INFINITY
   const target = thread.line
@@ -281,9 +281,19 @@ export function isReanchored(thread: ReviewThreadDto): boolean {
   return root.originalLine !== thread.line
 }
 
+function isOwnComment(
+  comment: ReviewCommentDto,
+  viewerLogin: string | undefined,
+): boolean {
+  if (!viewerLogin || !comment.userLogin) return false
+  return viewerLogin.toLowerCase() === comment.userLogin.toLowerCase()
+}
+
 function buildThreadCard(
   thread: ReviewThreadDto,
   fileName: string,
+  richRoot: HTMLElement,
+  ctx: RichViewContext,
 ): HTMLElement {
   const root = thread.comments[0]
   const reanchored = isReanchored(thread)
@@ -345,17 +355,35 @@ function buildThreadCard(
   const showBtn = document.createElement('button')
   showBtn.type = 'button'
   showBtn.className = 'rgm-thread-show'
-  showBtn.textContent = 'Show'
-  showBtn.setAttribute('aria-expanded', 'false')
+  showBtn.textContent = 'Hide'
+  showBtn.setAttribute('aria-expanded', 'true')
 
   const detail = document.createElement('div')
   detail.className = 'rgm-thread-detail'
   detail.hidden = false
 
-  const body = document.createElement('p')
-  body.className = 'rgm-thread-body'
-  body.textContent = root?.body ?? ''
-  detail.appendChild(body)
+  for (const comment of thread.comments) {
+    detail.appendChild(
+      buildCommentBlock(comment, richRoot, ctx),
+    )
+  }
+
+  const replySlot = document.createElement('div')
+  replySlot.className = 'rgm-thread-reply-slot'
+  detail.appendChild(replySlot)
+
+  const replyBtn = document.createElement('button')
+  replyBtn.type = 'button'
+  replyBtn.className = 'rgm-thread-action'
+  replyBtn.textContent = 'Reply'
+  replyBtn.addEventListener('click', () => {
+    openReplyComposer(replySlot, thread, richRoot, ctx, replyBtn)
+  })
+
+  const footer = document.createElement('div')
+  footer.className = 'rgm-thread-comment-actions'
+  footer.style.padding = '0 12px 10px'
+  footer.appendChild(replyBtn)
 
   if (root?.htmlUrl) {
     const link = document.createElement('a')
@@ -364,20 +392,11 @@ function buildThreadCard(
     link.target = '_blank'
     link.rel = 'noopener noreferrer'
     link.textContent = 'Open on GitHub'
-    detail.appendChild(link)
+    footer.appendChild(link)
   }
 
-  if (thread.comments.length > 1) {
-    const more = document.createElement('p')
-    more.className = 'rgm-thread-more'
-    more.textContent = `${thread.comments.length - 1} more ${
-      thread.comments.length === 2 ? 'reply' : 'replies'
-    }`
-    detail.appendChild(more)
-  }
+  detail.appendChild(footer)
 
-  showBtn.textContent = 'Hide'
-  showBtn.setAttribute('aria-expanded', 'true')
   showBtn.addEventListener('click', () => {
     const open = detail.hidden
     detail.hidden = !open
@@ -388,6 +407,335 @@ function buildThreadCard(
   bar.append(identity, locus, showBtn)
   card.append(bar, detail)
   return card
+}
+
+function buildCommentBlock(
+  comment: ReviewCommentDto,
+  richRoot: HTMLElement,
+  ctx: RichViewContext,
+): HTMLElement {
+  const block = document.createElement('div')
+  block.className = 'rgm-thread-comment'
+  block.setAttribute('data-comment-id', String(comment.id))
+
+  const head = document.createElement('div')
+  head.className = 'rgm-thread-identity'
+
+  const avatar = document.createElement('span')
+  avatar.className = 'rgm-thread-avatar'
+  avatar.setAttribute('aria-hidden', 'true')
+  avatar.textContent = initials(comment.userLogin || '?')
+
+  const meta = document.createElement('div')
+  meta.className = 'rgm-thread-meta'
+  const who = document.createElement('span')
+  who.className = 'rgm-thread-login'
+  who.textContent = comment.userLogin || 'unknown'
+  const when = document.createElement('span')
+  when.className = 'rgm-thread-when'
+  when.textContent = formatRelativeTime(comment.createdAt)
+  meta.append(who, when)
+  head.append(avatar, meta)
+  block.appendChild(head)
+
+  const bodyHost = document.createElement('div')
+  bodyHost.className = 'rgm-thread-body'
+  bodyHost.appendChild(renderMarkdownBody(comment.body))
+  block.appendChild(bodyHost)
+
+  if (isOwnComment(comment, ctx.viewerLogin)) {
+    const actions = document.createElement('div')
+    actions.className = 'rgm-thread-comment-actions'
+
+    const editBtn = document.createElement('button')
+    editBtn.type = 'button'
+    editBtn.className = 'rgm-thread-action'
+    editBtn.textContent = 'Edit'
+    editBtn.addEventListener('click', () => {
+      openEditComposer(block, bodyHost, actions, comment, richRoot, ctx)
+    })
+
+    const deleteBtn = document.createElement('button')
+    deleteBtn.type = 'button'
+    deleteBtn.className = 'rgm-thread-action rgm-thread-action-danger'
+    deleteBtn.textContent = 'Delete'
+    deleteBtn.addEventListener('click', () => {
+      void deleteComment(comment, richRoot, ctx, deleteBtn)
+    })
+
+    actions.append(editBtn, deleteBtn)
+    block.appendChild(actions)
+  }
+
+  return block
+}
+
+function openReplyComposer(
+  slot: HTMLElement,
+  thread: ReviewThreadDto,
+  richRoot: HTMLElement,
+  ctx: RichViewContext,
+  replyBtn: HTMLButtonElement,
+): void {
+  if (slot.querySelector('.rgm-thread-reply')) return
+  replyBtn.disabled = true
+
+  const panel = document.createElement('div')
+  panel.className = 'rgm-thread-reply'
+
+  const editorHost = document.createElement('div')
+  panel.appendChild(editorHost)
+
+  const actions = document.createElement('div')
+  actions.className = 'rgm-composer-actions'
+  const status = document.createElement('span')
+  status.className = 'rgm-composer-status'
+  status.hidden = true
+
+  const submit = document.createElement('button')
+  submit.type = 'button'
+  submit.className = 'rgm-composer-btn rgm-composer-btn-primary'
+  submit.textContent = 'Reply'
+
+  const cancel = document.createElement('button')
+  cancel.type = 'button'
+  cancel.className = 'rgm-composer-btn'
+  cancel.textContent = 'Cancel'
+
+  let editor: CommentEditorHandle | null = null
+  const close = () => {
+    editor?.destroy()
+    panel.remove()
+    replyBtn.disabled = false
+  }
+
+  cancel.addEventListener('click', close)
+  submit.addEventListener('click', () => {
+    void submitReply({
+      editor,
+      submit,
+      status,
+      thread,
+      richRoot,
+      ctx,
+      onDone: close,
+    })
+  })
+
+  actions.append(submit, cancel, status)
+  panel.appendChild(actions)
+  slot.appendChild(panel)
+
+  editor = mountCommentEditor(editorHost, {
+    placeholder: 'Reply…',
+    onSubmit: () => submit.click(),
+  })
+  editor.focus()
+}
+
+async function submitReply(args: {
+  editor: CommentEditorHandle | null
+  submit: HTMLButtonElement
+  status: HTMLElement
+  thread: ReviewThreadDto
+  richRoot: HTMLElement
+  ctx: RichViewContext
+  onDone: () => void
+}): Promise<void> {
+  const { editor, submit, status, thread, richRoot, ctx, onDone } = args
+  const body = editor?.getMarkdown().trim() ?? ''
+  if (!body) {
+    status.hidden = false
+    status.textContent = 'Write a reply first.'
+    status.classList.add('rgm-composer-status-error')
+    return
+  }
+  if (!ctx.owner || !ctx.repo || !ctx.pullNumber) return
+
+  submit.disabled = true
+  status.hidden = false
+  status.classList.remove('rgm-composer-status-error')
+  status.textContent = 'Posting…'
+
+  const response = (await chrome.runtime.sendMessage({
+    type: 'REPLY_REVIEW_COMMENT',
+    owner: ctx.owner,
+    repo: ctx.repo,
+    pullNumber: ctx.pullNumber,
+    inReplyToId: thread.rootId,
+    body,
+  })) as ReviewCommentDto | { error: string }
+
+  if (response && 'error' in response) {
+    submit.disabled = false
+    status.textContent = response.error
+    status.classList.add('rgm-composer-status-error')
+    return
+  }
+
+  status.textContent = 'Syncing…'
+  const synced = await syncThreadsFromServer(richRoot, ctx, {
+    expectCommentId: response.id,
+  })
+  if (!synced.ok) {
+    submit.disabled = false
+    status.textContent = synced.error
+    status.classList.add('rgm-composer-status-error')
+    return
+  }
+  markCommentsDirty(richRoot)
+  onDone()
+}
+
+function openEditComposer(
+  block: HTMLElement,
+  bodyHost: HTMLElement,
+  actions: HTMLElement,
+  comment: ReviewCommentDto,
+  richRoot: HTMLElement,
+  ctx: RichViewContext,
+): void {
+  if (block.querySelector('.rgm-thread-edit')) return
+
+  bodyHost.hidden = true
+  actions.hidden = true
+
+  const panel = document.createElement('div')
+  panel.className = 'rgm-thread-edit'
+  const editorHost = document.createElement('div')
+  panel.appendChild(editorHost)
+
+  const row = document.createElement('div')
+  row.className = 'rgm-composer-actions'
+  const status = document.createElement('span')
+  status.className = 'rgm-composer-status'
+  status.hidden = true
+  const save = document.createElement('button')
+  save.type = 'button'
+  save.className = 'rgm-composer-btn rgm-composer-btn-primary'
+  save.textContent = 'Save'
+  const cancel = document.createElement('button')
+  cancel.type = 'button'
+  cancel.className = 'rgm-composer-btn'
+  cancel.textContent = 'Cancel'
+
+  let editor: CommentEditorHandle | null = null
+  const close = () => {
+    editor?.destroy()
+    panel.remove()
+    bodyHost.hidden = false
+    actions.hidden = false
+  }
+
+  cancel.addEventListener('click', close)
+  save.addEventListener('click', () => {
+    void submitEdit({
+      editor,
+      save,
+      status,
+      comment,
+      richRoot,
+      ctx,
+      bodyHost,
+      onDone: close,
+    })
+  })
+
+  row.append(save, cancel, status)
+  panel.appendChild(row)
+  block.appendChild(panel)
+
+  editor = mountCommentEditor(editorHost, {
+    initialMarkdown: comment.body,
+    onSubmit: () => save.click(),
+  })
+  editor.focus()
+}
+
+async function submitEdit(args: {
+  editor: CommentEditorHandle | null
+  save: HTMLButtonElement
+  status: HTMLElement
+  comment: ReviewCommentDto
+  richRoot: HTMLElement
+  ctx: RichViewContext
+  bodyHost: HTMLElement
+  onDone: () => void
+}): Promise<void> {
+  const { editor, save, status, comment, richRoot, ctx, bodyHost, onDone } =
+    args
+  const body = editor?.getMarkdown().trim() ?? ''
+  if (!body) {
+    status.hidden = false
+    status.textContent = 'Comment cannot be empty.'
+    status.classList.add('rgm-composer-status-error')
+    return
+  }
+  if (!ctx.owner || !ctx.repo) return
+
+  save.disabled = true
+  status.hidden = false
+  status.classList.remove('rgm-composer-status-error')
+  status.textContent = 'Saving…'
+
+  const response = (await chrome.runtime.sendMessage({
+    type: 'UPDATE_REVIEW_COMMENT',
+    owner: ctx.owner,
+    repo: ctx.repo,
+    commentId: comment.id,
+    body,
+  })) as ReviewCommentDto | { error: string }
+
+  if (response && 'error' in response) {
+    save.disabled = false
+    status.textContent = response.error
+    status.classList.add('rgm-composer-status-error')
+    return
+  }
+
+  status.textContent = 'Syncing…'
+  const synced = await syncThreadsFromServer(richRoot, ctx)
+  if (!synced.ok) {
+    // Still update local body so the user isn't stuck; next sync will reconcile.
+    bodyHost.replaceChildren(renderMarkdownBody(body))
+    markCommentsDirty(richRoot)
+    onDone()
+    return
+  }
+  markCommentsDirty(richRoot)
+  onDone()
+}
+
+async function deleteComment(
+  comment: ReviewCommentDto,
+  richRoot: HTMLElement,
+  ctx: RichViewContext,
+  button: HTMLButtonElement,
+): Promise<void> {
+  if (!ctx.owner || !ctx.repo) return
+  if (!window.confirm('Delete this comment?')) return
+
+  button.disabled = true
+  const response = (await chrome.runtime.sendMessage({
+    type: 'DELETE_REVIEW_COMMENT',
+    owner: ctx.owner,
+    repo: ctx.repo,
+    commentId: comment.id,
+  })) as { ok: true } | { error: string }
+
+  if (response && 'error' in response) {
+    button.disabled = false
+    window.alert(response.error)
+    return
+  }
+
+  const synced = await syncThreadsFromServer(richRoot, ctx)
+  if (!synced.ok) {
+    button.disabled = false
+    window.alert(synced.error)
+    return
+  }
+  markCommentsDirty(richRoot)
 }
 
 function formatPathLines(

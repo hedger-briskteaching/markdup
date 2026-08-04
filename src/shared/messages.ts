@@ -51,6 +51,30 @@ export type CreateReviewCommentRequest = {
   startSide?: 'LEFT' | 'RIGHT'
 }
 
+export type ReplyReviewCommentRequest = {
+  type: 'REPLY_REVIEW_COMMENT'
+  owner: string
+  repo: string
+  pullNumber: number
+  inReplyToId: number
+  body: string
+}
+
+export type UpdateReviewCommentRequest = {
+  type: 'UPDATE_REVIEW_COMMENT'
+  owner: string
+  repo: string
+  commentId: number
+  body: string
+}
+
+export type DeleteReviewCommentRequest = {
+  type: 'DELETE_REVIEW_COMMENT'
+  owner: string
+  repo: string
+  commentId: number
+}
+
 export type ExtensionRequest =
   | AuthEnsureRequest
   | AuthCancelRequest
@@ -60,6 +84,9 @@ export type ExtensionRequest =
   | FetchFileSnapshotRequest
   | FetchThreadIndexRequest
   | CreateReviewCommentRequest
+  | ReplyReviewCommentRequest
+  | UpdateReviewCommentRequest
+  | DeleteReviewCommentRequest
 
 export type AuthEnsureResponse =
   | { status: 'ok'; login: string }

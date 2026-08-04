@@ -2,6 +2,10 @@ import { createPayloadFromRange } from '../../shared/reviewComment'
 import type { SourceRange } from '../../markdown/sourceRange'
 import type { ReviewCommentDto } from '../../shared/messages'
 import {
+  mountCommentEditor,
+  type CommentEditorHandle,
+} from './commentEditor'
+import {
   applySelectionHighlight,
   clearSelectionHighlight,
   findCellForSourceRange,
@@ -238,11 +242,8 @@ function showComposer(
   anchorRow.append(anchorLabel, pill, sideHint)
   panel.appendChild(anchorRow)
 
-  const textarea = document.createElement('textarea')
-  textarea.className = 'rgm-composer-input'
-  textarea.rows = 3
-  textarea.placeholder = 'Leave a comment'
-  panel.appendChild(textarea)
+  const editorHost = document.createElement('div')
+  panel.appendChild(editorHost)
 
   const actions = document.createElement('div')
   actions.className = 'rgm-composer-actions'
@@ -260,7 +261,11 @@ function showComposer(
   cancel.type = 'button'
   cancel.className = 'rgm-composer-btn rgm-composer-btn-secondary'
   cancel.textContent = 'Cancel'
+
+  let editor: CommentEditorHandle | null = null
+
   cancel.addEventListener('click', () => {
+    editor?.destroy()
     clearSelectionHighlight(richRoot)
     panel.remove()
   })
@@ -268,7 +273,7 @@ function showComposer(
   submit.addEventListener('click', () => {
     void submitComment({
       panel,
-      textarea,
+      editor,
       submit,
       status,
       range,
@@ -283,11 +288,16 @@ function showComposer(
   richRoot.appendChild(panel)
   positionComposer(panel, richRoot, clientRect, range)
 
+  editor = mountCommentEditor(editorHost, {
+    placeholder: 'Leave a comment',
+    onSubmit: () => submit.click(),
+  })
+
   if (typeof panel.scrollIntoView === 'function') {
     panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }
 
-  textarea.focus()
+  editor.focus()
 }
 
 /** Place the composer directly under the selected text (GitHub-style inline). */
@@ -354,14 +364,14 @@ function positionComposer(
 
 async function submitComment(args: {
   panel: HTMLElement
-  textarea: HTMLTextAreaElement
+  editor: CommentEditorHandle | null
   submit: HTMLButtonElement
   status: HTMLElement
   range: SourceRange
   ctx: RichViewContext
 }): Promise<void> {
-  const { panel, textarea, submit, status, range, ctx } = args
-  const body = textarea.value.trim()
+  const { panel, editor, submit, status, range, ctx } = args
+  const body = editor?.getMarkdown().trim() ?? ''
   if (!body) {
     status.hidden = false
     status.textContent = 'Write a comment first.'
@@ -432,6 +442,7 @@ async function submitComment(args: {
     markCommentsDirty(richRoot)
   }
   window.setTimeout(() => {
+    editor?.destroy()
     if (richRoot) clearSelectionHighlight(richRoot)
     panel.remove()
   }, 400)
