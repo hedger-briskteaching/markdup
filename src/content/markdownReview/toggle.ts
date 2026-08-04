@@ -1,5 +1,5 @@
 import type {
-  AuthEnsureResponse,
+  AuthStatusResponse,
   ExtensionEvent,
 } from '../../shared/messages'
 import {
@@ -78,8 +78,10 @@ function syncToggleState(toggle: HTMLElement, rich: boolean): void {
   }
 }
 
-function sendEnsureAuth(): Promise<AuthEnsureResponse> {
-  return chrome.runtime.sendMessage({ type: 'AUTH_ENSURE' }) as Promise<AuthEnsureResponse>
+function sendAuthStatus(): Promise<AuthStatusResponse> {
+  return chrome.runtime.sendMessage({
+    type: 'AUTH_STATUS',
+  }) as Promise<AuthStatusResponse>
 }
 
 function enableRich(region: Element, toggle: HTMLElement): void {
@@ -101,36 +103,37 @@ function beginAuth(region: Element, toggle: HTMLElement): void {
   pendingRegions.add(region)
   syncToggleState(toggle, false)
 
-  void sendEnsureAuth().then((response) => {
-    if (!pendingRegions.has(region) && response.status !== 'ok') {
-      return
-    }
+  void sendAuthStatus()
+    .then((status) => {
+      if (!pendingRegions.has(region)) {
+        return
+      }
 
-    if (response.status === 'ok') {
-      enableRich(region, toggle)
-      return
-    }
+      if (status.authenticated) {
+        enableRich(region, toggle)
+        return
+      }
 
-    if (response.status === 'error') {
-      pendingRegions.add(region)
       showAuthPanel(region, {
-        userCode: '—',
-        verificationUri: 'https://github.com/login/device',
         onCancel: () => cancelAuth(region, toggle),
       })
-      setAuthPanelError(region, response.message)
       syncToggleState(toggle, false)
-      return
-    }
-
-    pendingRegions.add(region)
-    showAuthPanel(region, {
-      userCode: response.user_code,
-      verificationUri: response.verification_uri,
-      onCancel: () => cancelAuth(region, toggle),
     })
-    syncToggleState(toggle, false)
-  })
+    .catch((error: unknown) => {
+      if (!pendingRegions.has(region)) {
+        return
+      }
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Markdup could not check the GitHub connection.'
+      showAuthPanel(region, {
+        onCancel: () => cancelAuth(region, toggle),
+        errorMessage: message,
+      })
+      setAuthPanelError(region, message)
+      syncToggleState(toggle, false)
+    })
 }
 
 function createToggleControl(path: string, region: Element): HTMLElement {

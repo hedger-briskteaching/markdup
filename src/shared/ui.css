@@ -1,0 +1,84 @@
+/* Shared primary / secondary buttons (popup + settings). */
+
+.rgm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.625rem 1.25rem;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  background: #0a0a0a;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 100ms ease,
+    opacity 120ms ease;
+}
+
+.rgm-btn:hover:not(:disabled) {
+  background: #262626;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+
+.rgm-btn:active:not(:disabled) {
+  background: #000000;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  transform: translateY(1px) scale(0.985);
+}
+
+.rgm-btn:focus {
+  outline: none;
+}
+
+.rgm-btn:focus-visible {
+  outline: 2px solid #0a0a0a;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.15);
+}
+
+.rgm-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  box-shadow: none;
+  transform: none;
+}
+
+.rgm-btn-block {
+  width: 100%;
+}
+
+.rgm-btn-secondary {
+  background: #ffffff;
+  color: #0a0a0a;
+  border-color: #d4d4d4;
+  box-shadow: none;
+}
+
+.rgm-btn-secondary:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #a3a3a3;
+  box-shadow: none;
+}
+
+.rgm-btn-secondary:active:not(:disabled) {
+  background: #e5e5e5;
+  border-color: #737373;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+  transform: translateY(1px) scale(0.985);
+}
+
+.rgm-btn-secondary:focus-visible {
+  outline: 2px solid #0a0a0a;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.12);
+}

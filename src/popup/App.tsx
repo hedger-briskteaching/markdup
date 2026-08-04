@@ -85,7 +85,11 @@ export default function App() {
             Connected as{' '}
             <span className="font-semibold">@{state.login}</span>
           </p>
-          <button type="button" className="rgm-popup-cta" onClick={openSettings}>
+          <button
+            type="button"
+            className="rgm-btn rgm-btn-block"
+            onClick={openSettings}
+          >
             Open Settings
           </button>
         </div>
@@ -96,7 +100,11 @@ export default function App() {
           <p className="text-sm leading-snug text-slate-600">
             Markdup is not connected to GitHub on this browser.
           </p>
-          <button type="button" className="rgm-popup-cta" onClick={openSettings}>
+          <button
+            type="button"
+            className="rgm-btn rgm-btn-block"
+            onClick={openSettings}
+          >
             Open Settings
           </button>
         </div>
@@ -105,7 +113,11 @@ export default function App() {
       {state.kind === 'error' && (
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-snug text-red-600">{state.message}</p>
-          <button type="button" className="rgm-popup-cta" onClick={openSettings}>
+          <button
+            type="button"
+            className="rgm-btn rgm-btn-block"
+            onClick={openSettings}
+          >
             Open Settings
           </button>
         </div>

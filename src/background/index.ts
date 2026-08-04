@@ -9,6 +9,11 @@ import type {
   ThreadIndexDto,
 } from '../shared/messages'
 import {
+  formatOrgOauthRestrictionRichError,
+  isOrgOauthRestrictionError,
+  parseOrgFromOauthRestriction,
+} from '../shared/oauthRestriction'
+import {
   cancelDevicePoll,
   clearAccessToken,
   getAccessToken,
@@ -21,10 +26,16 @@ import {
   validateToken,
 } from './github/auth'
 import { fetchFileSnapshot } from './github/contents'
+import {
+  getAccessWarning,
+  probeOauthOrgAccess,
+  recordApiAccessWarning,
+  setAccessWarning,
+} from './github/orgAccess'
 import { createReviewComment, fetchThreadIndex, replyToReviewComment, updateReviewComment, deleteReviewComment } from './github/pulls'
 
 async function broadcast(event: ExtensionEvent): Promise<void> {
-  const tabs = await chrome.tabs.query({ url: ['https://github.com/*'] })
+  const tabs = await chrome.tabs.query({ url: ['https://github.com/*/pull/*'] })
   await Promise.all(
     tabs.map(async (tab) => {
       if (tab.id == null) {
@@ -45,14 +56,24 @@ async function broadcast(event: ExtensionEvent): Promise<void> {
   }
 }
 
+async function refreshOauthAccessWarning(token: string): Promise<void> {
+  const warning = await probeOauthOrgAccess(token)
+  await setAccessWarning(warning)
+}
+
 async function ensureAuth(): Promise<AuthEnsureResponse> {
   const existing = await getAccessToken()
   if (existing) {
     const user = await validateToken(existing)
     if (user) {
+      const method = await getAuthMethod()
+      if (method === 'pat') {
+        await setAccessWarning(null)
+      }
       return { status: 'ok', login: user.login }
     }
     await clearAccessToken()
+    await setAccessWarning(null)
   }
 
   const active = getActiveDeviceCode()
@@ -69,10 +90,13 @@ async function ensureAuth(): Promise<AuthEnsureResponse> {
     const device = await startDeviceFlow()
     void runDevicePollAndStore(device)
       .then(async (auth) => {
+        await refreshOauthAccessWarning(auth.token)
+        const accessWarning = await getAccessWarning()
         await broadcast({
           type: 'AUTH_COMPLETE',
           login: auth.login,
           method: auth.method,
+          accessWarning,
         })
       })
       .catch(async (error: unknown) => {
@@ -97,7 +121,9 @@ async function ensureAuth(): Promise<AuthEnsureResponse> {
   }
 }
 
-async function authStatus(): Promise<AuthStatusResponse> {
+async function authStatus(
+  probe = false,
+): Promise<AuthStatusResponse> {
   const token = await getAccessToken()
   if (!token) {
     return { authenticated: false }
@@ -107,22 +133,41 @@ async function authStatus(): Promise<AuthStatusResponse> {
   const user = await validateToken(token)
   if (!user) {
     await clearAccessToken()
+    await setAccessWarning(null)
     return { authenticated: false }
   }
+
+  if (method === 'pat') {
+    await setAccessWarning(null)
+    return {
+      authenticated: true,
+      login: user.login ?? login,
+      method,
+      accessWarning: null,
+    }
+  }
+
+  if (method === 'oauth' && probe) {
+    await refreshOauthAccessWarning(token)
+  }
+
   return {
     authenticated: true,
     login: user.login ?? login,
     method,
+    accessWarning: await getAccessWarning(),
   }
 }
 
 async function authSetPat(token: string): Promise<AuthSetPatResponse> {
   try {
     const auth = await setPersonalAccessToken(token)
+    await setAccessWarning(null)
     await broadcast({
       type: 'AUTH_COMPLETE',
       login: auth.login,
       method: auth.method,
+      accessWarning: null,
     })
     return { status: 'ok', login: auth.login }
   } catch (error) {
@@ -134,6 +179,17 @@ async function authSetPat(token: string): Promise<AuthSetPatResponse> {
   }
 }
 
+function formatCaughtApiError(error: unknown, fallback: string): string {
+  const raw =
+    error instanceof Error ? error.message : fallback
+  if (isOrgOauthRestrictionError(raw)) {
+    const org = parseOrgFromOauthRestriction(raw) ?? undefined
+    void recordApiAccessWarning(raw)
+    return formatOrgOauthRestrictionRichError(org)
+  }
+  return raw
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const request = message as ExtensionRequest
 
@@ -143,7 +199,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (request?.type === 'AUTH_STATUS') {
-    void authStatus().then(sendResponse)
+    void authStatus(Boolean(request.probe)).then(sendResponse)
     return true
   }
 
@@ -154,13 +210,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (request?.type === 'AUTH_DISCONNECT') {
-    void clearAccessToken().then(() => sendResponse({ ok: true }))
+    void clearAccessToken()
+      .then(() => setAccessWarning(null))
+      .then(() => sendResponse({ ok: true }))
     return true
   }
 
   if (request?.type === 'AUTH_SET_PAT') {
     void authSetPat(request.token).then(sendResponse)
     return true
+  }
+
+  if (request?.type === 'OPEN_OPTIONS') {
+    void chrome.runtime.openOptionsPage()
+    sendResponse({ ok: true })
+    return false
   }
 
   if (request?.type === 'FETCH_FILE_SNAPSHOT') {
@@ -172,11 +236,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     )
       .then((snapshot: FileSnapshot) => sendResponse(snapshot))
       .catch((error: unknown) => {
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'Failed to load the Markdown file'
-        sendResponse({ error: message })
+        sendResponse({
+          error: formatCaughtApiError(error, 'Failed to load the Markdown file'),
+        })
       })
     return true
   }
@@ -190,11 +252,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     )
       .then((index: ThreadIndexDto) => sendResponse(index))
       .catch((error: unknown) => {
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'Failed to load review comments'
-        sendResponse({ error: message })
+        sendResponse({
+          error: formatCaughtApiError(
+            error,
+            'Failed to load review comments',
+          ),
+        })
       })
     return true
   }

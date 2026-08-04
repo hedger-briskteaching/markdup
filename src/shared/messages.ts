@@ -10,6 +10,8 @@ export type AuthCancelRequest = {
 
 export type AuthStatusRequest = {
   type: 'AUTH_STATUS'
+  /** When true and auth is OAuth, re-check organization OAuth App access. */
+  probe?: boolean
 }
 
 export type AuthDisconnectRequest = {
@@ -19,6 +21,11 @@ export type AuthDisconnectRequest = {
 export type AuthSetPatRequest = {
   type: 'AUTH_SET_PAT'
   token: string
+}
+
+/** Content scripts cannot call chrome.runtime.openOptionsPage themselves. */
+export type OpenOptionsRequest = {
+  type: 'OPEN_OPTIONS'
 }
 
 export type FetchFileSnapshotRequest = {
@@ -81,6 +88,7 @@ export type ExtensionRequest =
   | AuthStatusRequest
   | AuthDisconnectRequest
   | AuthSetPatRequest
+  | OpenOptionsRequest
   | FetchFileSnapshotRequest
   | FetchThreadIndexRequest
   | CreateReviewCommentRequest
@@ -103,6 +111,15 @@ export type AuthStatusResponse = {
   login?: string
   /** How the local token was stored. */
   method?: 'oauth' | 'pat'
+  /**
+   * Set when OAuth works for /user but an organization blocks the Markdup
+   * OAuth App — guide the user to a personal access token.
+   */
+  accessWarning?: {
+    kind: 'oauth_org_restricted'
+    org?: string
+    message: string
+  } | null
 }
 
 export type AuthDisconnectResponse = { ok: true }
@@ -167,6 +184,11 @@ export type AuthCompleteEvent = {
   type: 'AUTH_COMPLETE'
   login: string
   method?: 'oauth' | 'pat'
+  accessWarning?: {
+    kind: 'oauth_org_restricted'
+    org?: string
+    message: string
+  } | null
 }
 
 export type AuthErrorEvent = {

@@ -18,8 +18,8 @@ function mockAuthOk(login = 'tester') {
   vi.stubGlobal('chrome', {
     runtime: {
       sendMessage: vi.fn(async (message: { type: string }) => {
-        if (message.type === 'AUTH_ENSURE') {
-          return { status: 'ok', login }
+        if (message.type === 'AUTH_STATUS') {
+          return { authenticated: true, login }
         }
         if (message.type === 'AUTH_CANCEL') {
           return { ok: true }
@@ -46,18 +46,13 @@ function mockAuthOk(login = 'tester') {
   })
 }
 
-function mockAuthNeedsCode() {
+function mockAuthNeedsConnect() {
   const listeners: Array<(message: unknown) => void> = []
   vi.stubGlobal('chrome', {
     runtime: {
       sendMessage: vi.fn(async (message: { type: string }) => {
-        if (message.type === 'AUTH_ENSURE') {
-          return {
-            status: 'needs_auth',
-            user_code: 'WDJB-MJHT',
-            verification_uri: 'https://github.com/login/device',
-            expires_in: 900,
-          }
+        if (message.type === 'AUTH_STATUS') {
+          return { authenticated: false }
         }
         if (message.type === 'AUTH_CANCEL') {
           return { ok: true }
@@ -212,11 +207,11 @@ describe('injectToggle', () => {
     expect(region.querySelector('[data-rgm-rich]')).toBeNull()
   })
 
-  it('shows connect panel when auth is required and enables after AUTH_COMPLETE', async () => {
+  it('shows a Settings prompt when auth is required and enables after AUTH_COMPLETE', async () => {
     vi.unstubAllGlobals()
     resetAuthListenerForTests()
     setPathname('/o/r/pull/1/changes')
-    const auth = mockAuthNeedsCode()
+    const auth = mockAuthNeedsConnect()
 
     const region = createFileRegion({ path: 'docs/PLAN.md' })
     document.body.appendChild(region)
@@ -233,7 +228,9 @@ describe('injectToggle', () => {
 
     expect(switchBtn.getAttribute('aria-checked')).toBe('false')
     expect(region.querySelector('[data-rgm-rich]')).toBeNull()
-    expect(region.textContent).toContain('WDJB-MJHT')
+    expect(region.textContent).toContain('Open Settings')
+    expect(region.textContent).not.toContain('WDJB-MJHT')
+    expect(region.textContent).not.toContain('github.com/login/device')
 
     auth.complete('alice')
 
@@ -244,5 +241,41 @@ describe('injectToggle', () => {
     await vi.waitFor(() => {
       expect(region.querySelector('[data-rgm-rich]')).not.toBeNull()
     })
+  })
+
+  it('asks the background worker to open Settings from the auth panel', async () => {
+    vi.unstubAllGlobals()
+    resetAuthListenerForTests()
+    setPathname('/o/r/pull/1/changes')
+    mockAuthNeedsConnect()
+
+    const region = createFileRegion({ path: 'docs/PLAN.md' })
+    document.body.appendChild(region)
+    injectToggle(region, 'docs/PLAN.md')
+
+    const switchBtn = region.querySelector<HTMLButtonElement>(
+      '[data-rgm-toggle] [role="switch"]',
+    )!
+    switchBtn.click()
+
+    await vi.waitFor(() => {
+      expect(region.querySelector('[data-rgm-auth-panel]')).not.toBeNull()
+    })
+
+    const buttons = [
+      ...region.querySelectorAll<HTMLButtonElement>(
+        '[data-rgm-auth-panel] button',
+      ),
+    ]
+    const settingsBtn = buttons.find((b) => b.textContent === 'Open Settings')!
+    settingsBtn.click()
+
+    // Content scripts have no chrome.runtime.openOptionsPage — it must be a message.
+    const sendMessage = chrome.runtime.sendMessage as unknown as {
+      mock: { calls: [{ type: string }][] }
+    }
+    expect(
+      sendMessage.mock.calls.some((call) => call[0]?.type === 'OPEN_OPTIONS'),
+    ).toBe(true)
   })
 })
