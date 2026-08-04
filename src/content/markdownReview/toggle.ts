@@ -17,12 +17,12 @@ import {
   RGM_TOGGLE,
 } from './selectors'
 
-const LABEL_TEXT = 'Rich Markdown view'
+const LABEL_TEXT = 'Markdup'
 
 const TOOLTIP_OFF =
-  'Rich Markdown view is off — showing the source diff. Turn on to preview rendered markdown.'
+  'Markdup is off — showing the source diff. Turn on to preview rendered markdown.'
 const TOOLTIP_ON =
-  'Rich Markdown view is on — showing rendered markdown. Turn off to return to the source diff.'
+  'Markdup is on — showing rendered markdown. Turn off to return to the source diff.'
 
 const pendingRegions = new Set<Element>()
 
@@ -266,7 +266,7 @@ function syncToggleToActualMode(region: Element, toggle: HTMLElement): void {
   syncToggleState(toggle, isRichMode(region))
 }
 
-/** Inject Rich Markdown view switch for a markdown file region. Idempotent. */
+/** Inject Markdup switch for a markdown file region. Idempotent. */
 export function injectToggle(region: Element, path: string): void {
   ensureAuthListener()
 

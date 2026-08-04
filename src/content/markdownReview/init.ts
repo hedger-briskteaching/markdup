@@ -12,22 +12,6 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let started = false
 let pageActive = false
 
-const locationListeners = new Set<() => void>()
-
-/** Notify when the content script should re-check the current URL. */
-export function onReviewLocationChange(listener: () => void): () => void {
-  locationListeners.add(listener)
-  return () => {
-    locationListeners.delete(listener)
-  }
-}
-
-function notifyLocationListeners(): void {
-  for (const listener of locationListeners) {
-    listener()
-  }
-}
-
 /** Scan the page and inject toggles on markdown file regions. */
 export function enhanceMarkdownRegions(): void {
   if (!isPrFilesPage()) {
@@ -96,10 +80,9 @@ function onNavigation(): void {
     if (pageActive) {
       deactivatePage()
     }
-  } else {
-    activatePage()
+    return
   }
-  notifyLocationListeners()
+  activatePage()
 }
 
 /**

@@ -52,7 +52,7 @@ export function showAuthPanel(
   appendParagraph(
     panel,
     'rgm-auth-title',
-    'Connect GitHub to use Rich Markdown view',
+    'Connect GitHub to use Markdup',
   )
   appendParagraph(
     panel,

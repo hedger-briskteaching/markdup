@@ -4,7 +4,7 @@ The rich view shows a Before / After render of a Markdown file on a pull request
 
 ## What it does
 
-1. The reviewer turns on **Rich Markdown view** for a `.md` file.
+1. The reviewer turns on **Markdup** for a `.md` file.
 2. Markdup loads the file text at the pull request base and head through the GitHub API.
 3. Markdup aligns top-level blocks into rows.
 4. Markdup renders each row as formatted Markdown (not raw source).
@@ -27,12 +27,12 @@ The view is read-only. Selection maps to a source line range for comments.
 
 Header layout:
 
-`> path …  [GitHub native controls] | [Markdup Rich Markdown switch]`
+`> path …  [GitHub native controls] | [Markdup switch]`
 
 GitHub's native File view segmented control is hidden. Markdup sits after
 Viewed / Comment / more-options, separated by a `|`.
 
-While **Rich Markdown view** is on, Markdup hides native controls that would
+While **Markdup** is on, Markdup hides native controls that would
 fight the rich surface:
 
 - file-section collapse / expand chevron
@@ -142,7 +142,7 @@ PR URL + file path
 
 1. Connect GitHub in Settings.
 2. Open a pull request Files page with a Markdown change.
-3. Turn on **Rich Markdown view**.
+3. Turn on **Markdup**.
 4. Confirm Before and After show rendered Markdown with line gutters.
 
 ```bash

@@ -57,12 +57,13 @@ Both paths store one access token in this browser only. Markdup has no server th
 
 1. Open a pull request **Files changed** page on GitHub  
    (`…/pull/<n>/changes` or classic `…/pull/<n>/files`)
-2. You should see a small **Markdup — active** badge in the bottom-right corner
-3. Click the extension icon in the Chrome toolbar to open the popup
+2. On a changed `.md` file, turn on the **Markdup** switch in the file header
+3. Click the extension icon in the Chrome toolbar to open the popup (or Settings)
 
-If the badge does not appear:
+If the switch does not appear:
 
 - Make sure you are on the PR Files / Changes URL (not Conversation or Commits)
+- Make sure the file is Markdown (`.md` / `.markdown`)
 - Make sure `pnpm dev` (or a completed `pnpm build`) has produced a `dist/` folder
 - On `chrome://extensions`, click the refresh icon on the extension card after rebuilding
 
