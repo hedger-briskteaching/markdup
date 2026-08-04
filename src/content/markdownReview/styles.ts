@@ -143,6 +143,53 @@ const CSS = `
   border-bottom: none;
 }
 
+[data-rgm-rich] .rgm-rich-fold {
+  border-bottom: 1px solid var(--rgm-bp-200);
+  background: var(--rgm-bp-25);
+}
+
+[data-rgm-rich] .rgm-rich-fold-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--rgm-ocean-700);
+  text-align: left;
+}
+
+[data-rgm-rich] .rgm-rich-fold-btn:hover {
+  background: var(--rgm-ocean-25);
+}
+
+[data-rgm-rich] .rgm-rich-fold-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--rgm-bp-300);
+  border-radius: 4px;
+  background: #ffffff;
+  font-weight: 700;
+  line-height: 1;
+  flex: none;
+}
+
+[data-rgm-rich] .rgm-rich-fold-label {
+  font-weight: 600;
+}
+
+[data-rgm-rich] .rgm-rich-fold-lines {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--rgm-bp-400);
+}
+
 [data-rgm-rich] .rgm-rich-cell {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);

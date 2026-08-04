@@ -1,18 +1,16 @@
-import { DOMSerializer, type Node as PMNode } from 'prosemirror-model'
-import type { BlockView, RowModel } from '../../markdown/align'
-import { markdownSchema } from '../../markdown/schema'
-import type { ReviewSide } from '../../markdown/sourceRange'
-import { wordDiff, type DiffSegment } from '../../markdown/wordDiff'
+import type { Node as PMNode } from 'prosemirror-model'
+import type { RowModel } from '../../markdown/align'
+import { buildViewSections } from '../../markdown/viewSections'
 import { DIFF_BODY, RGM_STUB } from './selectors'
 import {
   clearRichViewContext,
   setRichViewContext,
 } from './selection'
 import { bindComposer } from './composer'
+import { buildRichRoot } from './renderBody'
 import type { CommentableLines } from '../../shared/commentableLines'
 
 const HIDDEN_ATTR = 'data-rgm-diff-hidden'
-const serializer = DOMSerializer.fromSchema(markdownSchema)
 
 const composerCleanups = new WeakMap<Element, () => void>()
 
@@ -27,13 +25,6 @@ export type ShowRichViewOptions = {
   headSha?: string
   commentable?: CommentableLines
 }
-
-const TEXT_DIFF_TYPES = new Set([
-  'paragraph',
-  'heading',
-  'list_item',
-  'blockquote',
-])
 
 function findDiffBody(region: Element): HTMLElement | null {
   const header = region.querySelector('[data-diff-header-wrapper]')
@@ -55,6 +46,7 @@ function findDiffBody(region: Element): HTMLElement | null {
 
 /**
  * Hide the native source diff and show the rich Before/After view.
+ * Unchanged sections start collapsed behind +/- fold bars.
  */
 export function showRichView(
   region: Element,
@@ -77,7 +69,7 @@ export function showRichView(
     diffBody.after(root)
   }
 
-  root.replaceChildren(buildRichRoot(rows))
+  const expanded = new Set<string>()
   setRichViewContext(root, {
     baseText: options.baseText ?? '',
     headText: options.headText ?? '',
@@ -89,7 +81,9 @@ export function showRichView(
     baseSha: options.baseSha,
     headSha: options.headSha,
     commentable: options.commentable,
+    expandedUnchangedIds: expanded,
   })
+  root.replaceChildren(buildRichRoot(rows, expanded))
   composerCleanups.get(root)?.()
   composerCleanups.set(root, bindComposer(root))
 }
@@ -156,297 +150,26 @@ export function isRichMode(region: Element): boolean {
   return region.getAttribute('data-rgm-mode') === 'rich'
 }
 
-function buildRichRoot(rows: RowModel[]): DocumentFragment {
-  const frag = document.createDocumentFragment()
-
-  const header = document.createElement('div')
-  header.className = 'rgm-rich-header'
-  header.innerHTML =
-    '<div class="rgm-rich-header-side" aria-label="Before">Before</div>' +
-    '<div class="rgm-rich-header-side" aria-label="After">After</div>'
-  frag.appendChild(header)
-
-  const body = document.createElement('div')
-  body.className = 'rgm-rich-body'
-  body.setAttribute('role', 'table')
-  body.setAttribute('aria-label', 'Rich markdown diff')
-
-  for (const row of rows) {
-    body.appendChild(buildRow(row))
-  }
-
-  frag.appendChild(body)
-  return frag
-}
-
-function buildRow(row: RowModel): HTMLElement {
-  const el = document.createElement('div')
-  el.className = 'rgm-rich-row'
-  el.setAttribute('data-row-id', row.id)
-  el.setAttribute('data-changed', row.changed ? 'true' : 'false')
-  el.setAttribute('role', 'row')
-
-  el.appendChild(
-    buildCell({
-      side: 'before',
-      block: row.old,
-      peer: row.new,
-      changed: row.changed,
-      rowId: row.id,
-    }),
-  )
-  el.appendChild(
-    buildCell({
-      side: 'after',
-      block: row.new,
-      peer: row.old,
-      changed: row.changed,
-      rowId: row.id,
-    }),
-  )
-
-  return el
-}
-
-function buildCell(args: {
-  side: 'before' | 'after'
-  block?: BlockView
-  peer?: BlockView
-  changed: boolean
-  rowId: string
-}): HTMLElement {
-  const { side, block, peer, changed, rowId } = args
-  const reviewSide: ReviewSide = side === 'before' ? 'LEFT' : 'RIGHT'
-  const cell = document.createElement('div')
-  cell.className = `rgm-rich-cell rgm-rich-cell-${side}`
-  cell.setAttribute('role', 'cell')
-  cell.setAttribute('data-block-id', `${rowId}::${side}`)
-  cell.setAttribute('data-side', reviewSide)
-
-  if (changed && block) {
-    cell.classList.add(
-      side === 'before' ? 'rgm-rich-cell-del' : 'rgm-rich-cell-add',
-    )
-  }
-
-  if (!block) {
-    cell.classList.add('rgm-rich-cell-missing')
-    const missing = document.createElement('p')
-    missing.className = 'rgm-rich-missing'
-    missing.textContent = 'not present'
-    cell.appendChild(missing)
-    return cell
-  }
-
-  if (block.srcFrom != null) {
-    cell.setAttribute('data-src-from', String(block.srcFrom))
-  }
-  if (block.srcTo != null) {
-    cell.setAttribute('data-src-to', String(block.srcTo))
-  }
-
-  cell.appendChild(buildGutter(block))
-  cell.appendChild(buildBlockContent(block, side, peer, changed))
-  return cell
-}
-
-function buildGutter(block: BlockView): HTMLElement {
-  const gutter = document.createElement('div')
-  gutter.className = 'rgm-rich-gutter'
-  gutter.setAttribute('aria-hidden', 'true')
-  gutter.setAttribute('data-rgm-chrome', '')
-
-  const from = document.createElement('span')
-  from.className = 'rgm-rich-gutter-line'
-  from.textContent =
-    block.srcFrom != null ? String(block.srcFrom) : ''
-
-  const rule = document.createElement('span')
-  rule.className = 'rgm-rich-gutter-rule'
-
-  const to = document.createElement('span')
-  to.className = 'rgm-rich-gutter-line'
-  const showTo =
-    block.srcTo != null &&
-    block.srcFrom != null &&
-    block.srcTo !== block.srcFrom
-  to.textContent = showTo ? String(block.srcTo) : ''
-
-  gutter.appendChild(from)
-  gutter.appendChild(rule)
-  gutter.appendChild(to)
-  return gutter
-}
-
-function buildBlockContent(
-  block: BlockView,
-  side: 'before' | 'after',
-  peer: BlockView | undefined,
-  changed: boolean,
-): HTMLElement {
-  const wrap = document.createElement('div')
-  wrap.className = 'rgm-rich-content'
-
-  if (block.type === 'front_matter') {
-    wrap.appendChild(renderFrontMatter(block))
-    return wrap
-  }
-
-  if (
-    changed &&
-    peer &&
-    TEXT_DIFF_TYPES.has(block.type) &&
-    block.type === peer.type
-  ) {
-    const oldText =
-      side === 'before' ? block.node.textContent : peer.node.textContent
-    const newText =
-      side === 'before' ? peer.node.textContent : block.node.textContent
-    const { oldSegments, newSegments } = wordDiff(oldText, newText)
-    const segments = side === 'before' ? oldSegments : newSegments
-    if (segments.some((s) => s.tone)) {
-      wrap.appendChild(renderSegmentedBlock(block, segments, side))
-      return wrap
-    }
-  }
-
-  const dom = serializer.serializeNode(block.node)
-  if (dom instanceof HTMLElement) {
-    enhanceSerialized(dom, block)
-    wrap.appendChild(dom)
-  } else {
-    wrap.appendChild(dom)
-  }
-  return wrap
-}
-
-function renderSegmentedBlock(
-  block: BlockView,
-  segments: DiffSegment[],
-  side: 'before' | 'after',
-): HTMLElement {
-  const tag =
-    block.type === 'heading'
-      ? `h${(block.node.attrs.level as number) || 1}`
-      : 'p'
-  const el = document.createElement(tag)
-  el.className = `rgm-rich-block rgm-rich-block-${block.type}`
-
-  if (block.type === 'list_item') {
-    const item = document.createElement('div')
-    item.className = 'rgm-rich-list-item'
-    const bullet = document.createElement('span')
-    bullet.className = 'rgm-rich-bullet'
-    bullet.setAttribute('data-rgm-chrome', '')
-    bullet.textContent = '•'
-    item.appendChild(bullet)
-    const text = document.createElement('span')
-    appendSegments(text, segments, side)
-    item.appendChild(text)
-    return item
-  }
-
-  appendSegments(el, segments, side)
-  return el
-}
-
-function appendSegments(
-  parent: HTMLElement,
-  segments: DiffSegment[],
-  side: 'before' | 'after',
-): void {
-  let srcOffset = 0
-  for (const seg of segments) {
-    if (side === 'before' && seg.tone === 'ins') continue
-    if (side === 'after' && seg.tone === 'del') continue
-
-    const host = document.createElement('span')
-    host.setAttribute('data-src-offset', String(srcOffset))
-    host.setAttribute('data-src-len', String(seg.srcLen))
-    if (seg.tone) {
-      host.className =
-        seg.tone === 'ins' ? 'rgm-rich-ins' : 'rgm-rich-del'
-    }
-    host.textContent = seg.text
-    parent.appendChild(host)
-    srcOffset += seg.srcLen
-  }
-}
-
-function renderFrontMatter(block: BlockView): HTMLElement {
-  const card = document.createElement('div')
-  card.className = 'rgm-rich-front-matter'
-  const label = document.createElement('div')
-  label.className = 'rgm-rich-front-matter-label'
-  label.setAttribute('data-rgm-chrome', '')
-  label.textContent = 'Front matter'
-  card.appendChild(label)
-
-  const pre = document.createElement('pre')
-  pre.className = 'rgm-rich-front-matter-body'
-  const value = String(block.node.attrs.value ?? '')
-  const wrap = document.createElement('span')
-  wrap.setAttribute('data-src-offset', '0')
-  wrap.setAttribute('data-src-len', String(value.length))
-  wrap.textContent = value
-  pre.appendChild(wrap)
-  card.appendChild(pre)
-  return card
-}
-
-function enhanceSerialized(dom: HTMLElement, block: BlockView): void {
-  if (block.type === 'code_block') {
-    const lang = String(block.node.attrs.params ?? '')
-    if (lang) {
-      dom.setAttribute('data-lang', lang)
-      const chip = document.createElement('span')
-      chip.className = 'rgm-rich-code-lang'
-      chip.setAttribute('data-rgm-chrome', '')
-      chip.textContent = lang
-      dom.prepend(chip)
-    }
-  }
-  annotatePlainTextOffsets(dom)
-}
-
 /**
- * Wrap contiguous text under a serialized block with a single offset map
- * entry so selection can resolve without walking chrome.
+ * @internal Test helper — render rows to an isolated element.
+ * Unchanged sections render expanded unless `startCollapsed` is set, so
+ * selection-oriented tests can reach text inside equal rows.
  */
-function annotatePlainTextOffsets(root: HTMLElement): void {
-  let offset = 0
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-  const texts: Text[] = []
-  let current = walker.nextNode()
-  while (current) {
-    if (
-      current.nodeType === Node.TEXT_NODE &&
-      !current.parentElement?.closest('[data-rgm-chrome]')
-    ) {
-      texts.push(current as Text)
-    }
-    current = walker.nextNode()
-  }
-  for (const textNode of texts) {
-    const len = textNode.textContent?.length ?? 0
-    if (len === 0) continue
-    const wrap = document.createElement('span')
-    wrap.setAttribute('data-src-offset', String(offset))
-    wrap.setAttribute('data-src-len', String(len))
-    textNode.parentNode?.insertBefore(wrap, textNode)
-    wrap.appendChild(textNode)
-    offset += len
-  }
-}
-
-/** @internal Test helper — render rows to an isolated element. */
 export function renderRowsForTest(
   rows: RowModel[],
-  options: ShowRichViewOptions = {},
+  options: ShowRichViewOptions & { startCollapsed?: boolean } = {},
 ): HTMLElement {
   const host = document.createElement('div')
   host.setAttribute('data-rgm-rich', '')
-  host.appendChild(buildRichRoot(rows))
+
+  const expanded = options.startCollapsed
+    ? new Set<string>()
+    : new Set(
+        buildViewSections(rows)
+          .filter((s) => s.kind === 'unchanged')
+          .map((s) => s.id),
+      )
+
   setRichViewContext(host, {
     baseText: options.baseText ?? '',
     headText: options.headText ?? '',
@@ -458,7 +181,9 @@ export function renderRowsForTest(
     baseSha: options.baseSha,
     headSha: options.headSha,
     commentable: options.commentable,
+    expandedUnchangedIds: expanded,
   })
+  host.appendChild(buildRichRoot(rows, expanded))
   return host
 }
 

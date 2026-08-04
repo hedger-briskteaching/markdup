@@ -35,6 +35,14 @@ describe('richView', () => {
     expect(rich?.textContent).toContain('Before')
     expect(rich?.textContent).toContain('After')
     expect(rich?.textContent).not.toContain('coming soon')
+    expect(rich?.textContent).toContain('New text here.')
+    // Unchanged sections start collapsed behind a fold bar.
+    expect(rich?.textContent).not.toContain('Title')
+    const toggle = rich?.querySelector<HTMLButtonElement>(
+      '[data-rgm-fold-toggle]',
+    )
+    expect(toggle).not.toBeNull()
+    toggle?.click()
     expect(rich?.textContent).toContain('Title')
     expect(isRichMode(region)).toBe(true)
   })

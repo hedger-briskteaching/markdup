@@ -4,7 +4,7 @@ import {
   setRichViewContext,
   type RichViewContext,
 } from './selection'
-import { renderThreadCards } from './threads'
+import { expandSectionsForThreads, renderRichBody } from './renderBody'
 
 export type SyncThreadsResult =
   | { ok: true; threads: ReviewThreadDto[] }
@@ -73,7 +73,9 @@ export function applyServerThreads(
   if (!current) return
   // Full replace — never merge inventively with stale local cards.
   setRichViewContext(richRoot, { ...current, threads })
-  renderThreadCards(richRoot)
+  // Comments must never hide behind a fold: expand their sections, rebuild.
+  expandSectionsForThreads(richRoot)
+  renderRichBody(richRoot)
 }
 
 function threadsContainComment(

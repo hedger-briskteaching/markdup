@@ -27,6 +27,11 @@ export type RichViewContext = {
   threads?: ReviewThreadDto[]
   /** Empty sets = unknown (no patch). */
   commentable?: CommentableLines
+  /**
+   * Unchanged section ids that are currently expanded.
+   * Default empty = all unchanged sections start collapsed.
+   */
+  expandedUnchangedIds?: Set<string>
 }
 
 const contexts = new WeakMap<Element, RichViewContext>()
@@ -37,7 +42,10 @@ export function setRichViewContext(
   richRoot: Element,
   ctx: RichViewContext,
 ): void {
-  contexts.set(richRoot, ctx)
+  contexts.set(richRoot, {
+    ...ctx,
+    expandedUnchangedIds: ctx.expandedUnchangedIds ?? new Set(),
+  })
 }
 
 export function clearRichViewContext(richRoot: Element): void {
@@ -48,6 +56,48 @@ export function getRichViewContext(
   richRoot: Element,
 ): RichViewContext | undefined {
   return contexts.get(richRoot)
+}
+
+export function isUnchangedSectionExpanded(
+  richRoot: Element,
+  sectionId: string,
+): boolean {
+  return Boolean(getRichViewContext(richRoot)?.expandedUnchangedIds?.has(sectionId))
+}
+
+export function expandUnchangedSection(
+  richRoot: Element,
+  sectionId: string,
+): void {
+  const ctx = getRichViewContext(richRoot)
+  if (!ctx) return
+  const next = new Set(ctx.expandedUnchangedIds ?? [])
+  next.add(sectionId)
+  setRichViewContext(richRoot, { ...ctx, expandedUnchangedIds: next })
+}
+
+export function collapseUnchangedSection(
+  richRoot: Element,
+  sectionId: string,
+): void {
+  const ctx = getRichViewContext(richRoot)
+  if (!ctx) return
+  const next = new Set(ctx.expandedUnchangedIds ?? [])
+  next.delete(sectionId)
+  setRichViewContext(richRoot, { ...ctx, expandedUnchangedIds: next })
+}
+
+export function toggleUnchangedSection(
+  richRoot: Element,
+  sectionId: string,
+): boolean {
+  const expanded = isUnchangedSectionExpanded(richRoot, sectionId)
+  if (expanded) {
+    collapseUnchangedSection(richRoot, sectionId)
+    return false
+  }
+  expandUnchangedSection(richRoot, sectionId)
+  return true
 }
 
 /**

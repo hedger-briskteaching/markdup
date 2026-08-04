@@ -11,6 +11,18 @@ The rich view shows a Before / After render of a Markdown file on a pull request
 
 The view is read-only. Selection maps to a source line range for comments.
 
+## Collapsed unchanged sections
+
+1. Rows are grouped into sections by `buildViewSections` (`src/markdown/viewSections.ts`):
+   consecutive unchanged rows form an **unchanged section**, everything else a changed one.
+2. Unchanged sections start **collapsed** behind a `+` fold bar showing the
+   block count and source line span (`L12–L48`). Clicking toggles expand / collapse.
+3. Expanded ids live on `RichViewContext.expandedUnchangedIds`; toggling
+   rebuilds the body via `renderRichBody` (`src/content/markdownReview/renderBody.ts`).
+4. When threads sync from GitHub, sections that own a thread's row are
+   auto-expanded so comments never hide behind a fold. Cards for rows the
+   user re-collapsed are skipped, not dumped at the bottom.
+
 ## Selection → source range
 
 1. Each rich cell has `data-block-id`, `data-side` (`LEFT` / `RIGHT`), and `data-src-from` / `data-src-to`.
@@ -68,9 +80,11 @@ PR URL + file path
 | `src/markdown/wordDiff.ts` | Inline insert/delete segments |
 | `src/markdown/sourceRange.ts` | Source line/col helpers |
 | `src/background/github/contents.ts` | Pull refs + file contents API |
-| `src/content/markdownReview/richView.ts` | DOM render |
+| `src/markdown/viewSections.ts` | Group rows into changed / unchanged sections |
+| `src/content/markdownReview/richView.ts` | Mount / unmount, loading and error states |
+| `src/content/markdownReview/renderBody.ts` | Row + fold-bar DOM, body rebuild |
 | `src/content/markdownReview/richStub.ts` | Toggle mount / unmount |
-| `src/content/markdownReview/selection.ts` | Selection → source range |
+| `src/content/markdownReview/selection.ts` | Selection → source range + expand state |
 
 ## Row rules
 

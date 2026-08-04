@@ -15,7 +15,9 @@ Use this file after an editor restart. Work lives in **`/Users/hedger/Documents/
   Commit: `336ad01`
 - Selection → source range; review comment list/create + composer; PAT auth fallback  
   Commit: `bca77f0`
-- Comment selection bubble + thread cards (Open / Re-anchored) — local pending commit
+- Comment selection bubble + thread cards (Open / Re-anchored)
+- GraphQL thread sync (full replace, post-create polling) + page reload on rich → source after posts
+- Collapsible unchanged sections: `buildViewSections`, +/- fold bars, auto-expand for synced threads — local pending commit
 
 ### Auth notes
 
@@ -23,7 +25,7 @@ Use this file after an editor restart. Work lives in **`/Users/hedger/Documents/
 - **Option 2:** Personal access token paste in Settings (fallback when an org blocks the OAuth App)
 - Local PAT backup may live in gitignored `.env` as `MARKDUP_GITHUB_PAT` — the extension does **not** read `.env`; paste into Settings
 
-Tests: **88 passing** last run
+Tests: **129 passing** last run
 
 ---
 
@@ -36,6 +38,7 @@ Tests: **88 passing** last run
 5. **Auth:** Both OAuth Device Flow and PAT paste are supported. OAuth App “Markdup”, scope `repo`, client id in `src/shared/githubAuth.ts`. Use PAT when an org blocks the OAuth App.
 6. **Surface:** Chrome extension on `github.com` PR Files (not a first-party GitHub UI).
 7. **Native view after posts:** Switching off rich mode reloads the page when comments were posted so GitHub’s Files widgets match production.
+8. **Unchanged sections start collapsed** behind +/- fold bars; sections owning synced threads auto-expand so comments never hide.
 ---
 
 ## Architecture (current)
@@ -63,7 +66,10 @@ Toggle ON
 | Messages | `src/shared/messages.ts` |
 | Toggle + auth gate | `src/content/markdownReview/toggle.ts` |
 | Rich mount | `src/content/markdownReview/richStub.ts` |
-| Rich DOM | `src/content/markdownReview/richView.ts` |
+| Rich mount/unmount + states | `src/content/markdownReview/richView.ts` |
+| Row + fold-bar DOM | `src/content/markdownReview/renderBody.ts` |
+| Section grouping | `src/markdown/viewSections.ts` |
+| Thread sync (GraphQL, full replace) | `src/content/markdownReview/syncThreads.ts` |
 
 Docs:
 

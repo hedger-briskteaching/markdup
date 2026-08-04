@@ -1,6 +1,10 @@
 import type { RowModel } from '../../markdown/align'
+import {
+  buildViewSections,
+  findUnchangedSectionForRow,
+} from '../../markdown/viewSections'
 import type { ReviewCommentDto, ReviewThreadDto } from '../../shared/messages'
-import { getRichViewContext } from './selection'
+import { getRichViewContext, isUnchangedSectionExpanded } from './selection'
 
 /**
  * Insert or replace a thread built from a newly created review comment.
@@ -54,12 +58,21 @@ export function renderThreadCards(richRoot: Element): void {
   if (!body) return
 
   const fileName = (ctx.path ?? '').split('/').pop() || ctx.path || 'file'
+  const sections = buildViewSections(ctx.rows)
 
   for (const thread of threads) {
     const rowId = findRowIdForThread(ctx.rows, thread)
     const rowEl = rowId
       ? body.querySelector(`[data-row-id="${rowId}"]`)
       : null
+
+    if (!rowEl && rowId) {
+      // Row exists but is folded away — the card stays hidden with it.
+      const section = findUnchangedSectionForRow(sections, rowId)
+      if (section && !isUnchangedSectionExpanded(richRoot, section.id)) {
+        continue
+      }
+    }
 
     const card = buildThreadCard(thread, fileName)
 

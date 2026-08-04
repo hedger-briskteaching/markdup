@@ -14,6 +14,15 @@ export type { BlockView, RowModel } from './align'
 export { wordDiff } from './wordDiff'
 export type { DiffSegment } from './wordDiff'
 export {
+  buildViewSections,
+  findUnchangedSectionForRow,
+} from './viewSections'
+export type {
+  ChangedSection,
+  UnchangedSection,
+  ViewSection,
+} from './viewSections'
+export {
   linesForRange,
   mergeSourceRanges,
   offsetsToSourceRange,
