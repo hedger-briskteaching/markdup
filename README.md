@@ -104,3 +104,5 @@ This type-checks and writes an optimized bundle to `dist/`. Load that folder wit
 | `docs/CONTINUE.md` | Status and next steps after a restart |
 | `public/icons/` | Extension icons |
 | `dist/` | Built extension (load this in Chrome) |
+
+<!-- mcp-probe 20260804054223 -->
