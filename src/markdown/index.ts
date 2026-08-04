@@ -1,0 +1,28 @@
+import type { Node as PMNode } from 'prosemirror-model'
+import { parseMarkdown } from './parse'
+import { markdownSchema } from './schema'
+import { mdastToProseMirror } from './toProseMirror'
+
+export { parseMarkdown } from './parse'
+export { SRC_RANGE_ATTRS, srcAttrsFromNode, srcRangeFromNode } from './positions'
+export type { SrcRange } from './positions'
+export { markdownSchema } from './schema'
+export type { MarkdownSchema } from './schema'
+export { mdastToProseMirror } from './toProseMirror'
+
+/**
+ * Parse Markdown source into a ProseMirror document.
+ *
+ * Positions on block nodes use 1-based inclusive line numbers (`srcFrom` / `srcTo`).
+ */
+export function markdownToDoc(source: string): PMNode {
+  const tree = parseMarkdown(source)
+  return mdastToProseMirror(tree)
+}
+
+/** Empty document that still matches `markdownSchema`. */
+export function emptyDoc(): PMNode {
+  return markdownSchema.node('doc', null, [
+    markdownSchema.node('paragraph', { srcFrom: null, srcTo: null }),
+  ])
+}

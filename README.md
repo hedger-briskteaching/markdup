@@ -92,7 +92,10 @@ This type-checks and writes an optimized bundle to `dist/`. Load that folder wit
 | --- | --- |
 | `manifest.config.ts` | Manifest V3 (GitHub host permissions + content script) |
 | `src/popup/` | Toolbar popup UI |
+| `src/options/` | Settings page (GitHub connect) |
 | `src/content/` | UI injected into GitHub pages |
-| `src/background/` | Service worker stub |
+| `src/background/` | Service worker and GitHub auth |
+| `src/markdown/` | Markdown → ProseMirror schema and transform |
+| `docs/markdown-schema.md` | Schema and transform notes |
 | `public/icons/` | Extension icons |
 | `dist/` | Built extension (load this in Chrome) |
