@@ -162,6 +162,67 @@ describe('bindComposer', () => {
     expect(host.querySelector('[data-rgm-composer]')).not.toBeNull()
   })
 
+  it('ignores text selection inside the comment editor', async () => {
+    vi.stubGlobal('chrome', { runtime: { sendMessage: vi.fn() } })
+    const baseText = 'Hello world.\n'
+    const headText = 'Hello world.\n'
+    const rows = alignMarkdown(baseText, headText)
+    const host = renderRowsForTest(rows, {
+      baseText,
+      headText,
+      owner: 'o',
+      repo: 'r',
+      pullNumber: 7,
+      path: 'README.md',
+      headSha: 'bbb',
+    })
+    document.body.appendChild(host)
+    bindComposer(host)
+
+    selectNeedle(host, 'Hello')
+    host.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-rgm-comment-bubble]')).not.toBeNull()
+    })
+    host
+      .querySelector<HTMLButtonElement>(
+        '[data-rgm-comment-bubble] .rgm-comment-bubble-btn',
+      )!
+      .click()
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-rgm-composer]')).not.toBeNull()
+    })
+
+    const editorHost = host.querySelector<HTMLElement>('.rgm-comment-editor')!
+    const editor = getCommentEditorForTest(editorHost)!
+    editor.setMarkdown('Select this comment text')
+
+    const content = editorHost.querySelector('.rgm-comment-editor-content')!
+    const textNode = [...content.childNodes].find(
+      (n) => n.nodeType === Node.TEXT_NODE || n.textContent?.includes('Select'),
+    )
+    expect(textNode).toBeTruthy()
+
+    // Select inside the editor (walk to a text node).
+    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT)
+    const firstText = walker.nextNode() as Text | null
+    expect(firstText).not.toBeNull()
+    const range = document.createRange()
+    range.setStart(firstText!, 0)
+    range.setEnd(firstText!, Math.min(6, firstText!.data.length))
+    const selection = window.getSelection()!
+    selection.removeAllRanges()
+    selection.addRange(range)
+
+    host.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    expect(host.querySelector('[data-rgm-composer]')).not.toBeNull()
+    expect(host.querySelector('[data-rgm-comment-bubble]')).toBeNull()
+    expect(selection.toString().length).toBeGreaterThan(0)
+    expect(editorHost.contains(selection.anchorNode)).toBe(true)
+  })
+
   it('opens the composer from the Comment bubble and posts', async () => {
     const created = {
       id: 99,

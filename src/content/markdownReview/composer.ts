@@ -97,19 +97,23 @@ function maybeShowBubble(richRoot: HTMLElement): void {
       return
     }
 
-    // A new text selection replaces any open composer (GitHub-style).
-    const openComposer = richRoot.querySelector(`[${COMPOSER_ATTR}]`)
-    if (openComposer) {
-      openComposer.remove()
-      clearSelectionHighlight(richRoot)
+    // Selecting inside the composer / reply editor / thread chrome must not
+    // steal the selection or spawn another Comment bubble.
+    if (selectionIsInCommentUi(selection, richRoot)) {
+      return
     }
 
     const range = selectionToSourceRange(selection, richRoot)
     if (!range) {
       removeBubble(richRoot)
-      clearSelectionHighlight(richRoot)
+      if (!richRoot.querySelector(`[${COMPOSER_ATTR}]`)) {
+        clearSelectionHighlight(richRoot)
+      }
       return
     }
+
+    // A new document selection replaces any open composer (GitHub-style).
+    richRoot.querySelector(`[${COMPOSER_ATTR}]`)?.remove()
 
     const ctx = getRichViewContext(richRoot)
     if (!ctx?.owner || !ctx.repo || !ctx.pullNumber || !ctx.path) {
@@ -136,6 +140,22 @@ function maybeShowBubble(richRoot: HTMLElement): void {
   } catch (error) {
     console.warn('[Markdup] selection comment bubble failed', error)
   }
+}
+
+/** True when the live selection is inside composer / thread / editor chrome. */
+function selectionIsInCommentUi(
+  selection: Selection,
+  richRoot: Element,
+): boolean {
+  if (selection.rangeCount === 0) return false
+  const node = selection.getRangeAt(0).commonAncestorContainer
+  const el = node instanceof Element ? node : node.parentElement
+  if (!el || !richRoot.contains(el)) return false
+  return Boolean(
+    el.closest(
+      `[${COMPOSER_ATTR}], [data-rgm-thread-card], [data-rgm-comment-bubble], .rgm-comment-editor`,
+    ),
+  )
 }
 
 function rectForDomRange(domRange: Range, richRoot: HTMLElement): DOMRect {
