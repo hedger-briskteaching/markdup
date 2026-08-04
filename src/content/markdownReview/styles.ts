@@ -258,6 +258,25 @@ const CSS = `
   margin: 8px 0 0;
 }
 
+.rgm-thread-footer {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--rgm-bp-200, var(--borderColor-muted, #e0e7ed));
+}
+
+.rgm-thread-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.rgm-thread-footer-sep {
+  color: var(--fgColor-muted, #656d76);
+  font-size: 12px;
+  user-select: none;
+}
+
 .rgm-thread-action {
   margin: 0;
   padding: 0;
@@ -275,6 +294,17 @@ const CSS = `
 
 .rgm-thread-action-danger {
   color: var(--fgColor-danger, #cf222e);
+}
+
+.rgm-thread-footer .rgm-thread-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fgColor-accent, #0969da);
+  text-decoration: none;
+}
+
+.rgm-thread-footer .rgm-thread-link:hover {
+  text-decoration: underline;
 }
 
 .rgm-thread-reply,

@@ -381,20 +381,28 @@ function buildThreadCard(
   })
 
   const footer = document.createElement('div')
-  footer.className = 'rgm-thread-comment-actions'
-  footer.style.padding = '0 12px 10px'
-  footer.appendChild(replyBtn)
+  footer.className = 'rgm-thread-footer'
+
+  const footerActions = document.createElement('div')
+  footerActions.className = 'rgm-thread-footer-actions'
+  footerActions.appendChild(replyBtn)
 
   if (root?.htmlUrl) {
+    const sep = document.createElement('span')
+    sep.className = 'rgm-thread-footer-sep'
+    sep.setAttribute('aria-hidden', 'true')
+    sep.textContent = '|'
+
     const link = document.createElement('a')
     link.className = 'rgm-thread-link'
     link.href = root.htmlUrl
     link.target = '_blank'
     link.rel = 'noopener noreferrer'
     link.textContent = 'Open on GitHub'
-    footer.appendChild(link)
+    footerActions.append(sep, link)
   }
 
+  footer.appendChild(footerActions)
   detail.appendChild(footer)
 
   showBtn.addEventListener('click', () => {
