@@ -67,13 +67,14 @@ function hideNativeFileViewToggle(native: HTMLElement): void {
 }
 
 function syncToggleState(toggle: HTMLElement, rich: boolean): void {
+  const tip = rich ? TOOLTIP_ON : TOOLTIP_OFF
   toggle.setAttribute('data-rgm-mode', rich ? 'rich' : 'source')
-  toggle.setAttribute('title', rich ? TOOLTIP_ON : TOOLTIP_OFF)
+  toggle.setAttribute('data-tooltip', tip)
 
   const switchBtn = toggle.querySelector<HTMLButtonElement>('[role="switch"]')
   if (switchBtn) {
     switchBtn.setAttribute('aria-checked', String(rich))
-    switchBtn.setAttribute('title', rich ? TOOLTIP_ON : TOOLTIP_OFF)
+    switchBtn.setAttribute('aria-description', tip)
   }
 }
 

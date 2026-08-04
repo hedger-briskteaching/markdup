@@ -7,6 +7,7 @@ const CSS = `
 }
 
 [data-rgm-toggle] {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -15,6 +16,32 @@ const CSS = `
   vertical-align: middle;
   cursor: pointer;
   user-select: none;
+}
+
+[data-rgm-toggle][data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 50;
+  max-width: 260px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bgColor-emphasis, #24292f);
+  color: var(--fgColor-onEmphasis, #ffffff);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+[data-rgm-toggle][data-tooltip]:hover::after,
+[data-rgm-toggle]:focus-within[data-tooltip]::after {
+  opacity: 1;
 }
 
 [data-rgm-header-divider] {
