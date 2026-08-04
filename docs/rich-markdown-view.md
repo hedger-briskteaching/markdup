@@ -23,6 +23,15 @@ The view is read-only. Selection maps to a source line range for comments.
    auto-expanded so comments never hide behind a fold. Cards for rows the
    user re-collapsed are skipped, not dumped at the bottom.
 
+## Thread ↔ text interactions
+
+1. Commented text carries a persistent attention-tinted mark (overlay boxes
+   with the thread id; cell tint fallback without layout APIs).
+2. Clicking marked text scrolls to its thread card, expands it if hidden,
+   and flashes an outline. Clicks with an active selection are ignored.
+3. Hovering or focusing a thread card highlights the exact text it targets;
+   leaving clears the highlight.
+
 ## Selection → source range
 
 1. Each rich cell has `data-block-id`, `data-side` (`LEFT` / `RIGHT`), and `data-src-from` / `data-src-to`.

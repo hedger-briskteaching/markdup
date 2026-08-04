@@ -4,7 +4,14 @@ import {
   findUnchangedSectionForRow,
 } from '../../markdown/viewSections'
 import type { ReviewCommentDto, ReviewThreadDto } from '../../shared/messages'
-import { getRichViewContext, isUnchangedSectionExpanded } from './selection'
+import {
+  applyThreadHoverHighlight,
+  clearThreadHoverHighlight,
+  getRichViewContext,
+  isUnchangedSectionExpanded,
+  paintCommentedMarks,
+  type SourceRange,
+} from './selection'
 
 /**
  * Insert or replace a thread built from a newly created review comment.
@@ -48,9 +55,11 @@ export function upsertThreadFromComment(
 export function renderThreadCards(richRoot: Element): void {
   clearThreadCards(richRoot)
 
+  const root = richRoot as HTMLElement
   const ctx = getRichViewContext(richRoot)
   const threads = ctx?.threads ?? []
   if (threads.length === 0 || !ctx?.rows) {
+    paintCommentedMarks(root, [])
     return
   }
 
@@ -75,6 +84,7 @@ export function renderThreadCards(richRoot: Element): void {
     }
 
     const card = buildThreadCard(thread, fileName)
+    attachHoverHighlight(card, root, rangeForThread(thread))
 
     if (rowEl) {
       const cell = rowEl.querySelector<HTMLElement>(
@@ -91,6 +101,129 @@ export function renderThreadCards(richRoot: Element): void {
     // Last resort: keep the thread visible at the bottom of the rich view.
     body.appendChild(card)
   }
+
+  paintCommentedMarks(
+    root,
+    threads.map((thread) => ({
+      threadId: thread.rootId,
+      range: rangeForThread(thread),
+    })),
+  )
+  bindThreadTextInteractions(root)
+}
+
+/** @internal Source range a thread targets (whole-line grain). */
+export function rangeForThread(thread: ReviewThreadDto): SourceRange {
+  const endLine = thread.line
+  const startLine = Math.min(thread.startLine ?? endLine, endLine)
+  return {
+    side: thread.side,
+    startLine,
+    startCol: 1,
+    endLine,
+    endCol: 1,
+    quotedText: '',
+  }
+}
+
+function attachHoverHighlight(
+  card: HTMLElement,
+  richRoot: HTMLElement,
+  range: SourceRange,
+): void {
+  const show = () => applyThreadHoverHighlight(richRoot, range)
+  const hide = () => clearThreadHoverHighlight(richRoot)
+  card.addEventListener('mouseenter', show)
+  card.addEventListener('mouseleave', hide)
+  card.addEventListener('focusin', show)
+  card.addEventListener('focusout', hide)
+}
+
+const textInteractionsBound = new WeakSet<Element>()
+
+/**
+ * Clicking commented text scrolls to (and flashes) its thread card.
+ * Plain clicks only — an active text selection means the user is
+ * selecting, not navigating.
+ */
+function bindThreadTextInteractions(richRoot: HTMLElement): void {
+  if (textInteractionsBound.has(richRoot)) return
+  textInteractionsBound.add(richRoot)
+
+  richRoot.addEventListener('click', (event) => {
+    const selection = window.getSelection()
+    if (selection && !selection.isCollapsed) return
+
+    const target = event.target instanceof Element ? event.target : null
+    if (
+      !target ||
+      target.closest(
+        '[data-rgm-thread-card], [data-rgm-composer], [data-rgm-comment-bubble], [data-rgm-fold]',
+      )
+    ) {
+      return
+    }
+
+    const threadId =
+      threadIdAtPoint(richRoot, event) ?? threadIdFromFallbackCell(target)
+    if (threadId == null) return
+    scrollToThreadCard(richRoot, threadId)
+  })
+}
+
+/** Hit-test the click point against the painted commented-mark boxes. */
+function threadIdAtPoint(richRoot: Element, event: MouseEvent): string | null {
+  const layer = richRoot.querySelector('[data-rgm-commented-layer]')
+  if (!layer) return null
+  for (const box of layer.querySelectorAll<HTMLElement>('[data-thread-id]')) {
+    const rect = box.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) continue
+    if (
+      event.clientX >= rect.left &&
+      event.clientX <= rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY <= rect.bottom
+    ) {
+      return box.getAttribute('data-thread-id')
+    }
+  }
+  return null
+}
+
+/** jsdom / no-layout fallback: cells tinted as commented carry the thread id. */
+function threadIdFromFallbackCell(target: Element): string | null {
+  return (
+    target
+      .closest('.rgm-commented-cell')
+      ?.getAttribute('data-rgm-commented-thread') ?? null
+  )
+}
+
+/** @internal Exported for tests. */
+export function scrollToThreadCard(
+  richRoot: Element,
+  threadId: string,
+): void {
+  const card = richRoot.querySelector<HTMLElement>(
+    `[data-rgm-thread-card][data-thread-id="${threadId}"]`,
+  )
+  if (!card) return
+
+  const detail = card.querySelector<HTMLElement>('.rgm-thread-detail')
+  if (detail?.hidden) {
+    detail.hidden = false
+    const show = card.querySelector<HTMLButtonElement>('.rgm-thread-show')
+    if (show) {
+      show.textContent = 'Hide'
+      show.setAttribute('aria-expanded', 'true')
+    }
+  }
+
+  card.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+  card.classList.add('rgm-thread-card-flash')
+  window.setTimeout(() => {
+    card.classList.remove('rgm-thread-card-flash')
+  }, 1600)
 }
 
 export function clearThreadCards(richRoot: Element): void {

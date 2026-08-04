@@ -655,6 +655,48 @@ const CSS = `
   box-shadow: inset 0 0 0 1px rgba(56, 139, 253, 0.35);
 }
 
+[data-rgm-rich] .rgm-commented-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+[data-rgm-rich] .rgm-commented-box {
+  position: absolute;
+  border-radius: 2px;
+  background: var(--bgColor-attention-muted, rgba(255, 235, 130, 0.45));
+  opacity: 0.5;
+  border-bottom: 2px solid var(--fgColor-attention, #9a6700);
+}
+
+[data-rgm-rich] .rgm-commented-cell .rgm-rich-content {
+  border-radius: 4px;
+  background: var(--bgColor-attention-muted, rgba(255, 235, 130, 0.35));
+  cursor: pointer;
+}
+
+[data-rgm-rich] .rgm-thread-hover-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+[data-rgm-rich] .rgm-thread-hover-box {
+  position: absolute;
+  border-radius: 2px;
+  background: var(--bgColor-attention-muted, rgba(255, 223, 93, 0.55));
+  opacity: 0.85;
+  box-shadow: inset 0 0 0 1px var(--fgColor-attention, #9a6700);
+}
+
+[data-rgm-rich] .rgm-thread-hover-cell .rgm-rich-content {
+  border-radius: 4px;
+  background: var(--bgColor-attention-muted, rgba(255, 223, 93, 0.4));
+  box-shadow: inset 0 0 0 1px var(--fgColor-attention, #9a6700);
+}
+
 [data-rgm-rich] .rgm-composer-input {
   display: block;
   width: 100%;
@@ -733,6 +775,12 @@ const CSS = `
   background: var(--bgColor-muted, #fafbfc);
   width: auto;
   box-sizing: border-box;
+  transition: outline-color 200ms ease, box-shadow 200ms ease;
+}
+
+[data-rgm-thread-card].rgm-thread-card-flash {
+  outline: 2px solid var(--fgColor-attention, #9a6700);
+  outline-offset: 2px;
 }
 
 [data-rgm-thread-card] .rgm-thread-bar {

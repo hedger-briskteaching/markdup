@@ -36,6 +36,8 @@ export type RichViewContext = {
 
 const contexts = new WeakMap<Element, RichViewContext>()
 const HIGHLIGHT_ATTR = 'data-rgm-sel-highlight'
+const THREAD_HOVER_ATTR = 'data-rgm-thread-hover'
+const COMMENTED_ATTR = 'data-rgm-commented-layer'
 
 /** Attach snapshot text + rows to the rich root for selection mapping. */
 export function setRichViewContext(
@@ -226,38 +228,11 @@ export function applySelectionHighlight(
   sourceRange: SourceRange,
 ): void {
   clearSelectionHighlight(richRoot)
-  const domRange = domRangeForSourceRange(richRoot, sourceRange)
-  if (!domRange) return
-
-  const layer = document.createElement('div')
-  layer.setAttribute(HIGHLIGHT_ATTR, '')
-  layer.className = 'rgm-sel-highlight-layer'
-  layer.setAttribute('aria-hidden', 'true')
-
-  const rootRect = richRoot.getBoundingClientRect()
-  const rects =
-    typeof domRange.getClientRects === 'function'
-      ? [...domRange.getClientRects()]
-      : []
-
-  for (const rect of rects) {
-    if (rect.width <= 0 && rect.height <= 0) continue
-    const box = document.createElement('div')
-    box.className = 'rgm-sel-highlight'
-    box.style.top = `${rect.top - rootRect.top + richRoot.scrollTop}px`
-    box.style.left = `${rect.left - rootRect.left + richRoot.scrollLeft}px`
-    box.style.width = `${rect.width}px`
-    box.style.height = `${rect.height}px`
-    layer.appendChild(box)
-  }
-
-  // Fallback when layout APIs are missing (jsdom): tint overlapping cells.
-  if (layer.childElementCount === 0) {
-    for (const cell of cellsOverlappingRange(richRoot, sourceRange)) {
-      cell.classList.add('rgm-sel-highlight-cell')
-    }
-  }
-
+  const layer = createHighlightLayer(HIGHLIGHT_ATTR, 'rgm-sel-highlight-layer')
+  appendRangeBoxes(richRoot, layer, sourceRange, {
+    boxClass: 'rgm-sel-highlight',
+    cellClass: 'rgm-sel-highlight-cell',
+  })
   richRoot.appendChild(layer)
 }
 
@@ -265,6 +240,114 @@ export function clearSelectionHighlight(richRoot: Element): void {
   richRoot.querySelector(`[${HIGHLIGHT_ATTR}]`)?.remove()
   for (const cell of richRoot.querySelectorAll('.rgm-sel-highlight-cell')) {
     cell.classList.remove('rgm-sel-highlight-cell')
+  }
+}
+
+/** Highlight the text a hovered / focused thread card targets. */
+export function applyThreadHoverHighlight(
+  richRoot: HTMLElement,
+  sourceRange: SourceRange,
+): void {
+  clearThreadHoverHighlight(richRoot)
+  const layer = createHighlightLayer(
+    THREAD_HOVER_ATTR,
+    'rgm-thread-hover-layer',
+  )
+  appendRangeBoxes(richRoot, layer, sourceRange, {
+    boxClass: 'rgm-thread-hover-box',
+    cellClass: 'rgm-thread-hover-cell',
+  })
+  richRoot.appendChild(layer)
+}
+
+export function clearThreadHoverHighlight(richRoot: Element): void {
+  richRoot.querySelector(`[${THREAD_HOVER_ATTR}]`)?.remove()
+  for (const cell of richRoot.querySelectorAll('.rgm-thread-hover-cell')) {
+    cell.classList.remove('rgm-thread-hover-cell')
+  }
+}
+
+/**
+ * Paint persistent marks over every commented text range so reviewers can
+ * see at a glance which passages have threads. Boxes carry the thread id
+ * for click-to-scroll hit-testing.
+ */
+export function paintCommentedMarks(
+  richRoot: HTMLElement,
+  marks: { threadId: number; range: SourceRange }[],
+): void {
+  clearCommentedMarks(richRoot)
+  if (marks.length === 0) return
+
+  const layer = createHighlightLayer(COMMENTED_ATTR, 'rgm-commented-layer')
+  for (const mark of marks) {
+    appendRangeBoxes(richRoot, layer, mark.range, {
+      boxClass: 'rgm-commented-box',
+      cellClass: 'rgm-commented-cell',
+      threadId: String(mark.threadId),
+    })
+  }
+  richRoot.appendChild(layer)
+}
+
+export function clearCommentedMarks(richRoot: Element): void {
+  richRoot.querySelector(`[${COMMENTED_ATTR}]`)?.remove()
+  for (const cell of richRoot.querySelectorAll('.rgm-commented-cell')) {
+    cell.classList.remove('rgm-commented-cell')
+    cell.removeAttribute('data-rgm-commented-thread')
+  }
+}
+
+function createHighlightLayer(attr: string, className: string): HTMLElement {
+  const layer = document.createElement('div')
+  layer.setAttribute(attr, '')
+  layer.className = className
+  layer.setAttribute('aria-hidden', 'true')
+  return layer
+}
+
+/**
+ * Append positioned boxes covering a source range to a highlight layer.
+ * Falls back to tinting overlapping cells when layout APIs are missing (jsdom).
+ */
+function appendRangeBoxes(
+  richRoot: HTMLElement,
+  layer: HTMLElement,
+  sourceRange: SourceRange,
+  opts: { boxClass: string; cellClass: string; threadId?: string },
+): void {
+  const domRange = domRangeForSourceRange(richRoot, sourceRange)
+  if (!domRange) return
+
+  const rootRect = richRoot.getBoundingClientRect()
+  const rects =
+    typeof domRange.getClientRects === 'function'
+      ? [...domRange.getClientRects()]
+      : []
+
+  let painted = 0
+  for (const rect of rects) {
+    if (rect.width <= 0 && rect.height <= 0) continue
+    const box = document.createElement('div')
+    box.className = opts.boxClass
+    if (opts.threadId) {
+      box.setAttribute('data-thread-id', opts.threadId)
+    }
+    box.style.top = `${rect.top - rootRect.top + richRoot.scrollTop}px`
+    box.style.left = `${rect.left - rootRect.left + richRoot.scrollLeft}px`
+    box.style.width = `${rect.width}px`
+    box.style.height = `${rect.height}px`
+    layer.appendChild(box)
+    painted += 1
+  }
+
+  if (painted === 0) {
+    for (const cell of cellsOverlappingRange(richRoot, sourceRange)) {
+      cell.classList.add(opts.cellClass)
+      if (opts.threadId) {
+        cell.setAttribute('data-rgm-commented-thread', opts.threadId)
+      }
+    }
   }
 }
 
