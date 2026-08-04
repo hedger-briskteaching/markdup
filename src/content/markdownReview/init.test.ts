@@ -142,4 +142,21 @@ describe('initMarkdownReview', () => {
 
     expect(md.querySelector('[data-rgm-toggle]')).not.toBeNull()
   })
+
+  it('tears down styles when navigating away from the Files page', async () => {
+    const md = createFileRegion({ path: 'docs/README.md' })
+    document.body.appendChild(md)
+
+    const { initMarkdownReview } = await import('./init')
+    initMarkdownReview()
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).not.toBeNull()
+
+    setPathname('/owner/repo/pull/1')
+    initMarkdownReview()
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).toBeNull()
+  })
 })

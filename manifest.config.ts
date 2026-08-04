@@ -35,7 +35,12 @@ export default defineManifest({
   permissions: ['storage'],
   content_scripts: [
     {
-      matches: ['https://github.com/*'],
+      // PR Files changed only (new /changes and classic /files). Not conversation,
+      // commits, issues, or other github.com pages.
+      matches: [
+        'https://github.com/*/pull/*/changes*',
+        'https://github.com/*/pull/*/files*',
+      ],
       js: ['src/content/main.tsx'],
       run_at: 'document_idle',
     },

@@ -1260,3 +1260,8 @@ export function injectStyles(): void {
   style.textContent = CSS
   document.head.appendChild(style)
 }
+
+/** Remove styles injected by {@link injectStyles}. */
+export function removeStyles(): void {
+  document.getElementById(STYLE_ID)?.remove()
+}

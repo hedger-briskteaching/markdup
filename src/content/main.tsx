@@ -1,12 +1,18 @@
 import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createRoot, type Root } from 'react-dom/client'
 import App from './App'
 import cssText from './index.css?inline'
-import { initMarkdownReview } from './markdownReview/init'
+import { isPrFilesPage } from './markdownReview/detect'
+import {
+  initMarkdownReview,
+  onReviewLocationChange,
+} from './markdownReview/init'
 
 const HOST_ID = 'rgm-extension-root'
 
-function mount() {
+let reactRoot: Root | null = null
+
+function mount(): void {
   if (document.getElementById(HOST_ID)) {
     return
   }
@@ -23,12 +29,32 @@ function mount() {
   const mountPoint = document.createElement('div')
   shadow.appendChild(mountPoint)
 
-  createRoot(mountPoint).render(
+  reactRoot = createRoot(mountPoint)
+  reactRoot.render(
     <StrictMode>
       <App />
     </StrictMode>,
   )
 }
 
-mount()
+function unmount(): void {
+  const host = document.getElementById(HOST_ID)
+  if (!host) {
+    reactRoot = null
+    return
+  }
+  reactRoot?.unmount()
+  reactRoot = null
+  host.remove()
+}
+
+function syncForLocation(): void {
+  if (isPrFilesPage()) {
+    mount()
+  } else {
+    unmount()
+  }
+}
+
+onReviewLocationChange(syncForLocation)
 initMarkdownReview()
