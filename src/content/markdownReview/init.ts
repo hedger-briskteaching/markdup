@@ -9,7 +9,8 @@ let observer: MutationObserver | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let started = false
 
-function scanFileHeaders(): void {
+/** Scan the page and inject toggles on markdown file regions. */
+export function enhanceMarkdownRegions(): void {
   if (!isPrFilesPage()) {
     return
   }
@@ -35,7 +36,7 @@ function scheduleScan(): void {
   }
   debounceTimer = setTimeout(() => {
     debounceTimer = null
-    scanFileHeaders()
+    enhanceMarkdownRegions()
   }, DEBOUNCE_MS)
 }
 
