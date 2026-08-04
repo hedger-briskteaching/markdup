@@ -26,6 +26,15 @@ function mockAuthOk(login = 'tester') {
         if (message.type === 'FETCH_FILE_SNAPSHOT') {
           return SAMPLE_SNAPSHOT
         }
+        if (message.type === 'FETCH_THREAD_INDEX') {
+          return {
+            owner: 'o',
+            repo: 'r',
+            pullNumber: 1,
+            path: 'docs/PLAN.md',
+            threads: [],
+          }
+        }
         return undefined
       }),
       onMessage: {
@@ -54,6 +63,15 @@ function mockAuthNeedsCode() {
         }
         if (message.type === 'FETCH_FILE_SNAPSHOT') {
           return SAMPLE_SNAPSHOT
+        }
+        if (message.type === 'FETCH_THREAD_INDEX') {
+          return {
+            owner: 'o',
+            repo: 'r',
+            pullNumber: 1,
+            path: 'docs/PLAN.md',
+            threads: [],
+          }
         }
         return undefined
       }),

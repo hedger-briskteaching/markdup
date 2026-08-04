@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cancelDevicePoll,
+  clearAccessToken,
+  getAuthMethod,
   pollDeviceFlow,
+  setPersonalAccessToken,
   startDeviceFlow,
 } from './auth'
 import { GITHUB_OAUTH_CLIENT_ID } from '../../shared/githubAuth'
@@ -104,5 +107,72 @@ describe('device flow', () => {
     expect(token).toBe('gho_slow_ok')
     expect(intervals[0]).toBe(1000)
     expect(intervals[1]).toBe(6000)
+  })
+})
+
+describe('setPersonalAccessToken', () => {
+  const store = new Map<string, unknown>()
+
+  beforeEach(() => {
+    store.clear()
+    cancelDevicePoll()
+    vi.stubGlobal('chrome', {
+      storage: {
+        local: {
+          get: vi.fn(async (key: string | string[]) => {
+            const keys = Array.isArray(key) ? key : [key]
+            const out: Record<string, unknown> = {}
+            for (const k of keys) {
+              if (store.has(k)) out[k] = store.get(k)
+            }
+            return out
+          }),
+          set: vi.fn(async (values: Record<string, unknown>) => {
+            for (const [k, v] of Object.entries(values)) {
+              store.set(k, v)
+            }
+          }),
+          remove: vi.fn(async (keys: string | string[]) => {
+            for (const k of Array.isArray(keys) ? keys : [keys]) {
+              store.delete(k)
+            }
+          }),
+        },
+      },
+    })
+  })
+
+  afterEach(async () => {
+    await clearAccessToken()
+    cancelDevicePoll()
+    vi.unstubAllGlobals()
+  })
+
+  it('stores a valid classic PAT', async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json({ login: 'hedger' }),
+    )
+    const auth = await setPersonalAccessToken(
+      '  ghp_abcdefghijklmnopqrstuvwxyz012345  ',
+      fetchImpl as unknown as typeof fetch,
+    )
+    expect(auth.login).toBe('hedger')
+    expect(await getAuthMethod()).toBe('pat')
+  })
+
+  it('rejects tokens that do not look like PATs', async () => {
+    await expect(
+      setPersonalAccessToken('not-a-token', fetch as typeof fetch),
+    ).rejects.toThrow(/does not look like a GitHub token/i)
+  })
+
+  it('rejects tokens GitHub does not accept', async () => {
+    const fetchImpl = vi.fn(async () => new Response('', { status: 401 }))
+    await expect(
+      setPersonalAccessToken(
+        'ghp_badtokenbadtokenbadtokenbadtoken',
+        fetchImpl as unknown as typeof fetch,
+      ),
+    ).rejects.toThrow(/rejected/i)
   })
 })

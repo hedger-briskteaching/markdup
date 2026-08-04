@@ -6,6 +6,9 @@ import {
 const TOKEN_KEY = 'github.accessToken'
 const LOGIN_KEY = 'github.login'
 const OBTAINED_KEY = 'github.tokenObtainedAt'
+const METHOD_KEY = 'github.authMethod'
+
+export type AuthMethod = 'oauth' | 'pat'
 
 const DEVICE_CODE_URL = 'https://github.com/login/device/code'
 const ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token'
@@ -41,6 +44,7 @@ type AccessTokenPending = {
 export type StoredAuth = {
   token: string
   login: string
+  method: AuthMethod
 }
 
 type FetchLike = typeof fetch
@@ -64,20 +68,70 @@ export async function getStoredLogin(): Promise<string | null> {
   return typeof login === 'string' && login.length > 0 ? login : null
 }
 
+export async function getAuthMethod(): Promise<AuthMethod | null> {
+  const result = await chrome.storage.local.get(METHOD_KEY)
+  const method = result[METHOD_KEY]
+  return method === 'oauth' || method === 'pat' ? method : null
+}
+
 export async function setAccessToken(
   token: string,
   login: string,
+  method: AuthMethod = 'oauth',
 ): Promise<void> {
   await chrome.storage.local.set({
     [TOKEN_KEY]: token,
     [LOGIN_KEY]: login,
     [OBTAINED_KEY]: Date.now(),
+    [METHOD_KEY]: method,
   })
 }
 
 export async function clearAccessToken(): Promise<void> {
   cancelDevicePoll()
-  await chrome.storage.local.remove([TOKEN_KEY, LOGIN_KEY, OBTAINED_KEY])
+  await chrome.storage.local.remove([
+    TOKEN_KEY,
+    LOGIN_KEY,
+    OBTAINED_KEY,
+    METHOD_KEY,
+  ])
+}
+
+/**
+ * Validate and store a personal access token (classic or fine-grained).
+ * Use when an org blocks the Markdup OAuth App.
+ */
+export async function setPersonalAccessToken(
+  rawToken: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<StoredAuth> {
+  const token = rawToken.trim()
+  if (!token) {
+    throw new Error('Paste a GitHub personal access token.')
+  }
+  if (!looksLikeGithubToken(token)) {
+    throw new Error(
+      'That does not look like a GitHub token. Use a classic PAT (ghp_…) or a fine-grained PAT (github_pat_…).',
+    )
+  }
+
+  cancelDevicePoll()
+  const user = await validateToken(token, fetchImpl)
+  if (!user) {
+    throw new Error(
+      'GitHub rejected this token. Check that it is valid and has access to the repos you need.',
+    )
+  }
+
+  await setAccessToken(token, user.login, 'pat')
+  return { token, login: user.login, method: 'pat' }
+}
+
+function looksLikeGithubToken(token: string): boolean {
+  return (
+    token.startsWith('ghp_') ||
+    token.startsWith('github_pat_')
+  )
 }
 
 export async function validateToken(
@@ -227,7 +281,7 @@ export async function runDevicePollAndStore(
       throw new Error('Received a token but could not read the GitHub user.')
     }
     await setAccessToken(token, user.login)
-    return { token, login: user.login }
+    return { token, login: user.login, method: 'oauth' as const }
   } finally {
     if (activePoll === controller) {
       activePoll = null

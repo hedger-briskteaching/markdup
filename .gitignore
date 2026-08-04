@@ -5,3 +5,8 @@ dist
 .vite
 *.tsbuildinfo
 brand/extension-private.pem
+
+# Local secrets (never commit)
+.env
+.env.*
+!.env.example

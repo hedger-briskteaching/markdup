@@ -1,11 +1,30 @@
 import { DOMSerializer, type Node as PMNode } from 'prosemirror-model'
 import type { BlockView, RowModel } from '../../markdown/align'
 import { markdownSchema } from '../../markdown/schema'
+import type { ReviewSide } from '../../markdown/sourceRange'
 import { wordDiff, type DiffSegment } from '../../markdown/wordDiff'
 import { DIFF_BODY, RGM_STUB } from './selectors'
+import {
+  clearRichViewContext,
+  setRichViewContext,
+} from './selection'
+import { bindComposer } from './composer'
 
 const HIDDEN_ATTR = 'data-rgm-diff-hidden'
 const serializer = DOMSerializer.fromSchema(markdownSchema)
+
+const composerCleanups = new WeakMap<Element, () => void>()
+
+export type ShowRichViewOptions = {
+  baseText?: string
+  headText?: string
+  owner?: string
+  repo?: string
+  pullNumber?: number
+  path?: string
+  baseSha?: string
+  headSha?: string
+}
 
 const TEXT_DIFF_TYPES = new Set([
   'paragraph',
@@ -35,7 +54,11 @@ function findDiffBody(region: Element): HTMLElement | null {
 /**
  * Hide the native source diff and show the rich Before/After view.
  */
-export function showRichView(region: Element, rows: RowModel[]): void {
+export function showRichView(
+  region: Element,
+  rows: RowModel[],
+  options: ShowRichViewOptions = {},
+): void {
   const diffBody = findDiffBody(region)
   if (!diffBody) {
     return
@@ -53,6 +76,19 @@ export function showRichView(region: Element, rows: RowModel[]): void {
   }
 
   root.replaceChildren(buildRichRoot(rows))
+  setRichViewContext(root, {
+    baseText: options.baseText ?? '',
+    headText: options.headText ?? '',
+    rows,
+    owner: options.owner,
+    repo: options.repo,
+    pullNumber: options.pullNumber,
+    path: options.path,
+    baseSha: options.baseSha,
+    headSha: options.headSha,
+  })
+  composerCleanups.get(root)?.()
+  composerCleanups.set(root, bindComposer(root))
 }
 
 export function showRichLoading(region: Element): void {
@@ -103,7 +139,13 @@ export function showRichError(region: Element, message: string): void {
 export function hideRichView(region: Element): void {
   const diffBody = findDiffBody(region)
   diffBody?.removeAttribute(HIDDEN_ATTR)
-  region.querySelector('[data-rgm-rich]')?.remove()
+  const rich = region.querySelector('[data-rgm-rich]')
+  if (rich) {
+    composerCleanups.get(rich)?.()
+    composerCleanups.delete(rich)
+    clearRichViewContext(rich)
+    rich.remove()
+  }
   region.querySelector(RGM_STUB)?.remove()
 }
 
@@ -171,10 +213,12 @@ function buildCell(args: {
   rowId: string
 }): HTMLElement {
   const { side, block, peer, changed, rowId } = args
+  const reviewSide: ReviewSide = side === 'before' ? 'LEFT' : 'RIGHT'
   const cell = document.createElement('div')
   cell.className = `rgm-rich-cell rgm-rich-cell-${side}`
   cell.setAttribute('role', 'cell')
   cell.setAttribute('data-block-id', `${rowId}::${side}`)
+  cell.setAttribute('data-side', reviewSide)
 
   if (changed && block) {
     cell.classList.add(
@@ -191,6 +235,13 @@ function buildCell(args: {
     return cell
   }
 
+  if (block.srcFrom != null) {
+    cell.setAttribute('data-src-from', String(block.srcFrom))
+  }
+  if (block.srcTo != null) {
+    cell.setAttribute('data-src-to', String(block.srcTo))
+  }
+
   cell.appendChild(buildGutter(block))
   cell.appendChild(buildBlockContent(block, side, peer, changed))
   return cell
@@ -200,6 +251,7 @@ function buildGutter(block: BlockView): HTMLElement {
   const gutter = document.createElement('div')
   gutter.className = 'rgm-rich-gutter'
   gutter.setAttribute('aria-hidden', 'true')
+  gutter.setAttribute('data-rgm-chrome', '')
 
   const from = document.createElement('span')
   from.className = 'rgm-rich-gutter-line'
@@ -282,6 +334,7 @@ function renderSegmentedBlock(
     item.className = 'rgm-rich-list-item'
     const bullet = document.createElement('span')
     bullet.className = 'rgm-rich-bullet'
+    bullet.setAttribute('data-rgm-chrome', '')
     bullet.textContent = '•'
     item.appendChild(bullet)
     const text = document.createElement('span')
@@ -299,19 +352,21 @@ function appendSegments(
   segments: DiffSegment[],
   side: 'before' | 'after',
 ): void {
+  let srcOffset = 0
   for (const seg of segments) {
-    if (!seg.tone) {
-      parent.appendChild(document.createTextNode(seg.text))
-      continue
-    }
     if (side === 'before' && seg.tone === 'ins') continue
     if (side === 'after' && seg.tone === 'del') continue
 
-    const mark = document.createElement('span')
-    mark.className =
-      seg.tone === 'ins' ? 'rgm-rich-ins' : 'rgm-rich-del'
-    mark.textContent = seg.text
-    parent.appendChild(mark)
+    const host = document.createElement('span')
+    host.setAttribute('data-src-offset', String(srcOffset))
+    host.setAttribute('data-src-len', String(seg.srcLen))
+    if (seg.tone) {
+      host.className =
+        seg.tone === 'ins' ? 'rgm-rich-ins' : 'rgm-rich-del'
+    }
+    host.textContent = seg.text
+    parent.appendChild(host)
+    srcOffset += seg.srcLen
   }
 }
 
@@ -320,12 +375,18 @@ function renderFrontMatter(block: BlockView): HTMLElement {
   card.className = 'rgm-rich-front-matter'
   const label = document.createElement('div')
   label.className = 'rgm-rich-front-matter-label'
+  label.setAttribute('data-rgm-chrome', '')
   label.textContent = 'Front matter'
   card.appendChild(label)
 
   const pre = document.createElement('pre')
   pre.className = 'rgm-rich-front-matter-body'
-  pre.textContent = String(block.node.attrs.value ?? '')
+  const value = String(block.node.attrs.value ?? '')
+  const wrap = document.createElement('span')
+  wrap.setAttribute('data-src-offset', '0')
+  wrap.setAttribute('data-src-len', String(value.length))
+  wrap.textContent = value
+  pre.appendChild(wrap)
   card.appendChild(pre)
   return card
 }
@@ -337,16 +398,63 @@ function enhanceSerialized(dom: HTMLElement, block: BlockView): void {
       dom.setAttribute('data-lang', lang)
       const chip = document.createElement('span')
       chip.className = 'rgm-rich-code-lang'
+      chip.setAttribute('data-rgm-chrome', '')
       chip.textContent = lang
       dom.prepend(chip)
     }
   }
+  annotatePlainTextOffsets(dom)
+}
+
+/**
+ * Wrap contiguous text under a serialized block with a single offset map
+ * entry so selection can resolve without walking chrome.
+ */
+function annotatePlainTextOffsets(root: HTMLElement): void {
+  let offset = 0
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  const texts: Text[] = []
+  let current = walker.nextNode()
+  while (current) {
+    if (
+      current.nodeType === Node.TEXT_NODE &&
+      !current.parentElement?.closest('[data-rgm-chrome]')
+    ) {
+      texts.push(current as Text)
+    }
+    current = walker.nextNode()
+  }
+  for (const textNode of texts) {
+    const len = textNode.textContent?.length ?? 0
+    if (len === 0) continue
+    const wrap = document.createElement('span')
+    wrap.setAttribute('data-src-offset', String(offset))
+    wrap.setAttribute('data-src-len', String(len))
+    textNode.parentNode?.insertBefore(wrap, textNode)
+    wrap.appendChild(textNode)
+    offset += len
+  }
 }
 
 /** @internal Test helper — render rows to an isolated element. */
-export function renderRowsForTest(rows: RowModel[]): HTMLElement {
+export function renderRowsForTest(
+  rows: RowModel[],
+  options: ShowRichViewOptions = {},
+): HTMLElement {
   const host = document.createElement('div')
+  host.setAttribute('data-rgm-rich', '')
   host.appendChild(buildRichRoot(rows))
+  setRichViewContext(host, {
+    baseText: options.baseText ?? '',
+    headText: options.headText ?? '',
+    rows,
+    owner: options.owner,
+    repo: options.repo,
+    pullNumber: options.pullNumber,
+    path: options.path,
+    baseSha: options.baseSha,
+    headSha: options.headSha,
+  })
   return host
 }
 

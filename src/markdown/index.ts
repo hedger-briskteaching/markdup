@@ -13,6 +13,17 @@ export { alignDocs, alignMarkdown, extractBlocks } from './align'
 export type { BlockView, RowModel } from './align'
 export { wordDiff } from './wordDiff'
 export type { DiffSegment } from './wordDiff'
+export {
+  linesForRange,
+  mergeSourceRanges,
+  offsetsToSourceRange,
+  plainOffsetToPos,
+} from './sourceRange'
+export type {
+  BlockSourceAnchor,
+  ReviewSide,
+  SourceRange,
+} from './sourceRange'
 
 /**
  * Parse Markdown source into a ProseMirror document.

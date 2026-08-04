@@ -1,5 +1,5 @@
 import { alignMarkdown } from '../../markdown/align'
-import type { FileSnapshot } from '../../shared/messages'
+import type { FileSnapshot, ThreadIndexDto } from '../../shared/messages'
 import {
   hideRichView,
   isRichMode,
@@ -8,6 +8,7 @@ import {
   showRichView,
 } from './richView'
 import { RGM_TOGGLE } from './selectors'
+import { getRichViewContext, setRichViewContext } from './selection'
 
 export { isRichMode }
 
@@ -113,7 +114,18 @@ async function mountRichView(region: Element): Promise<void> {
       snapshot.baseText ?? '',
       snapshot.headText ?? '',
     )
-    showRichView(region, rows)
+    showRichView(region, rows, {
+      baseText: snapshot.baseText ?? '',
+      headText: snapshot.headText ?? '',
+      owner: snapshot.owner,
+      repo: snapshot.repo,
+      pullNumber: snapshot.pullNumber,
+      path: snapshot.path,
+      baseSha: snapshot.baseSha,
+      headSha: snapshot.headSha,
+    })
+
+    void loadThreadIndex(region, snapshot)
   } catch (error) {
     if (region.getAttribute('data-rgm-mode') !== 'rich') {
       return
@@ -134,5 +146,35 @@ export function setRichModeFromTexts(
 ): void {
   region.setAttribute('data-rgm-mode', 'rich')
   const rows = alignMarkdown(baseText, headText)
-  showRichView(region, rows)
+  showRichView(region, rows, { baseText, headText })
+}
+
+async function loadThreadIndex(
+  region: Element,
+  snapshot: FileSnapshot,
+): Promise<void> {
+  try {
+    const response = (await chrome.runtime.sendMessage({
+      type: 'FETCH_THREAD_INDEX',
+      owner: snapshot.owner,
+      repo: snapshot.repo,
+      pullNumber: snapshot.pullNumber,
+      path: snapshot.path,
+    })) as ThreadIndexDto | { error: string }
+
+    if (region.getAttribute('data-rgm-mode') !== 'rich') {
+      return
+    }
+    if (!response || 'error' in response) {
+      return
+    }
+
+    const rich = region.querySelector('[data-rgm-rich]')
+    if (!rich) return
+    const ctx = getRichViewContext(rich)
+    if (!ctx) return
+    setRichViewContext(rich, { ...ctx, threads: response.threads })
+  } catch {
+    // Thread cards come in a later slice; ignore list failures for now.
+  }
 }

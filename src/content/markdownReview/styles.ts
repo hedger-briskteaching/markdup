@@ -467,6 +467,97 @@ const CSS = `
   font-size: 12px;
   color: #cf222e;
 }
+
+[data-rgm-composer] {
+  margin: 0;
+  padding: 12px 14px;
+  border-top: 1px solid var(--rgm-bp-200);
+  border-bottom: 1px solid var(--rgm-bp-200);
+  background: #ffffff;
+  grid-column: 1 / -1;
+}
+
+[data-rgm-rich] .rgm-composer-meta {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--rgm-bp-500);
+}
+
+[data-rgm-rich] .rgm-composer-quote {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--rgm-ocean-500);
+  background: var(--rgm-ocean-25);
+  color: var(--rgm-bp-700);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+[data-rgm-rich] .rgm-composer-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--rgm-bp-300);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 72px;
+}
+
+[data-rgm-rich] .rgm-composer-input:focus {
+  outline: 2px solid var(--rgm-ocean-500);
+  outline-offset: 1px;
+}
+
+[data-rgm-rich] .rgm-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+[data-rgm-rich] .rgm-composer-status {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--rgm-bp-500);
+}
+
+[data-rgm-rich] .rgm-composer-status-error {
+  color: #dc2626;
+}
+
+[data-rgm-rich] .rgm-composer-btn {
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--rgm-bp-300);
+  background: #ffffff;
+  color: var(--rgm-bp-800);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+[data-rgm-rich] .rgm-composer-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+[data-rgm-rich] .rgm-composer-btn-primary {
+  background: #124c5f;
+  border-color: #124c5f;
+  color: #ffffff;
+}
+
+[data-rgm-rich] .rgm-composer-btn-primary:hover:not(:disabled) {
+  background: #0e3d4c;
+  border-color: #0e3d4c;
+}
 `
 
 export function injectStyles(): void {

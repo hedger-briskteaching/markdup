@@ -73,6 +73,7 @@ export function showAuthPanel(
     'Markdup stores the access token only in this browser.',
     'The token is not shared with other people or other computers.',
     'Markdup has no server that keeps your token.',
+    'You can connect with GitHub (OAuth) or paste a personal access token in Markdup Settings.',
     'To revoke later: open Markdup Settings and click Remove from this browser.',
   ]) {
     const li = document.createElement('li')
@@ -110,6 +111,16 @@ export function showAuthPanel(
     })
   })
 
+  const settingsBtn = document.createElement('button')
+  settingsBtn.type = 'button'
+  settingsBtn.className = 'rgm-auth-btn'
+  settingsBtn.textContent = 'Use a personal access token…'
+  settingsBtn.addEventListener('click', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    void chrome.runtime.openOptionsPage()
+  })
+
   const cancelBtn = document.createElement('button')
   cancelBtn.type = 'button'
   cancelBtn.className = 'rgm-auth-btn'
@@ -125,7 +136,7 @@ export function showAuthPanel(
   error.hidden = true
   error.setAttribute('data-rgm-auth-error', '')
 
-  actions.append(openBtn, copyBtn, cancelBtn)
+  actions.append(openBtn, copyBtn, settingsBtn, cancelBtn)
   panel.append(actions, error)
 
   const mount = findMountPoint(region)

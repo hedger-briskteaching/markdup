@@ -1,6 +1,8 @@
 export type DiffSegment = {
   text: string
   tone?: 'ins' | 'del'
+  /** Length in this side's plain text (always `text.length`). */
+  srcLen: number
 }
 
 /**
@@ -72,7 +74,7 @@ function pushSeg(
   text: string,
   tone?: 'ins' | 'del',
 ): void {
-  list.push({ text, tone })
+  list.push({ text, tone, srcLen: text.length })
 }
 
 function mergeSegments(segments: DiffSegment[]): DiffSegment[] {
@@ -83,6 +85,7 @@ function mergeSegments(segments: DiffSegment[]): DiffSegment[] {
     const cur = segments[i]!
     if (prev.tone === cur.tone) {
       prev.text += cur.text
+      prev.srcLen += cur.srcLen
     } else {
       out.push({ ...cur })
     }

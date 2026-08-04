@@ -1,21 +1,27 @@
 import type {
   AuthEnsureResponse,
+  AuthSetPatResponse,
   AuthStatusResponse,
   ExtensionEvent,
   ExtensionRequest,
   FileSnapshot,
+  ReviewCommentDto,
+  ThreadIndexDto,
 } from '../shared/messages'
 import {
   cancelDevicePoll,
   clearAccessToken,
   getAccessToken,
   getActiveDeviceCode,
+  getAuthMethod,
   getStoredLogin,
   runDevicePollAndStore,
+  setPersonalAccessToken,
   startDeviceFlow,
   validateToken,
 } from './github/auth'
 import { fetchFileSnapshot } from './github/contents'
+import { createReviewComment, fetchThreadIndex } from './github/pulls'
 
 async function broadcast(event: ExtensionEvent): Promise<void> {
   const tabs = await chrome.tabs.query({ url: ['https://github.com/*'] })
@@ -63,7 +69,11 @@ async function ensureAuth(): Promise<AuthEnsureResponse> {
     const device = await startDeviceFlow()
     void runDevicePollAndStore(device)
       .then(async (auth) => {
-        await broadcast({ type: 'AUTH_COMPLETE', login: auth.login })
+        await broadcast({
+          type: 'AUTH_COMPLETE',
+          login: auth.login,
+          method: auth.method,
+        })
       })
       .catch(async (error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') {
@@ -93,12 +103,35 @@ async function authStatus(): Promise<AuthStatusResponse> {
     return { authenticated: false }
   }
   const login = (await getStoredLogin()) ?? undefined
+  const method = (await getAuthMethod()) ?? undefined
   const user = await validateToken(token)
   if (!user) {
     await clearAccessToken()
     return { authenticated: false }
   }
-  return { authenticated: true, login: user.login ?? login }
+  return {
+    authenticated: true,
+    login: user.login ?? login,
+    method,
+  }
+}
+
+async function authSetPat(token: string): Promise<AuthSetPatResponse> {
+  try {
+    const auth = await setPersonalAccessToken(token)
+    await broadcast({
+      type: 'AUTH_COMPLETE',
+      login: auth.login,
+      method: auth.method,
+    })
+    return { status: 'ok', login: auth.login }
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Markdup could not save the personal access token.'
+    return { status: 'error', message }
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -125,6 +158,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true
   }
 
+  if (request?.type === 'AUTH_SET_PAT') {
+    void authSetPat(request.token).then(sendResponse)
+    return true
+  }
+
   if (request?.type === 'FETCH_FILE_SNAPSHOT') {
     void fetchFileSnapshot(
       request.owner,
@@ -138,6 +176,48 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           error instanceof Error
             ? error.message
             : 'Failed to load the Markdown file'
+        sendResponse({ error: message })
+      })
+    return true
+  }
+
+  if (request?.type === 'FETCH_THREAD_INDEX') {
+    void fetchThreadIndex(
+      request.owner,
+      request.repo,
+      request.pullNumber,
+      request.path,
+    )
+      .then((index: ThreadIndexDto) => sendResponse(index))
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to load review comments'
+        sendResponse({ error: message })
+      })
+    return true
+  }
+
+  if (request?.type === 'CREATE_REVIEW_COMMENT') {
+    void createReviewComment({
+      owner: request.owner,
+      repo: request.repo,
+      pullNumber: request.pullNumber,
+      path: request.path,
+      body: request.body,
+      commitId: request.commitId,
+      side: request.side,
+      line: request.line,
+      startLine: request.startLine,
+      startSide: request.startSide,
+    })
+      .then((comment: ReviewCommentDto) => sendResponse(comment))
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to create the review comment'
         sendResponse({ error: message })
       })
     return true

@@ -46,9 +46,12 @@ After a rebuild, remove any old unpacked Markdup install and load `dist/` again 
 
 1. Click the Markdup icon in Chrome.
 2. Click **Open Settings**.
-3. Connect with GitHub, or click **Remove from this browser** to delete the local token.
+3. Choose either path:
+   - **Option 1:** Connect with GitHub (OAuth Device Flow)
+   - **Option 2:** Paste a personal access token (classic `repo`, or fine-grained with contents + pull request write)
+4. Click **Remove from this browser** to delete the local token.
 
-The access token stays only in this browser. Markdup has no server that keeps your token.
+Both paths store one access token in this browser only. Markdup has no server that keeps your token. Use a PAT when your organization blocks the Markdup OAuth App.
 
 ### Use the extension
 

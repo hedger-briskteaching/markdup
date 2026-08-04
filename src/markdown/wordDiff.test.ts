@@ -25,7 +25,15 @@ describe('wordDiff', () => {
 
   it('returns plain segments when texts match', () => {
     const { oldSegments, newSegments } = wordDiff('same', 'same')
-    expect(oldSegments).toEqual([{ text: 'same' }])
-    expect(newSegments).toEqual([{ text: 'same' }])
+    expect(oldSegments).toEqual([{ text: 'same', srcLen: 4 }])
+    expect(newSegments).toEqual([{ text: 'same', srcLen: 4 }])
+  })
+
+  it('keeps srcLen equal to text length after merges', () => {
+    const { newSegments } = wordDiff('a b c', 'a x y c')
+    for (const seg of newSegments) {
+      expect(seg.srcLen).toBe(seg.text.length)
+    }
+    expect(newSegments.reduce((n, s) => n + s.srcLen, 0)).toBe('a x y c'.length)
   })
 })
