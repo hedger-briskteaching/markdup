@@ -8,10 +8,15 @@ import { injectToggle } from './toggle'
 /** Milliseconds to wait after a DOM mutation before scanning again. */
 const DEBOUNCE_MS = 75
 
+/** Diff-list observer used while the Files page is active. */
 let observer: MutationObserver | null = null
+/** Persistent observer that detects soft navigations via pathname changes. */
+let pathObserver: MutationObserver | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let started = false
 let pageActive = false
+/** Last pathname handled by navigation logic. Null before the first check. */
+let lastPathname: string | null = null
 
 /**
  * Scan the page and inject toggle controls on markdown file regions.
@@ -69,7 +74,8 @@ function observeRoot(): void {
 }
 
 /**
- * Drop observers, pending scans, and injected styles when leaving Files.
+ * Drop diff observers, pending scans, and injected styles when leaving Files.
+ * Does not disconnect the persistent pathname watcher.
  * @returns Nothing.
  */
 function deactivatePage(): void {
@@ -109,34 +115,89 @@ function onNavigation(): void {
 }
 
 /**
- * Start the markdown review UI on GitHub PR Files changed pages.
+ * Run navigation logic only when location.pathname has changed.
+ * @returns Nothing.
+ */
+function handleLocationChange(): void {
+  let pathname: string
+  try {
+    pathname = window.location.pathname
+  } catch {
+    return
+  }
+  if (!pathname || pathname === lastPathname) {
+    return
+  }
+  lastPathname = pathname
+  onNavigation()
+}
+
+/**
+ * Watch document mutations for soft navigations that change the pathname.
+ * Content scripts cannot reliably patch the page-world History API.
+ * @returns Nothing.
+ */
+function observePathname(): void {
+  pathObserver?.disconnect()
+  pathObserver = new MutationObserver(() => {
+    handleLocationChange()
+  })
+  pathObserver.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  })
+}
+
+/**
+ * Reset module state for unit tests.
+ * @returns Nothing.
+ */
+export function resetInitForTests(): void {
+  if (debounceTimer !== null) {
+    clearTimeout(debounceTimer)
+    debounceTimer = null
+  }
+  observer?.disconnect()
+  observer = null
+  pathObserver?.disconnect()
+  pathObserver = null
+  removeStyles()
+  pageActive = false
+  started = false
+  lastPathname = null
+}
+
+/**
+ * Start the markdown review UI on GitHub pull request pages.
  * Safe to call once from the content script entry point.
- * Tears down automatically when the URL is not a Files or Changes view.
+ * Stays idle until the URL is a Files or Changes view, then activates.
+ * Tears down automatically when the URL leaves Files or Changes.
  * @returns Nothing.
  */
 export function initMarkdownReview(): void {
   if (started) {
-    onNavigation()
+    handleLocationChange()
     return
   }
   started = true
 
-  onNavigation()
+  handleLocationChange()
+  observePathname()
 
-  document.addEventListener('turbo:load', onNavigation)
-  document.addEventListener('turbo:render', onNavigation)
-  document.addEventListener('pjax:end', onNavigation)
+  document.addEventListener('turbo:load', handleLocationChange)
+  document.addEventListener('turbo:render', handleLocationChange)
+  document.addEventListener('pjax:end', handleLocationChange)
 
-  // Soft SPA navigations that do not fire turbo/pjax events.
+  // Soft SPA navigations that do not fire turbo/pjax events (same JS world).
   const pushState = history.pushState.bind(history)
   history.pushState = (...args) => {
     pushState(...args)
-    onNavigation()
+    handleLocationChange()
   }
   const replaceState = history.replaceState.bind(history)
   history.replaceState = (...args) => {
     replaceState(...args)
-    onNavigation()
+    handleLocationChange()
   }
-  window.addEventListener('popstate', onNavigation)
+  window.addEventListener('popstate', handleLocationChange)
 }

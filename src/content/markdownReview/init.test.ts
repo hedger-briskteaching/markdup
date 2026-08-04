@@ -93,7 +93,9 @@ describe('initMarkdownReview', () => {
     resetAuthListenerForTests()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    const { resetInitForTests } = await import('./init')
+    resetInitForTests()
     history.pushState = originalPushState
     history.replaceState = originalReplaceState
     vi.useRealTimers()
@@ -155,6 +157,61 @@ describe('initMarkdownReview', () => {
 
     setPathname('/owner/repo/pull/1')
     initMarkdownReview()
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).toBeNull()
+  })
+
+  it('stays idle on the Conversation page until soft-navigating to Files', async () => {
+    setPathname('/owner/repo/pull/1')
+    const md = createFileRegion({ path: 'docs/README.md' })
+    document.body.appendChild(md)
+
+    const { initMarkdownReview } = await import('./init')
+    initMarkdownReview()
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).toBeNull()
+    expect(md.querySelector('[data-rgm-toggle]')).toBeNull()
+
+    setPathname('/owner/repo/pull/1/changes')
+    document.dispatchEvent(new Event('turbo:load'))
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).not.toBeNull()
+    expect(md.querySelector('[data-rgm-toggle]')).not.toBeNull()
+  })
+
+  it('activates after a soft nav detected via DOM mutation', async () => {
+    setPathname('/owner/repo/pull/1')
+
+    const { initMarkdownReview } = await import('./init')
+    initMarkdownReview()
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).toBeNull()
+
+    setPathname('/owner/repo/pull/1/changes')
+    const md = createFileRegion({ path: 'docs/README.md' })
+    document.body.appendChild(md)
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).not.toBeNull()
+    expect(md.querySelector('[data-rgm-toggle]')).not.toBeNull()
+  })
+
+  it('tears down after soft-navigating away from Files via turbo', async () => {
+    const md = createFileRegion({ path: 'docs/README.md' })
+    document.body.appendChild(md)
+
+    const { initMarkdownReview } = await import('./init')
+    initMarkdownReview()
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).not.toBeNull()
+
+    setPathname('/owner/repo/pull/1')
+    document.dispatchEvent(new Event('turbo:load'))
     await vi.advanceTimersByTimeAsync(100)
 
     expect(document.getElementById('rgm-markdown-review-styles')).toBeNull()

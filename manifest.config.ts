@@ -34,11 +34,9 @@ export default defineManifest({
   permissions: ['storage'],
   content_scripts: [
     {
-      // Match only PR diff views (/changes and /files). Do not match conversations, commits, or other pages.
-      matches: [
-        'https://github.com/*/pull/*/changes*',
-        'https://github.com/*/pull/*/files*',
-      ],
+      // Inject on all PR pages so soft navigation from Conversation to Files still works.
+      // UI stays gated to /files and /changes in init (isPrFilesPage).
+      matches: ['https://github.com/*/pull/*'],
       js: ['src/content/main.tsx'],
       run_at: 'document_idle',
     },
