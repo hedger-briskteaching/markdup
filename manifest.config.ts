@@ -24,10 +24,15 @@ export default defineManifest({
     48: 'icons/icon48.png',
     128: 'icons/icon128.png',
   },
+  options_ui: {
+    page: 'options.html',
+    open_in_tab: true,
+  },
   background: {
     service_worker: 'src/background/index.ts',
     type: 'module',
   },
+  permissions: ['storage'],
   content_scripts: [
     {
       matches: ['https://github.com/*'],
@@ -35,5 +40,5 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  host_permissions: ['https://github.com/*'],
+  host_permissions: ['https://github.com/*', 'https://api.github.com/*'],
 })

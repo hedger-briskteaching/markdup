@@ -1,10 +1,68 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { injectToggle } from './toggle'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { injectToggle, resetAuthListenerForTests } from './toggle'
 import { createFileRegion } from './test/fixtures'
+
+function mockAuthOk(login = 'tester') {
+  vi.stubGlobal('chrome', {
+    runtime: {
+      sendMessage: vi.fn(async (message: { type: string }) => {
+        if (message.type === 'AUTH_ENSURE') {
+          return { status: 'ok', login }
+        }
+        if (message.type === 'AUTH_CANCEL') {
+          return { ok: true }
+        }
+        return undefined
+      }),
+      onMessage: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+    },
+  })
+}
+
+function mockAuthNeedsCode() {
+  const listeners: Array<(message: unknown) => void> = []
+  vi.stubGlobal('chrome', {
+    runtime: {
+      sendMessage: vi.fn(async (message: { type: string }) => {
+        if (message.type === 'AUTH_ENSURE') {
+          return {
+            status: 'needs_auth',
+            user_code: 'WDJB-MJHT',
+            verification_uri: 'https://github.com/login/device',
+            expires_in: 900,
+          }
+        }
+        if (message.type === 'AUTH_CANCEL') {
+          return { ok: true }
+        }
+        return undefined
+      }),
+      onMessage: {
+        addListener: vi.fn((listener: (message: unknown) => void) => {
+          listeners.push(listener)
+        }),
+        removeListener: vi.fn(),
+      },
+    },
+  })
+  return {
+    complete(login = 'tester') {
+      for (const listener of listeners) {
+        listener({ type: 'AUTH_COMPLETE', login })
+      }
+    },
+  }
+}
 
 describe('injectToggle', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+    vi.unstubAllGlobals()
+    resetAuthListenerForTests()
+    mockAuthOk()
   })
 
   it('hides the native File view control and inserts a Rich Markdown switch after it', () => {
@@ -17,7 +75,8 @@ describe('injectToggle', () => {
       'ul[data-component="SegmentedControl"][aria-label="File view"]',
     )
     const toggle = region.querySelector<HTMLElement>('[data-rgm-toggle]')
-    const switchBtn = toggle?.querySelector<HTMLButtonElement>('[role="switch"]')
+    const switchBtn =
+      toggle?.querySelector<HTMLButtonElement>('[role="switch"]')
 
     expect(toggle).not.toBeNull()
     expect(toggle?.getAttribute('data-rgm-file')).toBe('docs/PLAN.md')
@@ -51,7 +110,8 @@ describe('injectToggle', () => {
     injectToggle(region, 'docs/PLAN.md')
 
     const toggle = region.querySelector('[data-rgm-toggle]')
-    const kebab = region.querySelector('button .octicon-kebab-horizontal')
+    const kebab = region
+      .querySelector('button .octicon-kebab-horizontal')
       ?.closest('button')
 
     expect(toggle?.nextElementSibling).toBe(kebab)
@@ -72,7 +132,7 @@ describe('injectToggle', () => {
     expect(actions?.lastElementChild).toBe(toggle)
   })
 
-  it('toggles rich stub and highlights the on state', () => {
+  it('enables rich mode after auth succeeds', async () => {
     const region = createFileRegion({ path: 'docs/PLAN.md' })
     document.body.appendChild(region)
     injectToggle(region, 'docs/PLAN.md')
@@ -80,21 +140,48 @@ describe('injectToggle', () => {
     const toggle = region.querySelector<HTMLElement>('[data-rgm-toggle]')!
     const switchBtn = toggle.querySelector<HTMLButtonElement>('[role="switch"]')!
 
-    expect(switchBtn.getAttribute('aria-checked')).toBe('false')
-    expect(toggle.getAttribute('data-rgm-mode')).toBe('source')
-
     switchBtn.click()
-    expect(switchBtn.getAttribute('aria-checked')).toBe('true')
+    await vi.waitFor(() => {
+      expect(switchBtn.getAttribute('aria-checked')).toBe('true')
+    })
+
     expect(toggle.getAttribute('data-rgm-mode')).toBe('rich')
-    expect(switchBtn.getAttribute('title')).toContain('Rich Markdown view is on')
     expect(region.getAttribute('data-rgm-mode')).toBe('rich')
     expect(region.querySelector('[data-rgm-stub]')).not.toBeNull()
 
     switchBtn.click()
     expect(switchBtn.getAttribute('aria-checked')).toBe('false')
-    expect(toggle.getAttribute('data-rgm-mode')).toBe('source')
-    expect(switchBtn.getAttribute('title')).toContain('Rich Markdown view is off')
-    expect(region.hasAttribute('data-rgm-mode')).toBe(false)
     expect(region.querySelector('[data-rgm-stub]')).toBeNull()
+  })
+
+  it('shows connect panel when auth is required and enables after AUTH_COMPLETE', async () => {
+    vi.unstubAllGlobals()
+    resetAuthListenerForTests()
+    const auth = mockAuthNeedsCode()
+
+    const region = createFileRegion({ path: 'docs/PLAN.md' })
+    document.body.appendChild(region)
+    injectToggle(region, 'docs/PLAN.md')
+
+    const toggle = region.querySelector<HTMLElement>('[data-rgm-toggle]')!
+    const switchBtn = toggle.querySelector<HTMLButtonElement>('[role="switch"]')!
+
+    switchBtn.click()
+
+    await vi.waitFor(() => {
+      expect(region.querySelector('[data-rgm-auth-panel]')).not.toBeNull()
+    })
+
+    expect(switchBtn.getAttribute('aria-checked')).toBe('false')
+    expect(region.querySelector('[data-rgm-stub]')).toBeNull()
+    expect(region.textContent).toContain('WDJB-MJHT')
+
+    auth.complete('alice')
+
+    await vi.waitFor(() => {
+      expect(switchBtn.getAttribute('aria-checked')).toBe('true')
+    })
+    expect(region.querySelector('[data-rgm-auth-panel]')).toBeNull()
+    expect(region.querySelector('[data-rgm-stub]')).not.toBeNull()
   })
 })

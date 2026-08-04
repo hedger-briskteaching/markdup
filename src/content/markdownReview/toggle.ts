@@ -1,3 +1,12 @@
+import type {
+  AuthEnsureResponse,
+  ExtensionEvent,
+} from '../../shared/messages'
+import {
+  hideAuthPanel,
+  setAuthPanelError,
+  showAuthPanel,
+} from './authPanel'
 import { isRichMode, setRichMode } from './richStub'
 import {
   DIFF_HEADER_WRAPPER,
@@ -13,6 +22,8 @@ const TOOLTIP_OFF =
   'Rich Markdown view is off — showing the source diff. Turn on to preview rendered markdown.'
 const TOOLTIP_ON =
   'Rich Markdown view is on — showing rendered markdown. Turn off to return to the source diff.'
+
+const pendingRegions = new Set<Element>()
 
 function findKebabButton(region: Element): HTMLElement | null {
   const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region
@@ -65,6 +76,61 @@ function syncToggleState(toggle: HTMLElement, rich: boolean): void {
   }
 }
 
+function sendEnsureAuth(): Promise<AuthEnsureResponse> {
+  return chrome.runtime.sendMessage({ type: 'AUTH_ENSURE' }) as Promise<AuthEnsureResponse>
+}
+
+function enableRich(region: Element, toggle: HTMLElement): void {
+  pendingRegions.delete(region)
+  hideAuthPanel(region)
+  setRichMode(region, true)
+  syncToggleState(toggle, true)
+}
+
+function cancelAuth(region: Element, toggle: HTMLElement): void {
+  pendingRegions.delete(region)
+  hideAuthPanel(region)
+  void chrome.runtime.sendMessage({ type: 'AUTH_CANCEL' })
+  setRichMode(region, false)
+  syncToggleState(toggle, false)
+}
+
+function beginAuth(region: Element, toggle: HTMLElement): void {
+  pendingRegions.add(region)
+  syncToggleState(toggle, false)
+
+  void sendEnsureAuth().then((response) => {
+    if (!pendingRegions.has(region) && response.status !== 'ok') {
+      return
+    }
+
+    if (response.status === 'ok') {
+      enableRich(region, toggle)
+      return
+    }
+
+    if (response.status === 'error') {
+      pendingRegions.add(region)
+      showAuthPanel(region, {
+        userCode: '—',
+        verificationUri: 'https://github.com/login/device',
+        onCancel: () => cancelAuth(region, toggle),
+      })
+      setAuthPanelError(region, response.message)
+      syncToggleState(toggle, false)
+      return
+    }
+
+    pendingRegions.add(region)
+    showAuthPanel(region, {
+      userCode: response.user_code,
+      verificationUri: response.verification_uri,
+      onCancel: () => cancelAuth(region, toggle),
+    })
+    syncToggleState(toggle, false)
+  })
+}
+
 function createToggleControl(path: string, region: Element): HTMLElement {
   const toggle = document.createElement('div')
   toggle.setAttribute('data-rgm-toggle', '')
@@ -97,9 +163,13 @@ function createToggleControl(path: string, region: Element): HTMLElement {
   const onActivate = (event: Event) => {
     event.preventDefault()
     event.stopPropagation()
-    const nextRich = !isRichMode(region)
-    setRichMode(region, nextRich)
-    syncToggleState(toggle, nextRich)
+
+    if (isRichMode(region) || pendingRegions.has(region)) {
+      cancelAuth(region, toggle)
+      return
+    }
+
+    beginAuth(region, toggle)
   }
 
   switchBtn.addEventListener('click', onActivate)
@@ -131,8 +201,57 @@ function placeToggle(
   }
 }
 
+function onAuthEvent(message: ExtensionEvent): void {
+  if (message.type === 'AUTH_COMPLETE') {
+    for (const region of [...pendingRegions]) {
+      const toggle = region.querySelector<HTMLElement>(RGM_TOGGLE)
+      if (toggle) {
+        enableRich(region, toggle)
+      } else {
+        pendingRegions.delete(region)
+      }
+    }
+    return
+  }
+
+  if (message.type === 'AUTH_ERROR') {
+    for (const region of pendingRegions) {
+      setAuthPanelError(region, message.message)
+      const toggle = region.querySelector<HTMLElement>(RGM_TOGGLE)
+      if (toggle) {
+        syncToggleState(toggle, false)
+      }
+    }
+  }
+}
+
+let authListenerAttached = false
+
+function ensureAuthListener(): void {
+  if (authListenerAttached) {
+    return
+  }
+  if (typeof chrome === 'undefined' || !chrome.runtime?.onMessage) {
+    return
+  }
+  authListenerAttached = true
+  chrome.runtime.onMessage.addListener((message: ExtensionEvent) => {
+    if (message?.type === 'AUTH_COMPLETE' || message?.type === 'AUTH_ERROR') {
+      onAuthEvent(message)
+    }
+  })
+}
+
+/** @internal Vitest helper — resets the one-shot runtime listener flag. */
+export function resetAuthListenerForTests(): void {
+  authListenerAttached = false
+  pendingRegions.clear()
+}
+
 /** Inject Rich Markdown view switch for a markdown file region. Idempotent. */
 export function injectToggle(region: Element, path: string): void {
+  ensureAuthListener()
+
   if (region.querySelector(RGM_TOGGLE)) {
     return
   }

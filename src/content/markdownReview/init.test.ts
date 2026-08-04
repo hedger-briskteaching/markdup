@@ -1,12 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enhanceMarkdownRegions } from './init'
 import { createFileRegion, setPathname } from './test/fixtures'
+import { resetAuthListenerForTests } from './toggle'
+
+function stubChrome() {
+  vi.stubGlobal('chrome', {
+    runtime: {
+      sendMessage: vi.fn(async () => ({ status: 'ok', login: 'tester' })),
+      onMessage: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+    },
+  })
+}
 
 describe('enhanceMarkdownRegions', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     document.head.innerHTML = ''
     setPathname('/owner/repo/pull/1/changes')
+    resetAuthListenerForTests()
+    stubChrome()
   })
 
   it('injects toggles only for markdown file regions', () => {
@@ -74,12 +89,15 @@ describe('initMarkdownReview', () => {
     history.replaceState = originalReplaceState
     vi.useFakeTimers()
     vi.resetModules()
+    stubChrome()
+    resetAuthListenerForTests()
   })
 
   afterEach(() => {
     history.pushState = originalPushState
     history.replaceState = originalReplaceState
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('injects styles and enhances markdown regions on start', async () => {

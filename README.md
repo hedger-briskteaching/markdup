@@ -42,6 +42,14 @@ OAuth **Client ID** (public) lives in [`src/shared/githubAuth.ts`](src/shared/gi
 
 After a rebuild, remove any old unpacked Markdup install and load `dist/` again so Chrome picks up the new ID.
 
+### Settings and GitHub access
+
+1. Click the Markdup icon in Chrome.
+2. Click **Open Settings**.
+3. Connect with GitHub, or click **Remove from this browser** to delete the local token.
+
+The access token stays only in this browser. Markdup has no server that keeps your token.
+
 ### Use the extension
 
 1. Open any page on [github.com](https://github.com)

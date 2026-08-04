@@ -12,6 +12,8 @@ export const RGM_TOGGLE = '[data-rgm-toggle]'
 
 export const RGM_STUB = '[data-rgm-stub]'
 
+export const RGM_AUTH_PANEL = '[data-rgm-auth-panel]'
+
 export const DIFF_BODY =
   'div.border.position-relative.rounded-bottom-2:has(table[aria-label^="Diff for:"])'
 
