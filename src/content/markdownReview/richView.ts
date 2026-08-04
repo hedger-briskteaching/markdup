@@ -9,6 +9,7 @@ import {
   setRichViewContext,
 } from './selection'
 import { bindComposer } from './composer'
+import type { CommentableLines } from '../../shared/commentableLines'
 
 const HIDDEN_ATTR = 'data-rgm-diff-hidden'
 const serializer = DOMSerializer.fromSchema(markdownSchema)
@@ -24,6 +25,7 @@ export type ShowRichViewOptions = {
   path?: string
   baseSha?: string
   headSha?: string
+  commentable?: CommentableLines
 }
 
 const TEXT_DIFF_TYPES = new Set([
@@ -86,6 +88,7 @@ export function showRichView(
     path: options.path,
     baseSha: options.baseSha,
     headSha: options.headSha,
+    commentable: options.commentable,
   })
   composerCleanups.get(root)?.()
   composerCleanups.set(root, bindComposer(root))
@@ -454,6 +457,7 @@ export function renderRowsForTest(
     path: options.path,
     baseSha: options.baseSha,
     headSha: options.headSha,
+    commentable: options.commentable,
   })
   return host
 }

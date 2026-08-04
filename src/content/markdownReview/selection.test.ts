@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { alignMarkdown } from '../../markdown/align'
 import { renderRowsForTest } from './richView'
-import { selectionToSourceRange } from './selection'
+import {
+  applySelectionHighlight,
+  selectionToSourceRange,
+  snapDomSelectionToSourceRange,
+} from './selection'
 
 function selectTextIn(
   root: Element,
@@ -69,7 +73,7 @@ describe('selectionToSourceRange', () => {
     document.body.innerHTML = ''
   })
 
-  it('maps an After selection to RIGHT source lines and cols', () => {
+  it('maps an After selection to whole RIGHT source lines', () => {
     const baseText = '# Title\n\nOld text.\n'
     const headText = '# Title\n\nNew text here.\n'
     const rows = alignMarkdown(baseText, headText)
@@ -84,12 +88,12 @@ describe('selectionToSourceRange', () => {
       startLine: 3,
       startCol: 1,
       endLine: 3,
-      endCol: 9,
-      quotedText: 'New text',
+      endCol: 15,
+      quotedText: 'New text here.',
     })
   })
 
-  it('maps a Before heading selection with markdown prefix cols', () => {
+  it('maps a Before heading selection to the whole source line', () => {
     const baseText = '# Title\n\nBody.\n'
     const headText = '# Title\n\nBody.\n'
     const rows = alignMarkdown(baseText, headText)
@@ -102,10 +106,10 @@ describe('selectionToSourceRange', () => {
     expect(range).toEqual({
       side: 'LEFT',
       startLine: 1,
-      startCol: 3,
+      startCol: 1,
       endLine: 1,
       endCol: 8,
-      quotedText: 'Title',
+      quotedText: '# Title',
     })
   })
 
@@ -154,7 +158,7 @@ describe('selectionToSourceRange', () => {
     expect(selectionToSourceRange(selection, host)).toBeNull()
   })
 
-  it('maps a word-diff segment selection using data-src-offset', () => {
+  it('maps a word-diff segment selection to the whole source line', () => {
     const baseText = 'Hello world.\n'
     const headText = 'Hello brave world.\n'
     const rows = alignMarkdown(baseText, headText)
@@ -167,12 +171,78 @@ describe('selectionToSourceRange', () => {
 
     const selection = selectTextIn(host, 'after', 'brave')
     const range = selectionToSourceRange(selection, host)
-    expect(range).toMatchObject({
+    expect(range).toEqual({
       side: 'RIGHT',
       startLine: 1,
-      quotedText: 'brave',
+      startCol: 1,
+      endLine: 1,
+      endCol: 19,
+      quotedText: 'Hello brave world.',
     })
-    expect(range?.startCol).toBe(7)
-    expect(range?.endCol).toBe(12)
+  })
+
+  it('snaps the DOM selection and paints a highlight for whole lines', () => {
+    const baseText = 'Hello world.\n'
+    const headText = 'Hello brave world.\n'
+    const rows = alignMarkdown(baseText, headText)
+    const host = renderRowsForTest(rows, { baseText, headText })
+    document.body.appendChild(host)
+
+    const selection = selectTextIn(host, 'after', 'brave')
+    const range = selectionToSourceRange(selection, host)
+    expect(range).not.toBeNull()
+
+    const snapped = snapDomSelectionToSourceRange(selection, host, range!)
+    expect(snapped).not.toBeNull()
+    expect(selection.toString()).toContain('Hello')
+    expect(selection.toString()).toContain('brave')
+
+    applySelectionHighlight(host, range!)
+    expect(host.querySelector('[data-rgm-sel-highlight]')).not.toBeNull()
+    expect(host.querySelector('.rgm-sel-highlight-cell')).not.toBeNull()
+  })
+
+  it('maps a soft-wrapped selection to the matching source line', () => {
+    // One paragraph soft-wrapped across two source lines.
+    const baseText = 'hello\nworld\n'
+    const headText = 'hello\nworld\n'
+    const rows = alignMarkdown(baseText, headText)
+    const host = renderRowsForTest(rows, { baseText, headText })
+    document.body.appendChild(host)
+
+    const selection = selectTextIn(host, 'after', 'world')
+    const range = selectionToSourceRange(selection, host)
+    expect(range).toEqual({
+      side: 'RIGHT',
+      startLine: 2,
+      startCol: 1,
+      endLine: 2,
+      endCol: 6,
+      quotedText: 'world',
+    })
+  })
+
+  it("keeps the user's source lines (does not jump to distant commentable hunks)", () => {
+    const baseText = 'Alpha beta\ngamma delta\n'
+    const headText = 'Alpha beta\ngamma delta\n'
+    const rows = alignMarkdown(baseText, headText)
+    const host = renderRowsForTest(rows, {
+      baseText,
+      headText,
+      commentable: {
+        left: new Set(),
+        // Only line 1 is commentable — selecting "gamma" must stay on line 2.
+        right: new Set([1]),
+      },
+    })
+    document.body.appendChild(host)
+
+    const selection = selectTextIn(host, 'after', 'gamma')
+    const range = selectionToSourceRange(selection, host)
+    expect(range).toMatchObject({
+      side: 'RIGHT',
+      startLine: 2,
+      endLine: 2,
+    })
   })
 })

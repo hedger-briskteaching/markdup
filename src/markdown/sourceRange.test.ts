@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  expandSourceRangeToWholeLines,
   linesForRange,
   mergeSourceRanges,
   offsetsToSourceRange,
@@ -93,6 +94,43 @@ describe('plainOffsetToPos', () => {
       }),
     ).toEqual({ line: 5, col: 6 })
   })
+
+  it('maps mid-offsets in a soft-wrapped paragraph to the correct source line', () => {
+    const sourceLines = ['hello', 'world']
+    const plainText = 'hello world'
+    expect(
+      plainOffsetToPos({
+        plainText,
+        srcFrom: 4,
+        srcTo: 5,
+        sourceLines,
+        offset: 6,
+      }),
+    ).toEqual({ line: 5, col: 1 })
+    expect(
+      plainOffsetToPos({
+        plainText,
+        srcFrom: 4,
+        srcTo: 5,
+        sourceLines,
+        offset: 8,
+      }),
+    ).toEqual({ line: 5, col: 3 })
+  })
+
+  it('maps soft-wrapped plain text with no inserted space', () => {
+    const sourceLines = ['hello', 'world']
+    const plainText = 'helloworld'
+    expect(
+      plainOffsetToPos({
+        plainText,
+        srcFrom: 10,
+        srcTo: 11,
+        sourceLines,
+        offset: 5,
+      }),
+    ).toEqual({ line: 11, col: 1 })
+  })
 })
 
 describe('offsetsToSourceRange', () => {
@@ -134,6 +172,56 @@ describe('offsetsToSourceRange', () => {
     )
     expect(range.startCol).toBe(2)
     expect(range.endCol).toBe(5)
+  })
+})
+
+describe('expandSourceRangeToWholeLines', () => {
+  it('snaps columns to the full source line span', () => {
+    const file = 'one\ntwo three\nfour\n'
+    expect(
+      expandSourceRangeToWholeLines(
+        {
+          side: 'RIGHT',
+          startLine: 2,
+          startCol: 5,
+          endLine: 2,
+          endCol: 8,
+          quotedText: 'thr',
+        },
+        file,
+      ),
+    ).toEqual({
+      side: 'RIGHT',
+      startLine: 2,
+      startCol: 1,
+      endLine: 2,
+      endCol: 10,
+      quotedText: 'two three',
+    })
+  })
+
+  it('covers multiple lines including newlines in quotedText', () => {
+    const file = 'a\nb\nc\n'
+    expect(
+      expandSourceRangeToWholeLines(
+        {
+          side: 'LEFT',
+          startLine: 1,
+          startCol: 1,
+          endLine: 3,
+          endCol: 2,
+          quotedText: 'x',
+        },
+        file,
+      ),
+    ).toEqual({
+      side: 'LEFT',
+      startLine: 1,
+      startCol: 1,
+      endLine: 3,
+      endCol: 2,
+      quotedText: 'a\nb\nc',
+    })
   })
 })
 

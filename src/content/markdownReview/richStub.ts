@@ -1,5 +1,7 @@
 import { alignMarkdown } from '../../markdown/align'
-import type { FileSnapshot, ThreadIndexDto } from '../../shared/messages'
+import type { FileSnapshot } from '../../shared/messages'
+import { commentableFromDto } from '../../shared/commentableLines'
+import { consumeCommentsDirty } from './composer'
 import {
   hideRichView,
   isRichMode,
@@ -8,7 +10,7 @@ import {
   showRichView,
 } from './richView'
 import { RGM_TOGGLE } from './selectors'
-import { getRichViewContext, setRichViewContext } from './selection'
+import { syncThreadsFromServer } from './syncThreads'
 
 export { isRichMode }
 
@@ -67,8 +69,14 @@ async function loadSnapshot(
  */
 export function setRichMode(region: Element, rich: boolean): void {
   if (!rich) {
+    const needsNativeRefresh = consumeCommentsDirty(region)
     region.removeAttribute('data-rgm-mode')
     hideRichView(region)
+    // GitHub's native Files DOM was painted before our API comments existed.
+    // Unhiding it alone leaves stale widgets — reload so pending threads appear.
+    if (needsNativeRefresh) {
+      window.location.reload()
+    }
     return
   }
 
@@ -123,6 +131,9 @@ async function mountRichView(region: Element): Promise<void> {
       path: snapshot.path,
       baseSha: snapshot.baseSha,
       headSha: snapshot.headSha,
+      commentable: commentableFromDto(
+        snapshot.commentable ?? { left: [], right: [] },
+      ),
     })
 
     void loadThreadIndex(region, snapshot)
@@ -153,28 +164,21 @@ async function loadThreadIndex(
   region: Element,
   snapshot: FileSnapshot,
 ): Promise<void> {
-  try {
-    const response = (await chrome.runtime.sendMessage({
-      type: 'FETCH_THREAD_INDEX',
-      owner: snapshot.owner,
-      repo: snapshot.repo,
-      pullNumber: snapshot.pullNumber,
-      path: snapshot.path,
-    })) as ThreadIndexDto | { error: string }
+  const rich = region.querySelector('[data-rgm-rich]')
+  if (!rich) return
 
-    if (region.getAttribute('data-rgm-mode') !== 'rich') {
-      return
-    }
-    if (!response || 'error' in response) {
-      return
-    }
+  const result = await syncThreadsFromServer(rich, {
+    owner: snapshot.owner,
+    repo: snapshot.repo,
+    pullNumber: snapshot.pullNumber,
+    path: snapshot.path,
+  })
 
-    const rich = region.querySelector('[data-rgm-rich]')
-    if (!rich) return
-    const ctx = getRichViewContext(rich)
-    if (!ctx) return
-    setRichViewContext(rich, { ...ctx, threads: response.threads })
-  } catch {
-    // Thread cards come in a later slice; ignore list failures for now.
+  if (region.getAttribute('data-rgm-mode') !== 'rich') {
+    return
+  }
+  if (!result.ok) {
+    // Keep the markdown view; thread cards stay empty until a later sync.
+    console.warn('[Markdup] thread sync failed', result.error)
   }
 }

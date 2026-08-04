@@ -1,13 +1,19 @@
-import { githubFetch } from './client'
-import { getAccessToken } from './auth'
+import { githubFetch, GitHubApiError } from './client'
+import { getAccessToken, getStoredLogin } from './auth'
+import {
+  clampRangeToDiff,
+  parseCommentableLines,
+  type CommentableLines,
+} from '../../shared/commentableLines'
 import type { ReviewSide } from '../../markdown/sourceRange'
 import {
   createPayloadFromRange,
   type CreateReviewCommentFields,
 } from '../../shared/reviewComment'
+import { fetchPullRequestNodeId, githubGraphql } from './graphql'
 
-export { createPayloadFromRange }
-export type { CreateReviewCommentFields }
+export { createPayloadFromRange, clampRangeToDiff, parseCommentableLines }
+export type { CreateReviewCommentFields, CommentableLines }
 
 export type PullReviewComment = {
   id: number
@@ -22,6 +28,7 @@ export type PullReviewComment = {
   createdAt: string
   commitId: string
   htmlUrl: string
+  pullRequestReviewId: number | null
 }
 
 export type ReviewThread = {
@@ -33,6 +40,8 @@ export type ReviewThread = {
   /** Last line of the anchored span (1-based). */
   line: number
   comments: PullReviewComment[]
+  /** True when the root comment belongs to an unsubmitted review. */
+  pending: boolean
 }
 
 export type ThreadIndex = {
@@ -61,6 +70,7 @@ type ApiComment = {
   body: string
   path: string
   side?: string | null
+  start_side?: string | null
   line?: number | null
   start_line?: number | null
   original_line?: number | null
@@ -69,10 +79,24 @@ type ApiComment = {
   created_at: string
   commit_id: string
   html_url: string
+  pull_request_review_id?: number | null
+}
+
+type ApiReview = {
+  id: number
+  node_id: string
+  state: string
+  user?: { login?: string } | null
+}
+
+type PendingReviewRef = {
+  id: number
+  nodeId: string
 }
 
 /**
- * List pull review comments and group them into threads for one file path.
+ * List pull review threads for one file path (includes pending drafts).
+ * Uses GraphQL — REST often returns pending comments with null line/side.
  */
 export async function fetchThreadIndex(
   owner: string,
@@ -85,19 +109,170 @@ export async function fetchThreadIndex(
     throw new Error('Connect to GitHub before loading review comments.')
   }
 
-  const comments = await listPullReviewComments(
+  const threads = await listReviewThreadsGraphql(
     owner,
     repo,
     pullNumber,
+    path,
     token,
   )
-  const forPath = comments.filter((c) => c.path === path)
   return {
     owner,
     repo,
     pullNumber,
     path,
-    threads: buildThreads(forPath),
+    threads,
+  }
+}
+
+type GraphqlThreadNode = {
+  path: string
+  line: number | null
+  startLine: number | null
+  originalLine: number | null
+  diffSide: 'LEFT' | 'RIGHT' | null
+  comments: {
+    nodes: Array<{
+      databaseId: number
+      body: string
+      createdAt: string
+      url: string
+      author: { login: string } | null
+      commit: { oid: string } | null
+      pullRequestReview: {
+        databaseId: number
+        state: string
+      } | null
+      replyTo: { databaseId: number } | null
+    }>
+  }
+}
+
+/** Paginate GraphQL reviewThreads and keep those on `path`. */
+export async function listReviewThreadsGraphql(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  path: string,
+  token: string,
+): Promise<ReviewThread[]> {
+  const threads: ReviewThread[] = []
+  let cursor: string | null = null
+
+  for (let page = 0; page < 20; page += 1) {
+    const data: {
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            pageInfo: { hasNextPage: boolean; endCursor: string | null }
+            nodes: GraphqlThreadNode[]
+          }
+        } | null
+      } | null
+    } = await githubGraphql(
+      token,
+      `query($owner:String!,$repo:String!,$number:Int!,$after:String) {
+        repository(owner:$owner, name:$repo) {
+          pullRequest(number:$number) {
+            reviewThreads(first:100, after:$after) {
+              pageInfo { hasNextPage endCursor }
+              nodes {
+                path
+                line
+                startLine
+                originalLine
+                diffSide
+                comments(first:50) {
+                  nodes {
+                    databaseId
+                    body
+                    createdAt
+                    url
+                    author { login }
+                    commit { oid }
+                    pullRequestReview { databaseId state }
+                    replyTo { databaseId }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }`,
+      { owner, repo, number: pullNumber, after: cursor },
+    )
+
+    const connection = data.repository?.pullRequest?.reviewThreads
+    if (!connection) break
+
+    for (const node of connection.nodes) {
+      if (node.path !== path) continue
+      const thread = threadFromGraphqlNode(node)
+      if (thread) threads.push(thread)
+    }
+
+    if (!connection.pageInfo.hasNextPage || !connection.pageInfo.endCursor) {
+      break
+    }
+    cursor = connection.pageInfo.endCursor
+  }
+
+  threads.sort((a, b) => {
+    if (a.startLine !== b.startLine) return a.startLine - b.startLine
+    return a.rootId - b.rootId
+  })
+  return threads
+}
+
+/** @internal Exported for tests. */
+export function threadFromGraphqlNode(
+  node: GraphqlThreadNode,
+): ReviewThread | null {
+  const side = node.diffSide
+  const line = node.line ?? node.originalLine
+  if (!side || line == null) return null
+
+  const comments = node.comments.nodes.map((c) => ({
+    id: c.databaseId,
+    body: c.body,
+    path: node.path,
+    side,
+    line: node.line,
+    startLine: node.startLine,
+    originalLine: node.originalLine,
+    inReplyToId: c.replyTo?.databaseId ?? null,
+    userLogin: c.author?.login ?? '',
+    createdAt: c.createdAt,
+    commitId: c.commit?.oid ?? '',
+    htmlUrl: c.url,
+    pullRequestReviewId: c.pullRequestReview?.databaseId ?? null,
+  }))
+
+  const root = comments.find((c) => c.inReplyToId == null) ?? comments[0]
+  if (!root) return null
+
+  const ordered = [
+    root,
+    ...comments
+      .filter((c) => c.id !== root.id)
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      ),
+  ]
+
+  const pending = node.comments.nodes.some(
+    (c) => c.pullRequestReview?.state === 'PENDING',
+  )
+
+  return {
+    rootId: root.id,
+    path: node.path,
+    side,
+    startLine: node.startLine ?? line,
+    line,
+    comments: ordered,
+    pending,
   }
 }
 
@@ -107,11 +282,62 @@ export async function listPullReviewComments(
   pullNumber: number,
   token: string,
 ): Promise<PullReviewComment[]> {
-  const raw = await githubFetch<ApiComment[]>(
-    `/repos/${owner}/${repo}/pulls/${pullNumber}/comments?per_page=100`,
+  const out: PullReviewComment[] = []
+  for (let page = 1; page <= 10; page += 1) {
+    const raw = await githubFetch<ApiComment[]>(
+      `/repos/${owner}/${repo}/pulls/${pullNumber}/comments?per_page=100&page=${page}`,
+      { token },
+    )
+    out.push(...raw.map(normalizeComment))
+    if (raw.length < 100) break
+  }
+  return out
+}
+
+export async function listPullReviews(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  token: string,
+): Promise<ApiReview[]> {
+  return githubFetch<ApiReview[]>(
+    `/repos/${owner}/${repo}/pulls/${pullNumber}/reviews?per_page=100`,
     { token },
   )
-  return raw.map(normalizeComment)
+}
+
+/**
+ * Find the current user's PENDING review on this PR, if any.
+ * GitHub allows only one pending review per user per pull request.
+ */
+export async function findPendingReview(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  token: string,
+  login: string,
+): Promise<PendingReviewRef | null> {
+  const reviews = await listPullReviews(owner, repo, pullNumber, token)
+  const pending = reviews.find(
+    (r) =>
+      r.state === 'PENDING' &&
+      r.user?.login != null &&
+      r.user.login.toLowerCase() === login.toLowerCase(),
+  )
+  if (!pending?.node_id) return null
+  return { id: pending.id, nodeId: pending.node_id }
+}
+
+/** @deprecated use findPendingReview */
+export async function findPendingReviewId(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  token: string,
+  login: string,
+): Promise<number | null> {
+  const pending = await findPendingReview(owner, repo, pullNumber, token, login)
+  return pending?.id ?? null
 }
 
 export async function createReviewComment(
@@ -122,38 +348,309 @@ export async function createReviewComment(
     throw new Error('Connect to GitHub before posting a review comment.')
   }
 
-  const body: Record<string, unknown> = {
-    body: input.body,
-    commit_id: input.commitId,
-    path: input.path,
-    line: input.line,
-    side: input.side,
-  }
-
-  if (
-    input.startLine != null &&
-    input.startLine !== input.line
-  ) {
-    body.start_line = input.startLine
-    body.start_side = input.startSide ?? input.side
-  }
-
-  const raw = await githubFetch<ApiComment>(
-    `/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}/comments`,
-    {
-      token,
-      method: 'POST',
-      body,
-    },
+  const commentable = await fetchCommentableLines(
+    input.owner,
+    input.repo,
+    input.pullNumber,
+    input.path,
+    token,
   )
-  return normalizeComment(raw)
+
+  const start = input.startLine ?? input.line
+  const end = input.line
+  const clamped = clampRangeToDiff(input.side, start, end, commentable)
+  if (!clamped) {
+    throw new Error(
+      'GitHub only allows review comments on lines that appear in the pull request diff. Select text on or near a changed (green/red) line — unchanged lines outside the diff cannot be commented on.',
+    )
+  }
+
+  const login = await getStoredLogin()
+  const pullNodeId = await fetchPullRequestNodeId(
+    input.owner,
+    input.repo,
+    input.pullNumber,
+    token,
+  )
+
+  let pending =
+    login != null
+      ? await findPendingReview(
+          input.owner,
+          input.repo,
+          input.pullNumber,
+          token,
+          login,
+        )
+      : null
+
+  if (!pending) {
+    pending = await createEmptyPendingReview(
+      input.owner,
+      input.repo,
+      input.pullNumber,
+      input.commitId,
+      pullNodeId,
+      token,
+    )
+  }
+
+  try {
+    return await addThreadToPendingReviewGraphql({
+      token,
+      pullNodeId,
+      reviewNodeId: pending.nodeId,
+      reviewDatabaseId: pending.id,
+      path: input.path,
+      body: input.body,
+      side: input.side,
+      line: clamped.end,
+      startLine: clamped.start !== clamped.end ? clamped.start : undefined,
+      startSide:
+        clamped.start !== clamped.end
+          ? (input.startSide ?? input.side)
+          : undefined,
+      commitId: input.commitId,
+    })
+  } catch (error) {
+    if (isPendingReviewConflict(error) && login) {
+      const again = await findPendingReview(
+        input.owner,
+        input.repo,
+        input.pullNumber,
+        token,
+        login,
+      )
+      if (again) {
+        return addThreadToPendingReviewGraphql({
+          token,
+          pullNodeId,
+          reviewNodeId: again.nodeId,
+          reviewDatabaseId: again.id,
+          path: input.path,
+          body: input.body,
+          side: input.side,
+          line: clamped.end,
+          startLine: clamped.start !== clamped.end ? clamped.start : undefined,
+          startSide:
+            clamped.start !== clamped.end
+              ? (input.startSide ?? input.side)
+              : undefined,
+          commitId: input.commitId,
+        })
+      }
+    }
+    throw error
+  }
+}
+
+/**
+ * Start an empty pending review. Adding threads uses GraphQL — REST cannot
+ * append comments to a pending review (returns 404 Not Found).
+ */
+async function createEmptyPendingReview(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  commitId: string,
+  pullNodeId: string,
+  token: string,
+): Promise<PendingReviewRef> {
+  try {
+    const review = await githubFetch<ApiReview>(
+      `/repos/${owner}/${repo}/pulls/${pullNumber}/reviews`,
+      {
+        token,
+        method: 'POST',
+        body: {
+          commit_id: commitId,
+          // Omit `event` so the review stays PENDING.
+        },
+      },
+    )
+    if (!review.node_id) {
+      throw new Error('Created a pending review without a node id.')
+    }
+    return { id: review.id, nodeId: review.node_id }
+  } catch (error) {
+    if (isPendingReviewConflict(error)) {
+      throw error
+    }
+    const data = await githubGraphql<{
+      addPullRequestReview: {
+        pullRequestReview: { id: string; databaseId: number }
+      }
+    }>(
+      token,
+      `mutation($pullRequestId: ID!, $commitOID: GitObjectID) {
+        addPullRequestReview(input: {
+          pullRequestId: $pullRequestId
+          commitOID: $commitOID
+        }) {
+          pullRequestReview { id databaseId }
+        }
+      }`,
+      { pullRequestId: pullNodeId, commitOID: commitId },
+    )
+    const created = data.addPullRequestReview.pullRequestReview
+    return { id: created.databaseId, nodeId: created.id }
+  }
+}
+
+type GraphqlReviewComment = {
+  databaseId: number
+  body: string
+  url: string
+  createdAt: string
+  commit: { oid: string } | null
+  author: { login: string } | null
+  pullRequestReview: { databaseId: number } | null
+}
+
+type GraphqlReviewThread = {
+  path: string
+  line: number | null
+  startLine: number | null
+  originalLine: number | null
+  diffSide: 'LEFT' | 'RIGHT' | null
+  comments: { nodes: GraphqlReviewComment[] }
+}
+
+async function addThreadToPendingReviewGraphql(args: {
+  token: string
+  pullNodeId: string
+  reviewNodeId: string
+  reviewDatabaseId: number
+  path: string
+  body: string
+  side: ReviewSide
+  line: number
+  startLine?: number
+  startSide?: ReviewSide
+  commitId: string
+}): Promise<PullReviewComment> {
+  const input: Record<string, unknown> = {
+    pullRequestId: args.pullNodeId,
+    pullRequestReviewId: args.reviewNodeId,
+    path: args.path,
+    body: args.body,
+    line: args.line,
+    side: args.side,
+  }
+  if (args.startLine != null) {
+    input.startLine = args.startLine
+    input.startSide = args.startSide ?? args.side
+  }
+
+  const data = await githubGraphql<{
+    addPullRequestReviewThread: {
+      thread: GraphqlReviewThread | null
+    }
+  }>(
+    args.token,
+    `mutation($input: AddPullRequestReviewThreadInput!) {
+      addPullRequestReviewThread(input: $input) {
+        thread {
+          path
+          line
+          startLine
+          originalLine
+          diffSide
+          comments(first: 1) {
+            nodes {
+              databaseId
+              body
+              url
+              createdAt
+              commit { oid }
+              author { login }
+              pullRequestReview { databaseId }
+            }
+          }
+        }
+      }
+    }`,
+    { input },
+  )
+
+  const thread = data.addPullRequestReviewThread.thread
+  const node = thread?.comments.nodes[0] ?? null
+  if (!thread || !node) {
+    throw new Error('GitHub did not return the new review comment.')
+  }
+
+  return {
+    id: node.databaseId,
+    body: node.body,
+    path: thread.path || args.path,
+    side:
+      thread.diffSide === 'LEFT' || thread.diffSide === 'RIGHT'
+        ? thread.diffSide
+        : args.side,
+    line: thread.line ?? args.line,
+    startLine: thread.startLine,
+    originalLine: thread.originalLine,
+    inReplyToId: null,
+    userLogin: node.author?.login ?? '',
+    createdAt: node.createdAt,
+    commitId: node.commit?.oid ?? args.commitId,
+    htmlUrl: node.url,
+    pullRequestReviewId:
+      node.pullRequestReview?.databaseId ?? args.reviewDatabaseId,
+  }
+}
+
+export function isPendingReviewConflict(error: unknown): boolean {
+  if (!(error instanceof GitHubApiError)) return false
+  const message = error.message.toLowerCase()
+  return (
+    message.includes('one pending review') ||
+    message.includes('only have one pending review')
+  )
+}
+
+type PullFileEntry = {
+  filename: string
+  previous_filename?: string
+  patch?: string
+  status?: string
+}
+
+export async function fetchCommentableLines(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  path: string,
+  token: string,
+): Promise<CommentableLines> {
+  for (let page = 1; page <= 20; page += 1) {
+    const files = await githubFetch<PullFileEntry[]>(
+      `/repos/${owner}/${repo}/pulls/${pullNumber}/files?per_page=100&page=${page}`,
+      { token },
+    )
+    const file = files.find(
+      (f) => f.filename === path || f.previous_filename === path,
+    )
+    if (file) {
+      if (!file.patch) {
+        // New empty file / binary / too large for patch — let GitHub decide.
+        return { left: new Set(), right: new Set() }
+      }
+      return parseCommentableLines(file.patch)
+    }
+    if (files.length < 100) break
+  }
+  return { left: new Set(), right: new Set() }
 }
 
 /**
  * Group flat review comments into root threads (replies nest under roots).
  * Only threads with a resolvable line + side are kept.
  */
-export function buildThreads(comments: PullReviewComment[]): ReviewThread[] {
+export function buildThreads(
+  comments: PullReviewComment[],
+  pendingReviewIds: Set<number> = new Set(),
+): ReviewThread[] {
   const byId = new Map(comments.map((c) => [c.id, c]))
   const replies = new Map<number, PullReviewComment[]>()
   const roots: PullReviewComment[] = []
@@ -177,6 +674,9 @@ export function buildThreads(comments: PullReviewComment[]): ReviewThread[] {
     }
     const startLine = root.startLine ?? line
     const nested = collectThreadComments(root, replies)
+    const pending =
+      root.pullRequestReviewId != null &&
+      pendingReviewIds.has(root.pullRequestReviewId)
     threads.push({
       rootId: root.id,
       path: root.path,
@@ -184,6 +684,7 @@ export function buildThreads(comments: PullReviewComment[]): ReviewThread[] {
       startLine,
       line,
       comments: nested,
+      pending,
     })
   }
 
@@ -216,8 +717,7 @@ function collectThreadComments(
 }
 
 function normalizeComment(raw: ApiComment): PullReviewComment {
-  const side =
-    raw.side === 'LEFT' || raw.side === 'RIGHT' ? raw.side : null
+  const side = normalizeSide(raw)
   return {
     id: raw.id,
     body: raw.body,
@@ -231,5 +731,18 @@ function normalizeComment(raw: ApiComment): PullReviewComment {
     createdAt: raw.created_at,
     commitId: raw.commit_id,
     htmlUrl: raw.html_url,
+    pullRequestReviewId: raw.pull_request_review_id ?? null,
   }
+}
+
+function normalizeSide(raw: ApiComment): ReviewSide | null {
+  if (raw.side === 'LEFT' || raw.side === 'RIGHT') return raw.side
+  if (raw.start_side === 'LEFT' || raw.start_side === 'RIGHT') {
+    return raw.start_side
+  }
+  // Older comments omit side; line comments default to the head (After).
+  if (raw.line != null || raw.original_line != null) {
+    return 'RIGHT'
+  }
+  return null
 }

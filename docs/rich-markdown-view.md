@@ -15,12 +15,18 @@ The view is read-only. Selection maps to a source line range for comments.
 
 1. Each rich cell has `data-block-id`, `data-side` (`LEFT` / `RIGHT`), and `data-src-from` / `data-src-to`.
 2. Text chunks carry `data-src-offset` and `data-src-len` (word-diff segments use `srcLen`).
-3. `selectionToSourceRange` reads the DOM selection and returns `{ side, startLine, startCol, endLine, endCol, quotedText }`.
+3. `selectionToSourceRange` maps the DOM selection onto **source-view line
+   numbers** (soft-wrapped paragraphs included) and expands to whole lines.
+   It does **not** jump the live selection to distant diff hunks.
+4. The live selection is expanded to those whole lines and painted with a
+   persistent highlight. GitHub’s “must be in the PR diff” rule is enforced
+   when posting, not by hijacking the selection.
 
 | Path | Role |
 | --- | --- |
-| `src/markdown/sourceRange.ts` | Plain offset → line/col |
-| `src/content/markdownReview/selection.ts` | DOM selection → `SourceRange` |
+| `src/markdown/sourceRange.ts` | Plain offset → source line/col; whole-line expand |
+| `src/shared/commentableLines.ts` | Parse patch; clamp to commentable lines on create |
+| `src/content/markdownReview/selection.ts` | DOM selection → `SourceRange` + highlight |
 
 Chrome UI (`data-rgm-chrome`) is skipped when measuring offsets.
 
@@ -28,7 +34,13 @@ Chrome UI (`data-rgm-chrome`) is skipped when measuring offsets.
 
 1. On rich mount, Markdup loads `FETCH_THREAD_INDEX` for the file (stashed for thread cards).
 2. Selecting text opens a composer under the row.
-3. **Comment** sends `CREATE_REVIEW_COMMENT` with `side`, `line`, and optional `start_line`.
+3. **Comment** adds a line comment to your **pending review** via GraphQL
+   (`addPullRequestReviewThread`) — REST cannot append to a pending draft.
+   Starts a pending review if needed. You can stack many pending comments,
+   then submit on GitHub. After create, Markdup **syncs** from GitHub via
+   GraphQL `reviewThreads` (REST drops line/side on pending GraphQL comments)
+   and only then paints thread cards — full replace. Switching back to source
+   reloads the page so native widgets match production.
 
 | Path | Role |
 | --- | --- |

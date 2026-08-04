@@ -95,6 +95,11 @@ export type FileSnapshot = {
   headSha: string
   baseText: string | null
   headText: string | null
+  /** Lines GitHub accepts for LEFT/RIGHT review comments. */
+  commentable: {
+    left: number[]
+    right: number[]
+  }
 }
 
 export type ReviewCommentDto = {
@@ -110,6 +115,7 @@ export type ReviewCommentDto = {
   createdAt: string
   commitId: string
   htmlUrl: string
+  pullRequestReviewId?: number | null
 }
 
 export type ReviewThreadDto = {
@@ -119,6 +125,7 @@ export type ReviewThreadDto = {
   startLine: number
   line: number
   comments: ReviewCommentDto[]
+  pending?: boolean
 }
 
 export type ThreadIndexDto = {

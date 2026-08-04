@@ -1,5 +1,10 @@
 import { githubFetch } from './client'
 import { getAccessToken } from './auth'
+import {
+  commentableToDto,
+  type CommentableLinesDto,
+} from '../../shared/commentableLines'
+import { fetchCommentableLines } from './pulls'
 
 export type PullRefs = {
   owner: string
@@ -18,6 +23,8 @@ export type FileSnapshot = {
   headSha: string
   baseText: string | null
   headText: string | null
+  /** Lines GitHub accepts for LEFT/RIGHT review comments. */
+  commentable: CommentableLinesDto
 }
 
 type PullResponse = {
@@ -111,9 +118,10 @@ export async function fetchFileSnapshot(
   }
 
   const refs = await fetchPullRefs(owner, repo, pullNumber, token)
-  const [baseText, headText] = await Promise.all([
+  const [baseText, headText, commentable] = await Promise.all([
     fetchFileTextAtRef(owner, repo, path, refs.baseSha, token),
     fetchFileTextAtRef(owner, repo, path, refs.headSha, token),
+    fetchCommentableLines(owner, repo, pullNumber, path, token),
   ])
 
   return {
@@ -125,6 +133,7 @@ export async function fetchFileSnapshot(
     headSha: refs.headSha,
     baseText,
     headText,
+    commentable: commentableToDto(commentable),
   }
 }
 

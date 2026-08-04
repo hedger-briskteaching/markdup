@@ -15,6 +15,7 @@ Use this file after an editor restart. Work lives in **`/Users/hedger/Documents/
   Commit: `336ad01`
 - Selection → source range; review comment list/create + composer; PAT auth fallback  
   Commit: `bca77f0`
+- Comment selection bubble + thread cards (Open / Re-anchored) — local pending commit
 
 ### Auth notes
 
@@ -29,11 +30,12 @@ Tests: **88 passing** last run
 ## Locked product rules
 
 1. **GitHub is the only store.** Rich view is a disposable projection. No parallel comment IDs.
-2. **Rich view is read-only.** Reviewer can select text and add a comment. No WYSIWYG edit of Markdown.
-3. **Comments map to source line ranges** (`path`, `side`, `startLine`, `startCol`, `endLine`, `endCol`), then `POST` PR review comments.
-4. **Auth:** Both OAuth Device Flow and PAT paste are supported. OAuth App “Markdup”, scope `repo`, client id in `src/shared/githubAuth.ts`. Use PAT when an org blocks the OAuth App.
-5. **Surface:** Chrome extension on `github.com` PR Files (not a first-party GitHub UI).
-
+2. **Client threads always match production.** After mount or create, replace local thread state from `FETCH_THREAD_INDEX` (GraphQL `reviewThreads` — REST omits line/side for pending drafts). Full replace only. Post-create polls until the new comment id appears, or surfaces a sync error.
+3. **Rich view is read-only.** Reviewer can select text and add a comment. No WYSIWYG edit of Markdown.
+4. **Comments map to source line ranges** (`path`, `side`, `startLine`, `startCol`, `endLine`, `endCol`), then create PR review comments on GitHub.
+5. **Auth:** Both OAuth Device Flow and PAT paste are supported. OAuth App “Markdup”, scope `repo`, client id in `src/shared/githubAuth.ts`. Use PAT when an org blocks the OAuth App.
+6. **Surface:** Chrome extension on `github.com` PR Files (not a first-party GitHub UI).
+7. **Native view after posts:** Switching off rich mode reloads the page when comments were posted so GitHub’s Files widgets match production.
 ---
 
 ## Architecture (current)
@@ -73,20 +75,19 @@ Docs:
 
 ## Build order (remaining)
 
-Ship in this order. Do not skip ahead to suggestions before thread cards work.
+Ship in this order.
 
 | # | Slice | Goal | Notes |
 | --- | --- | --- | --- |
 | 0 | **Commit rich view** | Clean tree | Done (`336ad01`) |
 | 1 | **Selection → source range** | Map DOM selection to `{side, lines, cols, quotedText}` | Done (`bca77f0`) |
 | 2 | **List / create review comments** | `ThreadIndex` from API; create from rich composer | Done (`bca77f0`) |
-| 3 | **Thread cards on rows** | Place open threads under After (and Before when LEFT) | Match mockups: Open / Re-anchored chips |
+| 3 | **Thread cards on rows** | Place open threads under After (and Before when LEFT) | Done — Open / Re-anchored chips + Show |
 | 4 | **ViewFocus toggle** | Preserve scroll / thread when Source ⇄ Rich | Spec acceptance: within one row height |
-| 5 | **Suggest change** | Composer tab → ` ```suggestion ` body | Refuse if patch would touch more than mapped span |
-| 6 | **Outline + stepper + filter** | Nav chrome | Operate on full `RowModel[]` |
-| 7 | **Re-anchor + virtualize** | New commits; long docs | Never drop threads silently |
+| 5 | **Outline + stepper + filter** | Nav chrome | Operate on full `RowModel[]` |
+| 6 | **Re-anchor + virtualize** | New commits; long docs | Never drop threads silently |
 
-**v1 write surface (agreed):** create comment first; suggest + resolve can follow once create round-trips.
+**v1 write surface:** create review comments only (no suggest-change).
 
 ---
 
@@ -94,16 +95,17 @@ Ship in this order. Do not skip ahead to suggestions before thread cards work.
 
 1. Open `/Users/hedger/Documents/markdup`.
 2. Run `pnpm test` and `pnpm type-check`.
-3. Implement **thread cards on rows** (slice 3): render `ThreadIndex` from context under the matching Before/After rows (Open / Re-anchored chips).
-4. Then **ViewFocus toggle** (slice 4).
+3. Commit pending UX work (comment bubble + thread cards) if still dirty.
+4. Implement **ViewFocus toggle** (slice 4).
+5. Then outline / stepper / filter (slice 5).
 
 ### Quick how to try
 
 1. `pnpm build` (or `pnpm dev`), reload unpacked `dist/` in Chrome (ID `knlaahnhnocjejneaobpbbnfibfnoiei`)
 2. Settings: try OAuth first, or paste a classic PAT (`repo`) if the org blocks the app
-3. Open a PR Files page with a `.md` change
+3. Open a PR Files page with a Markdown change
 4. Turn on **Rich Markdown view**
-5. Select text → composer → **Comment**
+5. Select text → Comment → Add comment
 
 ---
 

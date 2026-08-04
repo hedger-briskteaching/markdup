@@ -12,6 +12,41 @@ export class GitHubApiError extends Error {
   }
 }
 
+/** Prefer GitHub's per-field validation messages over the generic "Validation Failed". */
+export function formatGitHubErrorMessage(
+  status: number,
+  parsed: unknown,
+): string {
+  if (typeof parsed === 'object' && parsed !== null) {
+    const record = parsed as {
+      message?: unknown
+      errors?: Array<{ message?: unknown; field?: unknown }>
+    }
+    const details =
+      Array.isArray(record.errors) && record.errors.length > 0
+        ? record.errors
+            .map((err) =>
+              typeof err.message === 'string' && err.message.length > 0
+                ? err.message
+                : typeof err.field === 'string'
+                  ? `Invalid ${err.field}`
+                  : null,
+            )
+            .filter((m): m is string => Boolean(m))
+        : []
+
+    if (details.length > 0) {
+      return details.join(' ')
+    }
+
+    if (typeof record.message === 'string' && record.message.length > 0) {
+      return record.message
+    }
+  }
+
+  return `GitHub request failed (${status})`
+}
+
 export async function githubFetch<T>(
   path: string,
   options: {
@@ -54,14 +89,11 @@ export async function githubFetch<T>(
   }
 
   if (!response.ok) {
-    const message =
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      'message' in parsed &&
-      typeof (parsed as { message: unknown }).message === 'string'
-        ? (parsed as { message: string }).message
-        : `GitHub request failed (${response.status})`
-    throw new GitHubApiError(message, response.status, parsed)
+    throw new GitHubApiError(
+      formatGitHubErrorMessage(response.status, parsed),
+      response.status,
+      parsed,
+    )
   }
 
   return parsed as T

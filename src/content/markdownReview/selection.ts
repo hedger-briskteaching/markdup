@@ -1,9 +1,12 @@
 import type { BlockView, RowModel } from '../../markdown/align'
 import type { ReviewThreadDto } from '../../shared/messages'
+import type { CommentableLines } from '../../shared/commentableLines'
 import {
+  expandSourceRangeToWholeLines,
   linesForRange,
   mergeSourceRanges,
   offsetsToSourceRange,
+  plainOffsetsForLineSpan,
   type BlockSourceAnchor,
   type ReviewSide,
   type SourceRange,
@@ -22,9 +25,12 @@ export type RichViewContext = {
   baseSha?: string
   headSha?: string
   threads?: ReviewThreadDto[]
+  /** Empty sets = unknown (no patch). */
+  commentable?: CommentableLines
 }
 
 const contexts = new WeakMap<Element, RichViewContext>()
+const HIGHLIGHT_ATTR = 'data-rgm-sel-highlight'
 
 /** Attach snapshot text + rows to the rich root for selection mapping. */
 export function setRichViewContext(
@@ -47,6 +53,7 @@ export function getRichViewContext(
 /**
  * Map the current DOM selection inside a rich root to a source range.
  * Returns null when the selection is empty, crosses sides, or has no anchors.
+ * Ranges are expanded to whole source lines (GitHub line-comment grain).
  */
 export function selectionToSourceRange(
   selection: Selection,
@@ -83,42 +90,244 @@ export function selectionToSourceRange(
     return null
   }
 
+  let mapped: SourceRange | null = null
+
   if (startCell === endCell) {
     const anchor = anchorFromCell(startCell, ctx)
     if (!anchor) return null
-    const startOffset = srcOffsetInCell(startCell, range.startContainer, range.startOffset)
-    const endOffset = srcOffsetInCell(startCell, range.endContainer, range.endOffset)
+    const startOffset = srcOffsetInCell(
+      startCell,
+      range.startContainer,
+      range.startOffset,
+    )
+    const endOffset = srcOffsetInCell(
+      startCell,
+      range.endContainer,
+      range.endOffset,
+    )
     if (startOffset == null || endOffset == null) return null
-    return offsetsToSourceRange(anchor, startOffset, endOffset, quotedText)
+    mapped = offsetsToSourceRange(anchor, startOffset, endOffset, quotedText)
+  } else {
+    // Multi-cell on the same side: span from first block start through last block end
+    // using the selected offsets at each end.
+    const startAnchor = anchorFromCell(startCell, ctx)
+    const endAnchor = anchorFromCell(endCell, ctx)
+    if (!startAnchor || !endAnchor) return null
+
+    const startOffset = srcOffsetInCell(
+      startCell,
+      range.startContainer,
+      range.startOffset,
+    )
+    const endOffset = srcOffsetInCell(
+      endCell,
+      range.endContainer,
+      range.endOffset,
+    )
+    if (startOffset == null || endOffset == null) return null
+
+    const startRange = offsetsToSourceRange(
+      startAnchor,
+      startOffset,
+      startAnchor.plainText.length,
+      quotedText,
+    )
+    const endRange = offsetsToSourceRange(
+      endAnchor,
+      0,
+      endOffset,
+      quotedText,
+    )
+    mapped = mergeSourceRanges(startRange, endRange)
   }
 
-  // Multi-cell on the same side: span from first block start through last block end
-  // using the selected offsets at each end.
-  const startAnchor = anchorFromCell(startCell, ctx)
-  const endAnchor = anchorFromCell(endCell, ctx)
+  if (!mapped) return null
+
+  const fileText = mapped.side === 'LEFT' ? ctx.baseText : ctx.headText
+  // Expand to whole source lines for the *user's* selection only.
+  // Do not jump to distant commentable hunks here — that hijacks the live
+  // selection (e.g. L10–12 → L90–93). GitHub line rules are enforced on create.
+  return expandSourceRangeToWholeLines(mapped, fileText)
+}
+
+/**
+ * Expand the live DOM selection to cover the rendered text for a source range.
+ * Returns the DOM Range used, or null when it cannot be resolved.
+ */
+export function snapDomSelectionToSourceRange(
+  selection: Selection,
+  richRoot: Element,
+  sourceRange: SourceRange,
+): Range | null {
+  const domRange = domRangeForSourceRange(richRoot, sourceRange)
+  if (!domRange) return null
+  try {
+    selection.removeAllRanges()
+    selection.addRange(domRange)
+    return domRange
+  } catch {
+    return null
+  }
+}
+
+/** Paint a persistent highlight for the active comment range (survives focus loss). */
+export function applySelectionHighlight(
+  richRoot: HTMLElement,
+  sourceRange: SourceRange,
+): void {
+  clearSelectionHighlight(richRoot)
+  const domRange = domRangeForSourceRange(richRoot, sourceRange)
+  if (!domRange) return
+
+  const layer = document.createElement('div')
+  layer.setAttribute(HIGHLIGHT_ATTR, '')
+  layer.className = 'rgm-sel-highlight-layer'
+  layer.setAttribute('aria-hidden', 'true')
+
+  const rootRect = richRoot.getBoundingClientRect()
+  const rects =
+    typeof domRange.getClientRects === 'function'
+      ? [...domRange.getClientRects()]
+      : []
+
+  for (const rect of rects) {
+    if (rect.width <= 0 && rect.height <= 0) continue
+    const box = document.createElement('div')
+    box.className = 'rgm-sel-highlight'
+    box.style.top = `${rect.top - rootRect.top + richRoot.scrollTop}px`
+    box.style.left = `${rect.left - rootRect.left + richRoot.scrollLeft}px`
+    box.style.width = `${rect.width}px`
+    box.style.height = `${rect.height}px`
+    layer.appendChild(box)
+  }
+
+  // Fallback when layout APIs are missing (jsdom): tint overlapping cells.
+  if (layer.childElementCount === 0) {
+    for (const cell of cellsOverlappingRange(richRoot, sourceRange)) {
+      cell.classList.add('rgm-sel-highlight-cell')
+    }
+  }
+
+  richRoot.appendChild(layer)
+}
+
+export function clearSelectionHighlight(richRoot: Element): void {
+  richRoot.querySelector(`[${HIGHLIGHT_ATTR}]`)?.remove()
+  for (const cell of richRoot.querySelectorAll('.rgm-sel-highlight-cell')) {
+    cell.classList.remove('rgm-sel-highlight-cell')
+  }
+}
+
+/** Prefer the cell that owns the end line of a source range (composer mount point). */
+export function findCellForSourceRange(
+  richRoot: Element,
+  range: SourceRange,
+): HTMLElement | null {
+  const overlapping = cellsOverlappingRange(richRoot, range)
+  if (overlapping.length === 0) return null
+
+  const endCell = overlapping.find((cell) => {
+    const from = Number(cell.getAttribute('data-src-from'))
+    const to = Number(cell.getAttribute('data-src-to'))
+    return range.endLine >= from && range.endLine <= to
+  })
+  return endCell ?? overlapping[overlapping.length - 1]!
+}
+
+function domRangeForSourceRange(
+  richRoot: Element,
+  sourceRange: SourceRange,
+): Range | null {
+  const ctx = contexts.get(richRoot)
+  if (!ctx) return null
+
+  const cells = cellsOverlappingRange(richRoot, sourceRange)
+  if (cells.length === 0) return null
+
+  const first = cells[0]!
+  const last = cells[cells.length - 1]!
+  const startAnchor = anchorFromCell(first, ctx)
+  const endAnchor = anchorFromCell(last, ctx)
   if (!startAnchor || !endAnchor) return null
 
-  const startOffset = srcOffsetInCell(
-    startCell,
-    range.startContainer,
-    range.startOffset,
-  )
-  const endOffset = srcOffsetInCell(endCell, range.endContainer, range.endOffset)
-  if (startOffset == null || endOffset == null) return null
-
-  const startRange = offsetsToSourceRange(
+  const startOffsets = plainOffsetsForLineSpan(
     startAnchor,
-    startOffset,
-    startAnchor.plainText.length,
-    quotedText,
+    sourceRange.startLine,
+    sourceRange.endLine,
   )
-  const endRange = offsetsToSourceRange(
+  const endOffsets = plainOffsetsForLineSpan(
     endAnchor,
-    0,
-    endOffset,
-    quotedText,
+    sourceRange.startLine,
+    sourceRange.endLine,
   )
-  return mergeSourceRanges(startRange, endRange)
+  if (!startOffsets || !endOffsets) return null
+
+  const startPoint = domPointAtSrcOffset(first, startOffsets.from)
+  const endPoint = domPointAtSrcOffset(last, endOffsets.to)
+  if (!startPoint || !endPoint) return null
+
+  try {
+    const domRange = document.createRange()
+    domRange.setStart(startPoint.node, startPoint.offset)
+    domRange.setEnd(endPoint.node, endPoint.offset)
+    return domRange
+  } catch {
+    return null
+  }
+}
+
+function cellsOverlappingRange(
+  richRoot: Element,
+  range: SourceRange,
+): HTMLElement[] {
+  const cells = [
+    ...richRoot.querySelectorAll<HTMLElement>(
+      `.rgm-rich-cell[data-side="${range.side}"]:not(.rgm-rich-cell-missing)`,
+    ),
+  ]
+  return cells.filter((cell) => {
+    const from = Number(cell.getAttribute('data-src-from'))
+    const to = Number(cell.getAttribute('data-src-to'))
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return false
+    return from <= range.endLine && to >= range.startLine
+  })
+}
+
+/**
+ * Resolve a plain-text offset inside a cell to a DOM text point.
+ */
+export function domPointAtSrcOffset(
+  cell: HTMLElement,
+  srcOffset: number,
+): { node: Text; offset: number } | null {
+  const content = cell.querySelector('.rgm-rich-content')
+  if (!content) return null
+
+  const target = Math.max(0, srcOffset)
+  let seen = 0
+  const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT)
+  let current = walker.nextNode()
+  let lastText: Text | null = null
+
+  while (current) {
+    if (isChromeText(current)) {
+      current = walker.nextNode()
+      continue
+    }
+    const text = current as Text
+    lastText = text
+    const len = text.textContent?.length ?? 0
+    if (seen + len >= target) {
+      return { node: text, offset: target - seen }
+    }
+    seen += len
+    current = walker.nextNode()
+  }
+
+  if (lastText) {
+    return { node: lastText, offset: lastText.textContent?.length ?? 0 }
+  }
+  return null
 }
 
 function cellForNode(node: Node, richRoot: Element): HTMLElement | null {
@@ -203,7 +412,7 @@ export function srcOffsetInCell(
   offset: number,
 ): number | null {
   const content = cell.querySelector('.rgm-rich-content')
-  if (!content || !content.contains(node) && node !== content) {
+  if (!content || (!content.contains(node) && node !== content)) {
     // Click in gutter — treat as start of content
     if (cell.contains(node)) {
       return 0

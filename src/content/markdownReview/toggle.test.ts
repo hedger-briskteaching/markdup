@@ -11,6 +11,7 @@ const SAMPLE_SNAPSHOT = {
   headSha: 'bbb',
   baseText: '# Title\n\nOld line.\n',
   headText: '# Title\n\nNew line added.\n',
+  commentable: { left: [1, 2, 3], right: [1, 2, 3] },
 }
 
 function mockAuthOk(login = 'tester') {
