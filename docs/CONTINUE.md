@@ -13,31 +13,16 @@ Use this file after an editor restart. Work lives in **`/Users/hedger/Documents/
   Commit: `bfc034a`
 - Rich Before/After view (align, word diff, file snapshot, DOM)  
   Commit: `336ad01`
+- Selection → source range; review comment list/create + composer; PAT auth fallback  
+  Commit: `bca77f0`
 
-### Done (local, **not committed yet**)
+### Auth notes
 
-**Slice 1 — Selection → source range**
+- **Option 1:** OAuth Device Flow (try first)
+- **Option 2:** Personal access token paste in Settings (fallback when an org blocks the OAuth App)
+- Local PAT backup may live in gitignored `.env` as `MARKDUP_GITHUB_PAT` — the extension does **not** read `.env`; paste into Settings
 
-- `src/markdown/sourceRange.ts` — plain offset → line/col, `SourceRange`
-- `src/content/markdownReview/selection.ts` — DOM selection → `SourceRange`
-- Diff segments carry `srcLen`; rich DOM has `data-src-offset` / `data-side` / `data-src-from`
-
-**Slice 2 — List / create review comments**
-
-- `src/background/github/pulls.ts` — list comments, `buildThreads`, create comment
-- Messages: `FETCH_THREAD_INDEX`, `CREATE_REVIEW_COMMENT`
-- Rich composer on text selection → posts review comment
-- Thread index loaded into rich context (cards come in slice 3)
-
-Tests: **85 passing** last run
-
-**Before you continue coding:** commit these uncommitted files.
-
-```bash
-cd /Users/hedger/Documents/markdup
-git status
-# then commit when ready
-```
+Tests: **88 passing** last run
 
 ---
 
@@ -55,11 +40,11 @@ git status
 
 ```
 Toggle ON
-  → AUTH_ENSURE (if needed)
+  → AUTH_ENSURE / existing PAT (if needed)
   → FETCH_FILE_SNAPSHOT (background + token)
   → alignMarkdown(baseText, headText) → RowModel[]
   → showRichView(region, rows)
-  → FETCH_THREAD_INDEX (stashed on context)
+  → FETCH_THREAD_INDEX (stashed on context; not rendered yet)
   → selection → SourceRange → composer → CREATE_REVIEW_COMMENT
 ```
 
@@ -70,7 +55,7 @@ Toggle ON
 | Source range mapping | `src/markdown/sourceRange.ts` |
 | DOM selection → range | `src/content/markdownReview/selection.ts` |
 | Composer | `src/content/markdownReview/composer.ts` |
-| GitHub auth | `src/background/github/auth.ts` |
+| GitHub auth (OAuth + PAT) | `src/background/github/auth.ts`, `src/options/App.tsx` |
 | File snapshot API | `src/background/github/contents.ts` |
 | Review comments API | `src/background/github/pulls.ts` |
 | Messages | `src/shared/messages.ts` |
@@ -88,13 +73,13 @@ Docs:
 
 ## Build order (remaining)
 
-Ship in this order. Do not skip ahead to suggestions before anchors work.
+Ship in this order. Do not skip ahead to suggestions before thread cards work.
 
 | # | Slice | Goal | Notes |
 | --- | --- | --- | --- |
 | 0 | **Commit rich view** | Clean tree | Done (`336ad01`) |
-| 1 | **Selection → source range** | Map DOM selection to `{side, lines, cols, quotedText}` | Done locally |
-| 2 | **List / create review comments** | `ThreadIndex` from API; create from rich composer | Done locally — commit next |
+| 1 | **Selection → source range** | Map DOM selection to `{side, lines, cols, quotedText}` | Done (`bca77f0`) |
+| 2 | **List / create review comments** | `ThreadIndex` from API; create from rich composer | Done (`bca77f0`) |
 | 3 | **Thread cards on rows** | Place open threads under After (and Before when LEFT) | Match mockups: Open / Re-anchored chips |
 | 4 | **ViewFocus toggle** | Preserve scroll / thread when Source ⇄ Rich | Spec acceptance: within one row height |
 | 5 | **Suggest change** | Composer tab → ` ```suggestion ` body | Refuse if patch would touch more than mapped span |
@@ -109,18 +94,16 @@ Ship in this order. Do not skip ahead to suggestions before anchors work.
 
 1. Open `/Users/hedger/Documents/markdup`.
 2. Run `pnpm test` and `pnpm type-check`.
-3. Commit slices 1–2 if still uncommitted.
-4. Implement **thread cards on rows** (slice 3).
-5. Then **ViewFocus toggle** (slice 4).
+3. Implement **thread cards on rows** (slice 3): render `ThreadIndex` from context under the matching Before/After rows (Open / Re-anchored chips).
+4. Then **ViewFocus toggle** (slice 4).
 
 ### Quick how to try
 
-1. `pnpm dev`
-2. Load unpacked `dist/` in Chrome (ID `knlaahnhnocjejneaobpbbnfibfnoiei`)
-3. Connect GitHub in Settings
-4. Open a PR Files page with a `.md` change
-5. Turn on **Rich Markdown view**
-6. Select text → composer → **Comment** (posts a GitHub review comment)
+1. `pnpm build` (or `pnpm dev`), reload unpacked `dist/` in Chrome (ID `knlaahnhnocjejneaobpbbnfibfnoiei`)
+2. Settings: try OAuth first, or paste a classic PAT (`repo`) if the org blocks the app
+3. Open a PR Files page with a `.md` change
+4. Turn on **Rich Markdown view**
+5. Select text → composer → **Comment**
 
 ---
 
@@ -143,3 +126,4 @@ Ship in this order. Do not skip ahead to suggestions before anchors work.
 - Virtualization for 1000+ line files
 - Fine-grained OAuth scopes (still `repo`)
 - Reusing GitHub session cookies for `api.github.com`
+- Loading secrets from `.env` into the extension (Settings paste only)
