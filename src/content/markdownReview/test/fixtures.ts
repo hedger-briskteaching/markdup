@@ -7,8 +7,14 @@ export type FileRegionOptions = {
   includeDiffBody?: boolean
   includeFileViewToggle?: boolean
   pathViaLinkOnly?: boolean
-  /** When set, adds GitHub-style file expand/collapse chevron with aria-expanded. */
+  /**
+   * When set, adds GitHub-style file expand/collapse chevron.
+   * Matches the new Files UI: octicon + Primer tooltip (no aria-expanded),
+   * plus DiffFileHeader-module__collapsed when folded.
+   */
   fileExpanded?: boolean
+  /** Include the "Expand all lines" header control. */
+  includeExpandAllLines?: boolean
 }
 
 export function createFileRegion(options: FileRegionOptions): HTMLElement {
@@ -20,6 +26,7 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
     includeFileViewToggle = true,
     pathViaLinkOnly = false,
     fileExpanded,
+    includeExpandAllLines = false,
   } = options
 
   const region = document.createElement('div')
@@ -29,16 +36,30 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
   const header = document.createElement('div')
   header.setAttribute('data-diff-header-wrapper', '')
 
+  const fileHeader = document.createElement('div')
+  fileHeader.className = 'DiffFileHeader-module__diff-file-header__UuNN4'
+  if (fileExpanded === false) {
+    fileHeader.classList.add('DiffFileHeader-module__collapsed__ZY5uc')
+  }
+
   if (fileExpanded !== undefined) {
     const collapseBtn = document.createElement('button')
     collapseBtn.type = 'button'
-    collapseBtn.setAttribute('aria-expanded', String(fileExpanded))
-    collapseBtn.setAttribute(
-      'aria-label',
-      fileExpanded ? 'Collapse file' : 'Expand file',
+    collapseBtn.setAttribute('data-component', 'IconButton')
+    const tipId = `tip-collapse-${id}`
+    collapseBtn.setAttribute('aria-labelledby', tipId)
+    const icon = document.createElement('svg')
+    icon.classList.add(
+      'octicon',
+      fileExpanded ? 'octicon-chevron-down' : 'octicon-chevron-right',
     )
-    collapseBtn.textContent = fileExpanded ? 'v' : '>'
-    header.appendChild(collapseBtn)
+    collapseBtn.appendChild(icon)
+    const tip = document.createElement('span')
+    tip.id = tipId
+    tip.setAttribute('data-component', 'Tooltip')
+    tip.textContent = fileExpanded ? 'Collapse file' : 'Expand file'
+    fileHeader.appendChild(collapseBtn)
+    fileHeader.appendChild(tip)
   }
 
   const title = document.createElement('h3')
@@ -46,14 +67,25 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
   link.href = '#'
   link.textContent = path
   title.appendChild(link)
-  header.appendChild(title)
+  fileHeader.appendChild(title)
 
   if (!pathViaLinkOnly) {
     const pathButton = document.createElement('button')
     pathButton.type = 'button'
     pathButton.setAttribute('data-file-path', path)
     pathButton.textContent = path
-    header.appendChild(pathButton)
+    fileHeader.appendChild(pathButton)
+  }
+
+  if (includeExpandAllLines) {
+    const expandAll = document.createElement('button')
+    expandAll.type = 'button'
+    expandAll.setAttribute('aria-label', `Expand all lines: ${path}`)
+    expandAll.setAttribute('data-file-path', path)
+    const unfold = document.createElement('svg')
+    unfold.classList.add('octicon', 'octicon-unfold')
+    expandAll.appendChild(unfold)
+    fileHeader.appendChild(expandAll)
   }
 
   const actions = document.createElement('div')
@@ -108,7 +140,8 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
     actions.appendChild(kebab)
   }
 
-  header.appendChild(actions)
+  fileHeader.appendChild(actions)
+  header.appendChild(fileHeader)
   region.appendChild(header)
 
   if (includeDiffBody) {
@@ -121,6 +154,41 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
   }
 
   return region
+}
+
+/** Flip a fixture between expanded and collapsed GitHub header states. */
+export function setFileCollapsed(region: Element, collapsed: boolean): void {
+  const fileHeader = region.querySelector(
+    '[class*="DiffFileHeader-module__diff-file-header"]',
+  )
+  if (fileHeader) {
+    fileHeader.classList.toggle(
+      'DiffFileHeader-module__collapsed__ZY5uc',
+      collapsed,
+    )
+  }
+
+  const icon = region.querySelector(
+    'svg.octicon-chevron-down, svg.octicon-chevron-right',
+  )
+  if (icon) {
+    icon.classList.toggle('octicon-chevron-down', !collapsed)
+    icon.classList.toggle('octicon-chevron-right', collapsed)
+  }
+
+  const tip = region.querySelector('[data-component="Tooltip"]')
+  if (
+    tip &&
+    (tip.textContent === 'Collapse file' || tip.textContent === 'Expand file')
+  ) {
+    tip.textContent = collapsed ? 'Expand file' : 'Collapse file'
+  }
+
+  if (collapsed) {
+    region
+      .querySelector('div.border.position-relative.rounded-bottom-2')
+      ?.remove()
+  }
 }
 
 export function setPathname(pathname: string): void {

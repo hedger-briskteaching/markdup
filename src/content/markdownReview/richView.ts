@@ -8,8 +8,10 @@ import {
 } from './selection'
 import { bindComposer } from './composer'
 import {
+  bindFileCollapseSync,
   bindHeaderControlSuppress,
   showInterferingHeaderControls,
+  unbindFileCollapseSync,
 } from './headerControls'
 import { buildRichRoot } from './renderBody'
 import type { CommentableLines } from '../../shared/commentableLines'
@@ -93,6 +95,7 @@ export function showRichView(
   composerCleanups.get(root)?.()
   composerCleanups.set(root, bindComposer(root))
   bindHeaderControlSuppress(region)
+  bindFileCollapseSync(region)
 }
 
 export function showRichLoading(region: Element): void {
@@ -117,6 +120,7 @@ export function showRichLoading(region: Element): void {
   status.textContent = 'Loading rich Markdown view…'
   root.appendChild(status)
   bindHeaderControlSuppress(region)
+  bindFileCollapseSync(region)
 }
 
 export function showRichError(region: Element, message: string): void {
@@ -140,10 +144,12 @@ export function showRichError(region: Element, message: string): void {
   status.textContent = message
   root.appendChild(status)
   bindHeaderControlSuppress(region)
+  bindFileCollapseSync(region)
 }
 
 export function hideRichView(region: Element): void {
   showInterferingHeaderControls(region)
+  unbindFileCollapseSync(region)
   const diffBody = findDiffBody(region)
   diffBody?.removeAttribute(HIDDEN_ATTR)
   const rich = region.querySelector('[data-rgm-rich]')
@@ -154,6 +160,14 @@ export function hideRichView(region: Element): void {
     rich.remove()
   }
   region.querySelector(RGM_STUB)?.remove()
+}
+
+/** Re-hide the native diff body after GitHub remounts it (e.g. expand). */
+export function ensureNativeDiffHidden(region: Element): void {
+  const diffBody = findDiffBody(region)
+  if (diffBody) {
+    diffBody.setAttribute(HIDDEN_ATTR, '')
+  }
 }
 
 export function isRichMode(region: Element): boolean {

@@ -6,6 +6,12 @@ const CSS = `
   display: none !important;
 }
 
+/* Mirror GitHub's file-section collapse onto our sibling rich root. */
+[data-rgm-file-collapsed] [data-rgm-rich],
+[data-rgm-file-collapsed] [data-rgm-auth-panel] {
+  display: none !important;
+}
+
 [data-rgm-toggle] {
   position: relative;
   display: inline-flex;

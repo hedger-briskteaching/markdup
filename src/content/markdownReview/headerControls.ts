@@ -1,15 +1,28 @@
 /**
  * Hide GitHub header controls that conflict with rich Markdown view.
+ * Mirror GitHub's file collapse state onto our rich root.
  * Re-applies suppression when GitHub re-renders the header.
  */
 
 const SUPPRESSED_ATTR = 'data-rgm-rich-suppressed'
+export const FILE_COLLAPSED_ATTR = 'data-rgm-file-collapsed'
+
+/** GitHub CSS-module class stamped on the file header when collapsed. */
+const COLLAPSED_HEADER_CLASS = '[class*="DiffFileHeader-module__collapsed"]'
+
+const CHEVRON_ICON =
+  'svg.octicon-chevron-down, svg.octicon-chevron-right, [class*="Chevron"], [class*="chevron"]'
 
 type SuppressBinding = {
   observer: MutationObserver
 }
 
+type CollapseBinding = {
+  observer: MutationObserver
+}
+
 const suppressBindings = new WeakMap<Element, SuppressBinding>()
+const collapseBindings = new WeakMap<Element, CollapseBinding>()
 
 function suppress(el: HTMLElement): void {
   el.setAttribute(SUPPRESSED_ATTR, '')
@@ -31,48 +44,64 @@ function headerButtons(region: Element): HTMLElement[] {
   )
 }
 
+/** Resolve Primer tooltip labels wired through aria-labelledby. */
 function controlLabel(el: HTMLElement): string {
+  const labelledBy = el.getAttribute('aria-labelledby')
+  if (labelledBy) {
+    const text = labelledBy
+      .split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent ?? '')
+      .join(' ')
+      .trim()
+    if (text) return text.toLowerCase()
+  }
   return (
     el.getAttribute('aria-label') ??
     el.getAttribute('title') ??
-    el.getAttribute('aria-labelledby') ??
     el.textContent ??
     ''
   ).toLowerCase()
 }
 
 /**
- * File-section chevron (Expand/Collapse file). Prefer labeled / chevron
- * buttons; fall back to the first header button with aria-expanded.
+ * File-section chevron (Expand/Collapse file).
+ * Prefer the chevron octicon — GitHub no longer sets aria-expanded, and a
+ * bare /\bexpand\b/ label match wrongly hits "Expand all lines".
  */
 export function findFileCollapseButton(region: Element): HTMLElement | null {
   const buttons = headerButtons(region)
 
-  const byLabel = buttons.find((btn) => {
-    const label = controlLabel(btn)
-    return (
-      /\bcollapse\b/.test(label) ||
-      /\bexpand\b/.test(label) ||
-      /\bfold\b/.test(label)
-    )
-  })
-  if (byLabel) return byLabel
-
   const byChevron = buttons.find((btn) =>
-    Boolean(
-      btn.querySelector(
-        '.octicon-chevron-down, .octicon-chevron-right, [class*="Chevron"], [class*="chevron"]',
-      ),
-    ),
+    Boolean(btn.querySelector(CHEVRON_ICON)),
   )
   if (byChevron) return byChevron
 
-  const first = buttons[0]
-  if (first?.hasAttribute('aria-expanded')) {
-    return first
-  }
+  const byLabel = buttons.find((btn) => {
+    const label = controlLabel(btn)
+    return (
+      /\bcollapse file\b/.test(label) ||
+      /\bexpand file\b/.test(label) ||
+      label === 'collapse' ||
+      label === 'expand'
+    )
+  })
+  return byLabel ?? null
+}
 
-  return null
+/** "Expand all lines" — source-diff only; hide while rich mode is on. */
+export function findExpandAllLinesButton(region: Element): HTMLElement | null {
+  const buttons = headerButtons(region)
+
+  const byLabel = buttons.find((btn) =>
+    controlLabel(btn).includes('expand all lines'),
+  )
+  if (byLabel) return byLabel
+
+  return (
+    buttons.find((btn) =>
+      Boolean(btn.querySelector('svg.octicon-unfold, .octicon-unfold')),
+    ) ?? null
+  )
 }
 
 /** Viewed / Not Viewed control. */
@@ -133,12 +162,80 @@ export function findFileCommentButton(region: Element): HTMLElement | null {
   return byClass ?? null
 }
 
-/** Hide collapse / Viewed / file-comment while rich mode is active. */
+/**
+ * Whether GitHub currently has this file section collapsed.
+ * Relies on DiffFileHeader-module__collapsed and/or chevron-right —
+ * the chevron itself has no aria-expanded in the new Files UI.
+ */
+export function isFileCollapsed(region: Element): boolean {
+  const header = region.querySelector('[data-diff-header-wrapper]')
+  if (!header) return false
+
+  if (header.querySelector(COLLAPSED_HEADER_CLASS)) {
+    return true
+  }
+
+  // Prefer explicit chevron direction when present.
+  if (header.querySelector('svg.octicon-chevron-right')) {
+    return true
+  }
+  if (header.querySelector('svg.octicon-chevron-down')) {
+    return false
+  }
+
+  return false
+}
+
+/** Stamp / clear data-rgm-file-collapsed so CSS can hide the rich root. */
+export function syncFileCollapsedState(region: Element): void {
+  region.toggleAttribute(FILE_COLLAPSED_ATTR, isFileCollapsed(region))
+}
+
+/**
+ * Watch GitHub's header class / chevron swaps and mirror collapse onto the
+ * region. Safe to call repeatedly while rich mode is mounted.
+ */
+export function bindFileCollapseSync(region: Element): void {
+  syncFileCollapsedState(region)
+  if (collapseBindings.has(region)) {
+    return
+  }
+
+  let scheduled = false
+  const observer = new MutationObserver(() => {
+    if (scheduled) return
+    scheduled = true
+    queueMicrotask(() => {
+      scheduled = false
+      syncFileCollapsedState(region)
+    })
+  })
+  observer.observe(region, {
+    attributes: true,
+    attributeFilter: ['class'],
+    subtree: true,
+    childList: true,
+  })
+  collapseBindings.set(region, { observer })
+}
+
+export function unbindFileCollapseSync(region: Element): void {
+  const binding = collapseBindings.get(region)
+  if (!binding) return
+  binding.observer.disconnect()
+  collapseBindings.delete(region)
+  region.removeAttribute(FILE_COLLAPSED_ATTR)
+}
+
+/**
+ * Hide Viewed / file-comment / Expand-all while rich mode is active.
+ * The file-collapse chevron stays visible so users can fold the section.
+ */
 export function hideInterferingHeaderControls(region: Element): void {
   for (const el of [
-    findFileCollapseButton(region),
     findViewedControl(region),
     findFileCommentButton(region),
+    findExpandAllLinesButton(region),
   ]) {
     if (el) suppress(el)
   }
@@ -156,8 +253,8 @@ export function showInterferingHeaderControls(region: Element): void {
 }
 
 /**
- * Keep collapse / Viewed / Comment suppressed across GitHub header re-renders
- * for as long as rich mode is mounted.
+ * Keep Viewed / Comment / Expand-all suppressed across GitHub header
+ * re-renders for as long as rich mode is mounted.
  */
 export function bindHeaderControlSuppress(region: Element): void {
   hideInterferingHeaderControls(region)

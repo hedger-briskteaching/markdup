@@ -7,12 +7,14 @@ import {
   setRichPathIntent,
 } from './richIntent'
 import {
+  ensureNativeDiffHidden,
   hideRichView,
   isRichMode,
   showRichError,
   showRichLoading,
   showRichView,
 } from './richView'
+import { syncFileCollapsedState } from './headerControls'
 import { RGM_TOGGLE } from './selectors'
 import { syncThreadsFromServer } from './syncThreads'
 
@@ -105,6 +107,9 @@ export function ensureRichMounted(region: Element): void {
   region.setAttribute('data-rgm-mode', 'rich')
 
   if (region.querySelector('[data-rgm-rich]')) {
+    // Collapse/expand remounts GitHub's diff body without our hide marker.
+    ensureNativeDiffHidden(region)
+    syncFileCollapsedState(region)
     return
   }
 
