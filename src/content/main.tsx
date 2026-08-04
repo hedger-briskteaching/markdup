@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import cssText from './index.css?inline'
+import { initMarkdownReview } from './markdownReview/init'
 
 const HOST_ID = 'rgm-extension-root'
 
@@ -30,3 +31,4 @@ function mount() {
 }
 
 mount()
+initMarkdownReview()
