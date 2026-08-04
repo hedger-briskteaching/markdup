@@ -30,6 +30,16 @@ pnpm dev
 4. Select this project’s `dist` folder
 5. Confirm **Markdup** appears in the extensions list and is enabled
 
+The manifest includes a fixed public `key`, so the extension ID is always:
+
+`knlaahnhnocjejneaobpbbnfibfnoiei`
+
+GitHub OAuth callback URL (Device Flow / identity):
+
+`https://knlaahnhnocjejneaobpbbnfibfnoiei.chromiumapp.org/`
+
+After a rebuild, remove any old unpacked Markdup install and load `dist/` again so Chrome picks up the new ID.
+
 ### Use the extension
 
 1. Open any page on [github.com](https://github.com)

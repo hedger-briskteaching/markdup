@@ -4,3 +4,4 @@ dist
 *.local
 .vite
 *.tsbuildinfo
+brand/extension-private.pem
