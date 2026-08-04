@@ -9,6 +9,10 @@ export type { SrcRange } from './positions'
 export { markdownSchema } from './schema'
 export type { MarkdownSchema } from './schema'
 export { mdastToProseMirror } from './toProseMirror'
+export { alignDocs, alignMarkdown, extractBlocks } from './align'
+export type { BlockView, RowModel } from './align'
+export { wordDiff } from './wordDiff'
+export type { DiffSegment } from './wordDiff'
 
 /**
  * Parse Markdown source into a ProseMirror document.

@@ -89,8 +89,8 @@ The tests cover schema marks, nested marks, front matter, lists, tasks, tables, 
 
 This module does not build:
 
-- Side-by-side diff alignment (`RowModel`)
-- Diff insert or delete decorations
+- Side-by-side diff alignment UI chrome (see `docs/rich-markdown-view.md`)
+- Diff insert or delete decorations in the editor view
 - Comment UI and GitHub API writes
 - Mermaid diagram render
 - MDX or JSX

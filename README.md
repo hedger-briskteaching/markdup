@@ -95,7 +95,9 @@ This type-checks and writes an optimized bundle to `dist/`. Load that folder wit
 | `src/options/` | Settings page (GitHub connect) |
 | `src/content/` | UI injected into GitHub pages |
 | `src/background/` | Service worker and GitHub auth |
-| `src/markdown/` | Markdown → ProseMirror schema and transform |
+| `src/markdown/` | Markdown → ProseMirror schema, align, and transform |
 | `docs/markdown-schema.md` | Schema and transform notes |
+| `docs/rich-markdown-view.md` | Rich Before/After view notes |
+| `docs/CONTINUE.md` | Status and next steps after a restart |
 | `public/icons/` | Extension icons |
 | `dist/` | Built extension (load this in Chrome) |

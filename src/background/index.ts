@@ -3,6 +3,7 @@ import type {
   AuthStatusResponse,
   ExtensionEvent,
   ExtensionRequest,
+  FileSnapshot,
 } from '../shared/messages'
 import {
   cancelDevicePoll,
@@ -14,6 +15,7 @@ import {
   startDeviceFlow,
   validateToken,
 } from './github/auth'
+import { fetchFileSnapshot } from './github/contents'
 
 async function broadcast(event: ExtensionEvent): Promise<void> {
   const tabs = await chrome.tabs.query({ url: ['https://github.com/*'] })
@@ -120,6 +122,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (request?.type === 'AUTH_DISCONNECT') {
     void clearAccessToken().then(() => sendResponse({ ok: true }))
+    return true
+  }
+
+  if (request?.type === 'FETCH_FILE_SNAPSHOT') {
+    void fetchFileSnapshot(
+      request.owner,
+      request.repo,
+      request.pullNumber,
+      request.path,
+    )
+      .then((snapshot: FileSnapshot) => sendResponse(snapshot))
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to load the Markdown file'
+        sendResponse({ error: message })
+      })
     return true
   }
 

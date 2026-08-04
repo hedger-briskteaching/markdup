@@ -1,6 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { injectToggle, resetAuthListenerForTests } from './toggle'
-import { createFileRegion } from './test/fixtures'
+import { createFileRegion, setPathname } from './test/fixtures'
+
+const SAMPLE_SNAPSHOT = {
+  owner: 'o',
+  repo: 'r',
+  pullNumber: 1,
+  path: 'docs/PLAN.md',
+  baseSha: 'aaa',
+  headSha: 'bbb',
+  baseText: '# Title\n\nOld line.\n',
+  headText: '# Title\n\nNew line added.\n',
+}
 
 function mockAuthOk(login = 'tester') {
   vi.stubGlobal('chrome', {
@@ -11,6 +22,9 @@ function mockAuthOk(login = 'tester') {
         }
         if (message.type === 'AUTH_CANCEL') {
           return { ok: true }
+        }
+        if (message.type === 'FETCH_FILE_SNAPSHOT') {
+          return SAMPLE_SNAPSHOT
         }
         return undefined
       }),
@@ -38,6 +52,9 @@ function mockAuthNeedsCode() {
         if (message.type === 'AUTH_CANCEL') {
           return { ok: true }
         }
+        if (message.type === 'FETCH_FILE_SNAPSHOT') {
+          return SAMPLE_SNAPSHOT
+        }
         return undefined
       }),
       onMessage: {
@@ -62,6 +79,7 @@ describe('injectToggle', () => {
     document.body.innerHTML = ''
     vi.unstubAllGlobals()
     resetAuthListenerForTests()
+    setPathname('/o/r/pull/1/changes')
     mockAuthOk()
   })
 
@@ -147,16 +165,21 @@ describe('injectToggle', () => {
 
     expect(toggle.getAttribute('data-rgm-mode')).toBe('rich')
     expect(region.getAttribute('data-rgm-mode')).toBe('rich')
-    expect(region.querySelector('[data-rgm-stub]')).not.toBeNull()
+    await vi.waitFor(() => {
+      expect(region.querySelector('[data-rgm-rich]')).not.toBeNull()
+    })
+    expect(region.textContent).toContain('Before')
+    expect(region.textContent).toContain('New line')
 
     switchBtn.click()
     expect(switchBtn.getAttribute('aria-checked')).toBe('false')
-    expect(region.querySelector('[data-rgm-stub]')).toBeNull()
+    expect(region.querySelector('[data-rgm-rich]')).toBeNull()
   })
 
   it('shows connect panel when auth is required and enables after AUTH_COMPLETE', async () => {
     vi.unstubAllGlobals()
     resetAuthListenerForTests()
+    setPathname('/o/r/pull/1/changes')
     const auth = mockAuthNeedsCode()
 
     const region = createFileRegion({ path: 'docs/PLAN.md' })
@@ -173,7 +196,7 @@ describe('injectToggle', () => {
     })
 
     expect(switchBtn.getAttribute('aria-checked')).toBe('false')
-    expect(region.querySelector('[data-rgm-stub]')).toBeNull()
+    expect(region.querySelector('[data-rgm-rich]')).toBeNull()
     expect(region.textContent).toContain('WDJB-MJHT')
 
     auth.complete('alice')
@@ -182,6 +205,8 @@ describe('injectToggle', () => {
       expect(switchBtn.getAttribute('aria-checked')).toBe('true')
     })
     expect(region.querySelector('[data-rgm-auth-panel]')).toBeNull()
-    expect(region.querySelector('[data-rgm-stub]')).not.toBeNull()
+    await vi.waitFor(() => {
+      expect(region.querySelector('[data-rgm-rich]')).not.toBeNull()
+    })
   })
 })

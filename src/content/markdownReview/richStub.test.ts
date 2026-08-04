@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  hideRichStub,
+  hideRichView,
   isRichMode,
-  setRichMode,
-  showRichStub,
-} from './richStub'
+  renderRowsForTest,
+  showRichView,
+} from './richView'
+import { setRichModeFromTexts } from './richStub'
 import { createFileRegion } from './test/fixtures'
+import { alignMarkdown } from '../../markdown/align'
 
-describe('richStub', () => {
+describe('richView', () => {
   let region: HTMLElement
 
   beforeEach(() => {
@@ -16,60 +18,71 @@ describe('richStub', () => {
     document.body.appendChild(region)
   })
 
-  it('hides the native diff and inserts a two-column stub', () => {
-    showRichStub(region)
+  it('hides the native diff and renders Before/After columns', () => {
+    setRichModeFromTexts(
+      region,
+      '# Title\n\nOld text.\n',
+      '# Title\n\nNew text here.\n',
+    )
 
     const diffBody = region.querySelector(
       'div.border.position-relative.rounded-bottom-2',
     )
     expect(diffBody?.hasAttribute('data-rgm-diff-hidden')).toBe(true)
 
-    const stub = region.querySelector('[data-rgm-stub]')
-    expect(stub).not.toBeNull()
-    expect(stub?.querySelectorAll('.rgm-stub-pane')).toHaveLength(2)
-    expect(stub?.textContent).toContain('Old')
-    expect(stub?.textContent).toContain('New')
-    expect(stub?.textContent).toContain('Rich markdown view (coming soon)')
-    expect(diffBody?.nextElementSibling).toBe(stub)
+    const rich = region.querySelector('[data-rgm-rich]')
+    expect(rich).not.toBeNull()
+    expect(rich?.textContent).toContain('Before')
+    expect(rich?.textContent).toContain('After')
+    expect(rich?.textContent).not.toContain('coming soon')
+    expect(rich?.textContent).toContain('Title')
+    expect(isRichMode(region)).toBe(true)
   })
 
-  it('does not duplicate the stub when shown twice', () => {
-    showRichStub(region)
-    showRichStub(region)
-    expect(region.querySelectorAll('[data-rgm-stub]')).toHaveLength(1)
+  it('shows not present on the missing side for additions', () => {
+    const rows = alignMarkdown('# Only\n', '# Only\n\n## Added\n')
+    const host = renderRowsForTest(rows)
+    expect(host.textContent).toContain('not present')
+    expect(host.textContent).toContain('Added')
   })
 
-  it('restores the native diff and removes the stub', () => {
-    showRichStub(region)
-    hideRichStub(region)
+  it('applies inline insert marks on the After side', () => {
+    const rows = alignMarkdown('Hello world.\n', 'Hello brave world.\n')
+    const host = renderRowsForTest(rows)
+    const ins = host.querySelector('.rgm-rich-ins')
+    expect(ins?.textContent).toContain('brave')
+    expect(host.querySelector('.rgm-rich-cell-add')).not.toBeNull()
+    expect(host.querySelector('.rgm-rich-cell-del')).not.toBeNull()
+  })
+
+  it('restores the native diff when rich view is hidden', () => {
+    setRichModeFromTexts(region, 'A\n', 'B\n')
+    hideRichView(region)
+    region.removeAttribute('data-rgm-mode')
 
     const diffBody = region.querySelector(
       'div.border.position-relative.rounded-bottom-2',
     )
     expect(diffBody?.hasAttribute('data-rgm-diff-hidden')).toBe(false)
-    expect(region.querySelector('[data-rgm-stub]')).toBeNull()
+    expect(region.querySelector('[data-rgm-rich]')).toBeNull()
   })
 
-  it('tracks rich mode via data-rgm-mode', () => {
-    expect(isRichMode(region)).toBe(false)
-
-    setRichMode(region, true)
-    expect(isRichMode(region)).toBe(true)
-    expect(region.getAttribute('data-rgm-mode')).toBe('rich')
-    expect(region.querySelector('[data-rgm-stub]')).not.toBeNull()
-
-    setRichMode(region, false)
-    expect(isRichMode(region)).toBe(false)
-    expect(region.hasAttribute('data-rgm-mode')).toBe(false)
-    expect(region.querySelector('[data-rgm-stub]')).toBeNull()
+  it('renders front matter as a labeled card', () => {
+    const rows = alignMarkdown(
+      '---\nstatus: draft\n---\n\n# Plan\n',
+      '---\nstatus: draft\n---\n\n# Plan\n',
+    )
+    const host = renderRowsForTest(rows)
+    expect(host.textContent).toContain('Front matter')
+    expect(host.textContent).toContain('status: draft')
   })
 
-  it('no-ops showRichStub when the diff body is missing', () => {
+  it('no-ops showRichView when the diff body is missing', () => {
     const empty = createFileRegion({
       path: 'docs/PLAN.md',
       includeDiffBody: false,
     })
-    showRichStub(empty)
-    expect(empty.querySelector('[data-rgm-stub]')).toBeNull()
+    showRichView(empty, [])
+    expect(empty.querySelector('[data-rgm-rich]')).toBeNull()
   })
 })

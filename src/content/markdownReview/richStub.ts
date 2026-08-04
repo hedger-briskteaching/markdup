@@ -1,73 +1,138 @@
-import { DIFF_BODY, RGM_STUB } from './selectors'
+import { alignMarkdown } from '../../markdown/align'
+import type { FileSnapshot } from '../../shared/messages'
+import {
+  hideRichView,
+  isRichMode,
+  showRichError,
+  showRichLoading,
+  showRichView,
+} from './richView'
+import { RGM_TOGGLE } from './selectors'
 
-const HIDDEN_ATTR = 'data-rgm-diff-hidden'
+export { isRichMode }
 
-function findDiffBody(region: Element): HTMLElement | null {
-  const header = region.querySelector('[data-diff-header-wrapper]')
-  if (header?.parentElement === region) {
-    let sibling = header.nextElementSibling
-    while (sibling) {
-      if (
-        sibling instanceof HTMLElement &&
-        sibling.querySelector('table[aria-label^="Diff for:"]')
-      ) {
-        return sibling
-      }
-      sibling = sibling.nextElementSibling
-    }
+function parseLocationPull(): {
+  owner: string
+  repo: string
+  pullNumber: number
+} | null {
+  const match = location.pathname.match(
+    /^\/([^/]+)\/([^/]+)\/pull\/(\d+)/,
+  )
+  if (!match) {
+    return null
   }
-
-  return region.querySelector<HTMLElement>(DIFF_BODY)
+  return {
+    owner: match[1]!,
+    repo: match[2]!,
+    pullNumber: Number(match[3]),
+  }
 }
 
-function buildStub(): HTMLElement {
-  const stub = document.createElement('div')
-  stub.setAttribute('data-rgm-stub', '')
-  stub.innerHTML = `
-    <div class="rgm-stub-pane">
-      <p class="rgm-stub-label">Old</p>
-      <p class="rgm-stub-placeholder">Rich markdown view (coming soon)</p>
-    </div>
-    <div class="rgm-stub-pane">
-      <p class="rgm-stub-label">New</p>
-      <p class="rgm-stub-placeholder">Rich markdown view (coming soon)</p>
-    </div>
-  `
-  return stub
+function filePathForRegion(region: Element): string | null {
+  const fromToggle = region
+    .querySelector(RGM_TOGGLE)
+    ?.getAttribute('data-rgm-file')
+  if (fromToggle) {
+    return fromToggle
+  }
+  const button = region.querySelector<HTMLElement>('button[data-file-path]')
+  return button?.getAttribute('data-file-path') ?? null
 }
 
-export function showRichStub(region: Element): void {
-  const diffBody = findDiffBody(region)
-  if (!diffBody) {
+async function loadSnapshot(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  path: string,
+): Promise<FileSnapshot> {
+  const response = (await chrome.runtime.sendMessage({
+    type: 'FETCH_FILE_SNAPSHOT',
+    owner,
+    repo,
+    pullNumber,
+    path,
+  })) as FileSnapshot | { error: string }
+
+  if (response && 'error' in response) {
+    throw new Error(response.error)
+  }
+  return response
+}
+
+/**
+ * Turn rich mode on or off for a file region.
+ * When rich mode turns on, fetch base/head Markdown and render the view.
+ */
+export function setRichMode(region: Element, rich: boolean): void {
+  if (!rich) {
+    region.removeAttribute('data-rgm-mode')
+    hideRichView(region)
     return
   }
 
-  diffBody.setAttribute(HIDDEN_ATTR, '')
+  region.setAttribute('data-rgm-mode', 'rich')
+  void mountRichView(region)
+}
 
-  let stub = region.querySelector<HTMLElement>(RGM_STUB)
-  if (!stub) {
-    stub = buildStub()
-    diffBody.after(stub)
+async function mountRichView(region: Element): Promise<void> {
+  const pull = parseLocationPull()
+  const path = filePathForRegion(region)
+
+  if (!pull || !path) {
+    showRichError(
+      region,
+      'This page is not a pull request Files view, or the file path is missing.',
+    )
+    return
+  }
+
+  showRichLoading(region)
+
+  try {
+    const snapshot = await loadSnapshot(
+      pull.owner,
+      pull.repo,
+      pull.pullNumber,
+      path,
+    )
+
+    if (region.getAttribute('data-rgm-mode') !== 'rich') {
+      return
+    }
+
+    if (snapshot.baseText == null && snapshot.headText == null) {
+      showRichError(
+        region,
+        'This file could not be loaded at the pull request base or head.',
+      )
+      return
+    }
+
+    const rows = alignMarkdown(
+      snapshot.baseText ?? '',
+      snapshot.headText ?? '',
+    )
+    showRichView(region, rows)
+  } catch (error) {
+    if (region.getAttribute('data-rgm-mode') !== 'rich') {
+      return
+    }
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'The rich Markdown view failed to load.'
+    showRichError(region, message)
   }
 }
 
-export function hideRichStub(region: Element): void {
-  const diffBody = findDiffBody(region)
-  diffBody?.removeAttribute(HIDDEN_ATTR)
-
-  region.querySelector(RGM_STUB)?.remove()
-}
-
-export function isRichMode(region: Element): boolean {
-  return region.getAttribute('data-rgm-mode') === 'rich'
-}
-
-export function setRichMode(region: Element, rich: boolean): void {
-  if (rich) {
-    region.setAttribute('data-rgm-mode', 'rich')
-    showRichStub(region)
-  } else {
-    region.removeAttribute('data-rgm-mode')
-    hideRichStub(region)
-  }
+/** @internal Vitest helper — render from local strings (no GitHub API). */
+export function setRichModeFromTexts(
+  region: Element,
+  baseText: string,
+  headText: string,
+): void {
+  region.setAttribute('data-rgm-mode', 'rich')
+  const rows = alignMarkdown(baseText, headText)
+  showRichView(region, rows)
 }

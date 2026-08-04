@@ -16,11 +16,20 @@ export type AuthDisconnectRequest = {
   type: 'AUTH_DISCONNECT'
 }
 
+export type FetchFileSnapshotRequest = {
+  type: 'FETCH_FILE_SNAPSHOT'
+  owner: string
+  repo: string
+  pullNumber: number
+  path: string
+}
+
 export type ExtensionRequest =
   | AuthEnsureRequest
   | AuthCancelRequest
   | AuthStatusRequest
   | AuthDisconnectRequest
+  | FetchFileSnapshotRequest
 
 export type AuthEnsureResponse =
   | { status: 'ok'; login: string }
@@ -40,6 +49,17 @@ export type AuthStatusResponse = {
 export type AuthDisconnectResponse = { ok: true }
 
 export type AuthCancelResponse = { ok: true }
+
+export type FileSnapshot = {
+  owner: string
+  repo: string
+  pullNumber: number
+  path: string
+  baseSha: string
+  headSha: string
+  baseText: string | null
+  headText: string | null
+}
 
 export type AuthCompleteEvent = {
   type: 'AUTH_COMPLETE'
