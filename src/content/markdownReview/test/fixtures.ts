@@ -5,6 +5,7 @@ export type FileRegionOptions = {
   id?: string
   includeKebab?: boolean
   includeDiffBody?: boolean
+  includeFileViewToggle?: boolean
   pathViaLinkOnly?: boolean
 }
 
@@ -14,6 +15,7 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
     id = `diff-${path.replace(/[^\w.-]+/g, '-')}`,
     includeKebab = true,
     includeDiffBody = true,
+    includeFileViewToggle = true,
     pathViaLinkOnly = false,
   } = options
 
@@ -41,6 +43,32 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
 
   const actions = document.createElement('div')
   actions.className = 'd-flex flex-items-center gap-2'
+
+  if (includeFileViewToggle) {
+    const segmented = document.createElement('ul')
+    segmented.setAttribute('aria-label', 'File view')
+    segmented.setAttribute('data-component', 'SegmentedControl')
+    segmented.setAttribute('data-size', 'small')
+
+    const sourceItem = document.createElement('li')
+    sourceItem.setAttribute('data-selected', 'true')
+    const sourceBtn = document.createElement('button')
+    sourceBtn.type = 'button'
+    sourceBtn.setAttribute('aria-pressed', 'true')
+    sourceBtn.setAttribute('aria-label', 'Display the source diff')
+    sourceItem.appendChild(sourceBtn)
+    segmented.appendChild(sourceItem)
+
+    const richItem = document.createElement('li')
+    const richBtn = document.createElement('button')
+    richBtn.type = 'button'
+    richBtn.setAttribute('aria-pressed', 'false')
+    richBtn.setAttribute('aria-label', 'Display the rich diff')
+    richItem.appendChild(richBtn)
+    segmented.appendChild(richItem)
+
+    actions.appendChild(segmented)
+  }
 
   const viewed = document.createElement('button')
   viewed.type = 'button'

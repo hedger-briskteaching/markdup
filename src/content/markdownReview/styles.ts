@@ -1,38 +1,84 @@
 const STYLE_ID = 'rgm-markdown-review-styles'
 
 const CSS = `
+[data-rgm-native-hidden] {
+  display: none !important;
+}
+
 [data-rgm-toggle] {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
+  gap: 8px;
   margin: 0;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--fgColor-muted, #656d76);
-  cursor: pointer;
+  padding: 0 4px 0 0;
   vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
 }
 
-[data-rgm-toggle]:hover {
-  background: var(--control-transparent-bgColor-hover, rgba(208, 215, 222, 0.32));
-  color: var(--fgColor-default, #1f2328);
+[data-rgm-toggle] .rgm-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-[data-rgm-toggle][aria-pressed="true"] {
-  background: var(--control-transparent-bgColor-selected, rgba(208, 215, 222, 0.48));
-  color: var(--fgColor-default, #1f2328);
-  border-color: var(--borderColor-default, #d0d7de);
-}
-
-[data-rgm-toggle] svg {
+[data-rgm-toggle] .rgm-switch-track {
+  position: relative;
   display: block;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1.5px solid #a8b3e0;
+  background: #e8eaf6;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+  box-sizing: border-box;
+}
+
+[data-rgm-toggle] .rgm-switch-thumb {
+  position: absolute;
+  top: 1.5px;
+  left: 1.5px;
   width: 16px;
   height: 16px;
-  fill: currentColor;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(31, 35, 40, 0.28);
+  transition: transform 120ms ease;
+}
+
+[data-rgm-toggle][data-rgm-mode="rich"] .rgm-switch-track {
+  background: #2da44e;
+  border-color: #a8b3e0;
+}
+
+[data-rgm-toggle][data-rgm-mode="rich"] .rgm-switch-thumb {
+  transform: translateX(18px);
+}
+
+[data-rgm-toggle] .rgm-switch:focus-visible .rgm-switch-track {
+  outline: 2px solid #0969da;
+  outline-offset: 2px;
+}
+
+[data-rgm-toggle] .rgm-switch-label {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--fgColor-muted, #656d76);
+  white-space: nowrap;
+}
+
+[data-rgm-toggle][data-rgm-mode="rich"] .rgm-switch-label {
+  color: var(--fgColor-default, #1f2328);
+  font-weight: 600;
 }
 
 [data-rgm-stub] {

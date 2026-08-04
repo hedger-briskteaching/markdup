@@ -7,21 +7,28 @@ describe('injectToggle', () => {
     document.body.innerHTML = ''
   })
 
-  it('inserts the toggle immediately before the kebab button', () => {
+  it('hides the native File view control and inserts a Rich Markdown switch after it', () => {
     const region = createFileRegion({ path: 'docs/PLAN.md' })
     document.body.appendChild(region)
 
     injectToggle(region, 'docs/PLAN.md')
 
-    const toggle = region.querySelector<HTMLButtonElement>('[data-rgm-toggle]')
-    const kebab = region.querySelector('button .octicon-kebab-horizontal')
-      ?.closest('button')
+    const native = region.querySelector<HTMLElement>(
+      'ul[data-component="SegmentedControl"][aria-label="File view"]',
+    )
+    const toggle = region.querySelector<HTMLElement>('[data-rgm-toggle]')
+    const switchBtn = toggle?.querySelector<HTMLButtonElement>('[role="switch"]')
 
     expect(toggle).not.toBeNull()
     expect(toggle?.getAttribute('data-rgm-file')).toBe('docs/PLAN.md')
-    expect(toggle?.getAttribute('aria-label')).toBe('Rich markdown view')
-    expect(toggle?.getAttribute('aria-pressed')).toBe('false')
-    expect(toggle?.nextElementSibling).toBe(kebab)
+    expect(toggle?.getAttribute('data-rgm-mode')).toBe('source')
+    expect(switchBtn?.getAttribute('aria-label')).toBe('Rich Markdown view')
+    expect(switchBtn?.getAttribute('aria-checked')).toBe('false')
+    expect(toggle?.textContent).toContain('Rich Markdown view')
+    expect(switchBtn?.getAttribute('title')).toContain('source diff')
+    expect(native?.hasAttribute('hidden')).toBe(true)
+    expect(native?.hasAttribute('data-rgm-native-hidden')).toBe(true)
+    expect(native?.nextElementSibling).toBe(toggle)
   })
 
   it('is idempotent', () => {
@@ -34,10 +41,27 @@ describe('injectToggle', () => {
     expect(region.querySelectorAll('[data-rgm-toggle]')).toHaveLength(1)
   })
 
-  it('appends into the actions cluster when kebab is missing', () => {
+  it('falls back before the kebab when native File view is missing', () => {
+    const region = createFileRegion({
+      path: 'docs/PLAN.md',
+      includeFileViewToggle: false,
+    })
+    document.body.appendChild(region)
+
+    injectToggle(region, 'docs/PLAN.md')
+
+    const toggle = region.querySelector('[data-rgm-toggle]')
+    const kebab = region.querySelector('button .octicon-kebab-horizontal')
+      ?.closest('button')
+
+    expect(toggle?.nextElementSibling).toBe(kebab)
+  })
+
+  it('appends into the actions cluster when kebab and native are missing', () => {
     const region = createFileRegion({
       path: 'docs/PLAN.md',
       includeKebab: false,
+      includeFileViewToggle: false,
     })
     document.body.appendChild(region)
 
@@ -48,21 +72,28 @@ describe('injectToggle', () => {
     expect(actions?.lastElementChild).toBe(toggle)
   })
 
-  it('toggles rich stub and aria-pressed on click', () => {
+  it('toggles rich stub and highlights the on state', () => {
     const region = createFileRegion({ path: 'docs/PLAN.md' })
     document.body.appendChild(region)
     injectToggle(region, 'docs/PLAN.md')
 
-    const toggle = region.querySelector<HTMLButtonElement>('[data-rgm-toggle]')
-    expect(toggle).not.toBeNull()
+    const toggle = region.querySelector<HTMLElement>('[data-rgm-toggle]')!
+    const switchBtn = toggle.querySelector<HTMLButtonElement>('[role="switch"]')!
 
-    toggle!.click()
-    expect(toggle!.getAttribute('aria-pressed')).toBe('true')
+    expect(switchBtn.getAttribute('aria-checked')).toBe('false')
+    expect(toggle.getAttribute('data-rgm-mode')).toBe('source')
+
+    switchBtn.click()
+    expect(switchBtn.getAttribute('aria-checked')).toBe('true')
+    expect(toggle.getAttribute('data-rgm-mode')).toBe('rich')
+    expect(switchBtn.getAttribute('title')).toContain('Rich Markdown view is on')
     expect(region.getAttribute('data-rgm-mode')).toBe('rich')
     expect(region.querySelector('[data-rgm-stub]')).not.toBeNull()
 
-    toggle!.click()
-    expect(toggle!.getAttribute('aria-pressed')).toBe('false')
+    switchBtn.click()
+    expect(switchBtn.getAttribute('aria-checked')).toBe('false')
+    expect(toggle.getAttribute('data-rgm-mode')).toBe('source')
+    expect(switchBtn.getAttribute('title')).toContain('Rich Markdown view is off')
     expect(region.hasAttribute('data-rgm-mode')).toBe(false)
     expect(region.querySelector('[data-rgm-stub]')).toBeNull()
   })

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cleanFilePath,
   getFilePath,
   isMarkdownPath,
   isPrFilesPage,
@@ -21,12 +22,23 @@ describe('isPrFilesPage', () => {
   })
 })
 
+describe('cleanFilePath', () => {
+  it('strips GitHub bidi marks around paths', () => {
+    expect(cleanFilePath('\u200edocs/README.md\u200e')).toBe('docs/README.md')
+    expect(cleanFilePath('  docs/PLAN.md  ')).toBe('docs/PLAN.md')
+  })
+})
+
 describe('isMarkdownPath', () => {
   it('accepts .md and .markdown case-insensitively', () => {
     expect(isMarkdownPath('docs/PLAN.md')).toBe(true)
     expect(isMarkdownPath('README.MD')).toBe(true)
     expect(isMarkdownPath('notes.markdown')).toBe(true)
     expect(isMarkdownPath('notes.MARKDOWN')).toBe(true)
+  })
+
+  it('accepts paths wrapped in GitHub bidi marks', () => {
+    expect(isMarkdownPath('\u200edocs/README.md\u200e')).toBe(true)
   })
 
   it('rejects non-markdown paths', () => {
@@ -47,6 +59,16 @@ describe('getFilePath', () => {
       path: 'docs/README.md',
       pathViaLinkOnly: true,
     })
+    expect(getFilePath(region)).toBe('docs/README.md')
+  })
+
+  it('strips bidi marks from header link text', () => {
+    const region = createFileRegion({
+      path: 'docs/README.md',
+      pathViaLinkOnly: true,
+    })
+    const link = region.querySelector('h3 a')!
+    link.textContent = '\u200edocs/README.md\u200e'
     expect(getFilePath(region)).toBe('docs/README.md')
   })
 

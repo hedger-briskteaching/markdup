@@ -18,3 +18,7 @@ export const DIFF_BODY =
 export const KEBAB_ICON = '.octicon-kebab-horizontal'
 
 export const HEADER_ACTIONS = 'div.d-flex.flex-items-center.gap-2'
+
+/** GitHub's native source / rich file-view segmented control. */
+export const FILE_VIEW_SEGMENTED =
+  'ul[data-component="SegmentedControl"][aria-label="File view"]:not([data-rgm-toggle])'
