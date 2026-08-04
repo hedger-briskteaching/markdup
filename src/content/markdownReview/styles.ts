@@ -34,8 +34,8 @@ const CSS = `
   width: 40px;
   height: 22px;
   border-radius: 999px;
-  border: 1.5px solid #a8b3e0;
-  background: #e8eaf6;
+  border: 1.5px solid var(--borderColor-default, #a8b3e0);
+  background: var(--controlTrack-bgColor-rest, #e8eaf6);
   transition:
     background-color 120ms ease,
     border-color 120ms ease;
@@ -49,14 +49,14 @@ const CSS = `
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--controlKnob-bgColor-rest, #ffffff);
   box-shadow: 0 1px 3px rgba(31, 35, 40, 0.28);
   transition: transform 120ms ease;
 }
 
 [data-rgm-toggle][data-rgm-mode="rich"] .rgm-switch-track {
-  background: #2da44e;
-  border-color: #a8b3e0;
+  background: var(--bgColor-success-emphasis, #2da44e);
+  border-color: var(--borderColor-default, #a8b3e0);
 }
 
 [data-rgm-toggle][data-rgm-mode="rich"] .rgm-switch-thumb {
@@ -64,7 +64,7 @@ const CSS = `
 }
 
 [data-rgm-toggle] .rgm-switch:focus-visible .rgm-switch-track {
-  outline: 2px solid #0969da;
+  outline: 2px solid var(--focus-outlineColor, #0969da);
   outline-offset: 2px;
 }
 
@@ -89,22 +89,37 @@ const CSS = `
   border: 1px solid var(--borderColor-default, #d0d7de);
   border-top: none;
   border-radius: 0 0 6px 6px;
-  background: #ffffff;
+  background: var(--bgColor-default, #ffffff);
   min-height: 160px;
   overflow: visible;
-  --rgm-bp-800: #353c42;
-  --rgm-bp-700: #5a656f;
-  --rgm-bp-500: #74818e;
-  --rgm-bp-400: #99a5b0;
-  --rgm-bp-300: #c4cbd1;
-  --rgm-bp-200: #e0e7ed;
-  --rgm-bp-25: #f7f8f9;
-  --rgm-ocean-700: #124c5f;
-  --rgm-ocean-25: #f0f5fa;
-  --rgm-diff-del-surface: #fef6f6;
-  --rgm-diff-add-surface: #f4fbf8;
-  --rgm-diff-del-inline: #fbd8d8;
-  --rgm-diff-add-inline: #c8f0e0;
+  /* Map internal tokens to GitHub Primer variables so the view follows the
+     user's active GitHub theme (light / dark / auto). Hex fallbacks are the
+     original light palette for non-GitHub contexts (jsdom tests). */
+  --rgm-bp-800: var(--fgColor-default, #353c42);
+  --rgm-bp-700: var(--fgColor-default, #5a656f);
+  --rgm-bp-500: var(--fgColor-muted, #74818e);
+  --rgm-bp-400: var(--fgColor-muted, #99a5b0);
+  --rgm-bp-300: var(--borderColor-default, #c4cbd1);
+  --rgm-bp-200: var(--borderColor-muted, #e0e7ed);
+  --rgm-bp-25: var(--bgColor-muted, #f7f8f9);
+  --rgm-ocean-700: var(--fgColor-accent, #124c5f);
+  --rgm-ocean-25: var(--bgColor-accent-muted, #f0f5fa);
+  --rgm-diff-del-surface: var(
+    --diffBlob-deletion-bgColor-line,
+    var(--bgColor-danger-muted, #fef6f6)
+  );
+  --rgm-diff-add-surface: var(
+    --diffBlob-addition-bgColor-line,
+    var(--bgColor-success-muted, #f4fbf8)
+  );
+  --rgm-diff-del-inline: var(
+    --diffBlob-deletion-bgColor-word,
+    var(--bgColor-danger-muted, #fbd8d8)
+  );
+  --rgm-diff-add-inline: var(
+    --diffBlob-addition-bgColor-word,
+    var(--bgColor-success-muted, #c8f0e0)
+  );
 }
 
 [data-rgm-rich] .rgm-rich-header {
@@ -174,7 +189,7 @@ const CSS = `
   height: 16px;
   border: 1px solid var(--rgm-bp-300);
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--bgColor-default, #ffffff);
   font-weight: 700;
   line-height: 1;
   flex: none;
@@ -196,7 +211,7 @@ const CSS = `
   gap: 0;
   min-width: 0;
   padding: 10px 12px 10px 0;
-  background: #ffffff;
+  background: var(--bgColor-default, #ffffff);
   color: var(--rgm-bp-800);
   font-size: 14px;
   line-height: 1.6;
@@ -260,14 +275,14 @@ const CSS = `
   font-size: 24px;
   font-weight: 700;
   line-height: 1.25;
-  color: #0e151c;
+  color: var(--fgColor-default, #0e151c);
 }
 
 [data-rgm-rich] .rgm-rich-content h2 {
   font-size: 19px;
   font-weight: 700;
   line-height: 1.3;
-  color: #0e151c;
+  color: var(--fgColor-default, #0e151c);
 }
 
 [data-rgm-rich] .rgm-rich-content h3,
@@ -395,7 +410,7 @@ const CSS = `
   background: var(--rgm-diff-del-inline);
   color: var(--rgm-bp-800);
   text-decoration: line-through;
-  text-decoration-color: #b24a4a;
+  text-decoration-color: var(--fgColor-danger, #b24a4a);
 }
 
 [data-rgm-rich] .rgm-rich-status {
@@ -407,7 +422,7 @@ const CSS = `
 }
 
 [data-rgm-rich] .rgm-rich-status-error {
-  color: #dc2626;
+  color: var(--fgColor-danger, #dc2626);
 }
 
 [data-rgm-diff-hidden] {
@@ -500,20 +515,20 @@ const CSS = `
 }
 
 [data-rgm-auth-panel] .rgm-auth-btn-primary {
-  background: #124c5f;
-  border-color: #124c5f;
-  color: #ffffff;
+  background: var(--button-primary-bgColor-rest, #124c5f);
+  border-color: var(--button-primary-borderColor-rest, #124c5f);
+  color: var(--button-primary-fgColor-rest, #ffffff);
 }
 
 [data-rgm-auth-panel] .rgm-auth-btn-primary:hover {
-  background: #0e3d4c;
-  border-color: #0e3d4c;
+  background: var(--button-primary-bgColor-hover, #0e3d4c);
+  border-color: var(--button-primary-borderColor-hover, #0e3d4c);
 }
 
 [data-rgm-auth-panel] .rgm-auth-error {
   margin: 4px 0 0;
   font-size: 12px;
-  color: #cf222e;
+  color: var(--fgColor-danger, #cf222e);
 }
 
 [data-rgm-composer] {
@@ -523,7 +538,7 @@ const CSS = `
   padding: 12px 14px;
   border: 1px solid var(--rgm-bp-200);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--overlay-bgColor, var(--bgColor-default, #ffffff));
   box-shadow: 0 8px 28px rgba(14, 21, 28, 0.14);
   box-sizing: border-box;
   max-width: calc(100% - 16px);
@@ -537,8 +552,8 @@ const CSS = `
   gap: 0;
   padding: 2px;
   border-radius: 999px;
-  background: #0e151c;
-  color: #ffffff;
+  background: var(--bgColor-emphasis, #0e151c);
+  color: var(--fgColor-onEmphasis, #ffffff);
   box-shadow: 0 6px 20px rgba(14, 21, 28, 0.28);
   font-size: 12px;
   line-height: 1;
@@ -551,7 +566,7 @@ const CSS = `
   border: none;
   border-radius: 999px;
   background: transparent;
-  color: #ffffff;
+  color: var(--fgColor-onEmphasis, #ffffff);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -648,6 +663,8 @@ const CSS = `
   padding: 8px 10px;
   border: 1px solid var(--rgm-bp-300);
   border-radius: 6px;
+  background: var(--bgColor-default, #ffffff);
+  color: var(--fgColor-default, #1f2328);
   font: inherit;
   font-size: 13px;
   line-height: 1.45;
@@ -656,7 +673,7 @@ const CSS = `
 }
 
 [data-rgm-rich] .rgm-composer-input:focus {
-  outline: 2px solid var(--rgm-ocean-500);
+  outline: 2px solid var(--focus-outlineColor, #0969da);
   outline-offset: 1px;
 }
 
@@ -674,7 +691,7 @@ const CSS = `
 }
 
 [data-rgm-rich] .rgm-composer-status-error {
-  color: #dc2626;
+  color: var(--fgColor-danger, #dc2626);
 }
 
 [data-rgm-rich] .rgm-composer-btn {
@@ -682,7 +699,7 @@ const CSS = `
   padding: 6px 12px;
   border-radius: 6px;
   border: 1px solid var(--rgm-bp-300);
-  background: #ffffff;
+  background: var(--bgColor-default, #ffffff);
   color: var(--rgm-bp-800);
   font-size: 13px;
   font-weight: 600;
@@ -697,14 +714,15 @@ const CSS = `
 }
 
 [data-rgm-rich] .rgm-composer-btn-primary {
-  background: #0e151c;
-  border-color: #0e151c;
-  color: #ffffff;
+  background: var(--bgColor-emphasis, #0e151c);
+  border-color: var(--bgColor-emphasis, #0e151c);
+  color: var(--fgColor-onEmphasis, #ffffff);
 }
 
 [data-rgm-rich] .rgm-composer-btn-primary:hover:not(:disabled) {
-  background: #1a2430;
-  border-color: #1a2430;
+  background: var(--bgColor-emphasis, #1a2430);
+  border-color: var(--bgColor-emphasis, #1a2430);
+  opacity: 0.9;
 }
 
 [data-rgm-thread-card] {
@@ -712,7 +730,7 @@ const CSS = `
   margin: 10px 12px 0;
   border: 1px solid var(--rgm-bp-200);
   border-radius: 8px;
-  background: #fafbfc;
+  background: var(--bgColor-muted, #fafbfc);
   width: auto;
   box-sizing: border-box;
 }
@@ -739,8 +757,8 @@ const CSS = `
   width: 22px;
   height: 22px;
   border-radius: 999px;
-  background: #124c5f;
-  color: #ffffff;
+  background: var(--bgColor-accent-emphasis, #124c5f);
+  color: var(--fgColor-onEmphasis, #ffffff);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -794,13 +812,13 @@ const CSS = `
 }
 
 [data-rgm-thread-card] .rgm-thread-chip-pending {
-  background: #fff8e1;
-  color: #8a6d00;
+  background: var(--bgColor-attention-muted, #fff8e1);
+  color: var(--fgColor-attention, #8a6d00);
 }
 
 [data-rgm-thread-card] .rgm-thread-chip-reanchored {
-  background: #fff4e5;
-  color: #9a5b00;
+  background: var(--bgColor-severe-muted, #fff4e5);
+  color: var(--fgColor-severe, #9a5b00);
 }
 
 [data-rgm-thread-card] .rgm-thread-show {
@@ -808,7 +826,7 @@ const CSS = `
   padding: 4px 10px;
   border: 1px solid var(--rgm-bp-300);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--bgColor-default, #ffffff);
   color: var(--rgm-bp-800);
   font-size: 12px;
   font-weight: 600;
