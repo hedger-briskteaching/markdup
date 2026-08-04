@@ -1,7 +1,8 @@
 const STYLE_ID = 'rgm-markdown-review-styles'
 
 const CSS = `
-[data-rgm-native-hidden] {
+[data-rgm-native-hidden],
+[data-rgm-rich-suppressed] {
   display: none !important;
 }
 
@@ -14,6 +15,18 @@ const CSS = `
   vertical-align: middle;
   cursor: pointer;
   user-select: none;
+}
+
+[data-rgm-header-divider] {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 4px 0 8px;
+  padding: 0;
+  color: var(--borderColor-default, #d0d7de);
+  font-size: 14px;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
 }
 
 [data-rgm-toggle] .rgm-switch {

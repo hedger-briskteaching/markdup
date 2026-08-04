@@ -3,6 +3,10 @@ import type { FileSnapshot } from '../../shared/messages'
 import { commentableFromDto } from '../../shared/commentableLines'
 import { consumeCommentsDirty } from './composer'
 import {
+  hasRichPathIntent,
+  setRichPathIntent,
+} from './richIntent'
+import {
   hideRichView,
   isRichMode,
   showRichError,
@@ -13,7 +17,6 @@ import { RGM_TOGGLE } from './selectors'
 import { syncThreadsFromServer } from './syncThreads'
 
 export { isRichMode }
-
 function parseLocationPull(): {
   owner: string
   repo: string
@@ -68,6 +71,11 @@ async function loadSnapshot(
  * When rich mode turns on, fetch base/head Markdown and render the view.
  */
 export function setRichMode(region: Element, rich: boolean): void {
+  const path = filePathForRegion(region)
+  if (path) {
+    setRichPathIntent(path, rich)
+  }
+
   if (!rich) {
     const needsNativeRefresh = consumeCommentsDirty(region)
     region.removeAttribute('data-rgm-mode')
@@ -81,6 +89,25 @@ export function setRichMode(region: Element, rich: boolean): void {
   }
 
   region.setAttribute('data-rgm-mode', 'rich')
+  void mountRichView(region)
+}
+
+/**
+ * Re-apply rich mode after GitHub re-renders a file section.
+ * No-op when intent is off or the rich root is already mounted.
+ */
+export function ensureRichMounted(region: Element): void {
+  const path = filePathForRegion(region)
+  if (!path || !hasRichPathIntent(path)) {
+    return
+  }
+
+  region.setAttribute('data-rgm-mode', 'rich')
+
+  if (region.querySelector('[data-rgm-rich]')) {
+    return
+  }
+
   void mountRichView(region)
 }
 
@@ -160,6 +187,10 @@ export function setRichModeFromTexts(
   baseText: string,
   headText: string,
 ): void {
+  const path = filePathForRegion(region)
+  if (path) {
+    setRichPathIntent(path, true)
+  }
   region.setAttribute('data-rgm-mode', 'rich')
   const rows = alignMarkdown(baseText, headText)
   showRichView(region, rows, { baseText, headText })

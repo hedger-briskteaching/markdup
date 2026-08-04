@@ -23,6 +23,28 @@ The view is read-only. Selection maps to a source line range for comments.
    auto-expanded so comments never hide behind a fold. Cards for rows the
    user re-collapsed are skipped, not dumped at the bottom.
 
+## GitHub header controls while rich mode is on
+
+Header layout:
+
+`> path …  [GitHub native controls] | [Markdup Rich Markdown switch]`
+
+GitHub's native File view segmented control is hidden. Markdup sits after
+Viewed / Comment / more-options, separated by a `|`.
+
+While **Rich Markdown view** is on, Markdup hides native controls that would
+fight the rich surface:
+
+- file-section collapse / expand chevron
+- **Viewed** checkbox
+- **Comment on this file**
+
+They are restored when rich mode turns off.
+(`src/content/markdownReview/headerControls.ts`)
+
+If GitHub re-renders the file section and wipes injected DOM while rich intent
+is still on, Markdup restores the toggle and remounts from `richIntent.ts`.
+
 ## Thread ↔ text interactions
 
 1. Commented text carries a persistent attention-tinted mark (overlay boxes

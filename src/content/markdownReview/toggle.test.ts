@@ -102,7 +102,7 @@ describe('injectToggle', () => {
     mockAuthOk()
   })
 
-  it('hides the native File view control and inserts a Rich Markdown switch after it', () => {
+  it('hides native File view and places Markdup after native controls with a divider', () => {
     const region = createFileRegion({ path: 'docs/PLAN.md' })
     document.body.appendChild(region)
 
@@ -112,8 +112,15 @@ describe('injectToggle', () => {
       'ul[data-component="SegmentedControl"][aria-label="File view"]',
     )
     const toggle = region.querySelector<HTMLElement>('[data-rgm-toggle]')
+    const divider = region.querySelector<HTMLElement>(
+      '[data-rgm-header-divider]',
+    )
     const switchBtn =
       toggle?.querySelector<HTMLButtonElement>('[role="switch"]')
+    const kebab = region
+      .querySelector('button .octicon-kebab-horizontal')
+      ?.closest('button')
+    const actions = region.querySelector('.d-flex.flex-items-center.gap-2')
 
     expect(toggle).not.toBeNull()
     expect(toggle?.getAttribute('data-rgm-file')).toBe('docs/PLAN.md')
@@ -124,7 +131,10 @@ describe('injectToggle', () => {
     expect(switchBtn?.getAttribute('title')).toContain('source diff')
     expect(native?.hasAttribute('hidden')).toBe(true)
     expect(native?.hasAttribute('data-rgm-native-hidden')).toBe(true)
-    expect(native?.nextElementSibling).toBe(toggle)
+    expect(divider?.textContent).toBe('|')
+    expect(divider?.nextElementSibling).toBe(toggle)
+    expect(kebab?.nextElementSibling).toBe(divider)
+    expect(actions?.lastElementChild).toBe(toggle)
   })
 
   it('is idempotent', () => {
@@ -135,9 +145,10 @@ describe('injectToggle', () => {
     injectToggle(region, 'docs/PLAN.md')
 
     expect(region.querySelectorAll('[data-rgm-toggle]')).toHaveLength(1)
+    expect(region.querySelectorAll('[data-rgm-header-divider]')).toHaveLength(1)
   })
 
-  it('falls back before the kebab when native File view is missing', () => {
+  it('places Markdup after the kebab when native File view is missing', () => {
     const region = createFileRegion({
       path: 'docs/PLAN.md',
       includeFileViewToggle: false,
@@ -147,14 +158,16 @@ describe('injectToggle', () => {
     injectToggle(region, 'docs/PLAN.md')
 
     const toggle = region.querySelector('[data-rgm-toggle]')
+    const divider = region.querySelector('[data-rgm-header-divider]')
     const kebab = region
       .querySelector('button .octicon-kebab-horizontal')
       ?.closest('button')
 
-    expect(toggle?.nextElementSibling).toBe(kebab)
+    expect(kebab?.nextElementSibling).toBe(divider)
+    expect(divider?.nextElementSibling).toBe(toggle)
   })
 
-  it('appends into the actions cluster when kebab and native are missing', () => {
+  it('appends divider + Markdup into the actions cluster when kebab and native are missing', () => {
     const region = createFileRegion({
       path: 'docs/PLAN.md',
       includeKebab: false,
@@ -166,7 +179,9 @@ describe('injectToggle', () => {
 
     const actions = region.querySelector('.d-flex.flex-items-center.gap-2')
     const toggle = region.querySelector('[data-rgm-toggle]')
+    const divider = region.querySelector('[data-rgm-header-divider]')
     expect(actions?.lastElementChild).toBe(toggle)
+    expect(divider?.nextElementSibling).toBe(toggle)
   })
 
   it('enables rich mode after auth succeeds', async () => {

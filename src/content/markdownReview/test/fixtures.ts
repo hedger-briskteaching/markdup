@@ -7,6 +7,8 @@ export type FileRegionOptions = {
   includeDiffBody?: boolean
   includeFileViewToggle?: boolean
   pathViaLinkOnly?: boolean
+  /** When set, adds GitHub-style file expand/collapse chevron with aria-expanded. */
+  fileExpanded?: boolean
 }
 
 export function createFileRegion(options: FileRegionOptions): HTMLElement {
@@ -17,6 +19,7 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
     includeDiffBody = true,
     includeFileViewToggle = true,
     pathViaLinkOnly = false,
+    fileExpanded,
   } = options
 
   const region = document.createElement('div')
@@ -25,6 +28,18 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
 
   const header = document.createElement('div')
   header.setAttribute('data-diff-header-wrapper', '')
+
+  if (fileExpanded !== undefined) {
+    const collapseBtn = document.createElement('button')
+    collapseBtn.type = 'button'
+    collapseBtn.setAttribute('aria-expanded', String(fileExpanded))
+    collapseBtn.setAttribute(
+      'aria-label',
+      fileExpanded ? 'Collapse file' : 'Expand file',
+    )
+    collapseBtn.textContent = fileExpanded ? 'v' : '>'
+    header.appendChild(collapseBtn)
+  }
 
   const title = document.createElement('h3')
   const link = document.createElement('a')
@@ -75,6 +90,12 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
   viewed.setAttribute('aria-label', 'Not Viewed')
   viewed.textContent = 'Viewed'
   actions.appendChild(viewed)
+
+  const comment = document.createElement('button')
+  comment.type = 'button'
+  comment.setAttribute('aria-label', 'Comment on this file')
+  comment.textContent = 'Comment'
+  actions.appendChild(comment)
 
   if (includeKebab) {
     const kebab = document.createElement('button')

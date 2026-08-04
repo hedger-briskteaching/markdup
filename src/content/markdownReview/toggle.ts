@@ -7,7 +7,8 @@ import {
   setAuthPanelError,
   showAuthPanel,
 } from './authPanel'
-import { isRichMode, setRichMode } from './richStub'
+import { clearRichPathIntents, hasRichPathIntent } from './richIntent'
+import { ensureRichMounted, isRichMode, setRichMode } from './richStub'
 import {
   DIFF_HEADER_WRAPPER,
   FILE_VIEW_SEGMENTED,
@@ -158,13 +159,13 @@ function createToggleControl(path: string, region: Element): HTMLElement {
   toggle.appendChild(switchBtn)
   toggle.appendChild(label)
 
-  syncToggleState(toggle, isRichMode(region))
+  syncToggleState(toggle, isRichMode(region) || hasRichPathIntent(path))
 
   const onActivate = (event: Event) => {
     event.preventDefault()
     event.stopPropagation()
 
-    if (isRichMode(region) || pendingRegions.has(region)) {
+    if (isRichMode(region) || pendingRegions.has(region) || hasRichPathIntent(path)) {
       cancelAuth(region, toggle)
       return
     }
@@ -178,6 +179,19 @@ function createToggleControl(path: string, region: Element): HTMLElement {
   return toggle
 }
 
+function createHeaderDivider(): HTMLElement {
+  const divider = document.createElement('span')
+  divider.setAttribute('data-rgm-header-divider', '')
+  divider.setAttribute('aria-hidden', 'true')
+  divider.textContent = '|'
+  return divider
+}
+
+/**
+ * Layout: [title …] [GitHub native controls] | [Markdup]
+ * Hide GitHub's native File view segmented control; append Markdup after
+ * Viewed / Comment / kebab with a pipe divider.
+ */
 function placeToggle(
   region: Element,
   toggle: HTMLElement,
@@ -185,20 +199,19 @@ function placeToggle(
 ): void {
   if (native) {
     hideNativeFileViewToggle(native)
-    native.after(toggle)
-    return
   }
 
-  const kebab = findKebabButton(region)
-  if (kebab) {
-    kebab.before(toggle)
-    return
-  }
-
+  const divider = createHeaderDivider()
   const actions = findActionsContainer(region)
   if (actions) {
+    actions.appendChild(divider)
     actions.appendChild(toggle)
+    return
   }
+
+  const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region
+  header.appendChild(divider)
+  header.appendChild(toggle)
 }
 
 function onAuthEvent(message: ExtensionEvent): void {
@@ -246,17 +259,34 @@ function ensureAuthListener(): void {
 export function resetAuthListenerForTests(): void {
   authListenerAttached = false
   pendingRegions.clear()
+  clearRichPathIntents()
+}
+
+function syncToggleToActualMode(region: Element, toggle: HTMLElement): void {
+  syncToggleState(toggle, isRichMode(region))
 }
 
 /** Inject Rich Markdown view switch for a markdown file region. Idempotent. */
 export function injectToggle(region: Element, path: string): void {
   ensureAuthListener()
 
-  if (region.querySelector(RGM_TOGGLE)) {
+  const existing = region.querySelector<HTMLElement>(RGM_TOGGLE)
+  if (existing) {
+    // GitHub may have re-rendered the body while the toggle survived — restore.
+    if (hasRichPathIntent(path) || isRichMode(region)) {
+      ensureRichMounted(region)
+      syncToggleToActualMode(region, existing)
+    }
     return
   }
 
   const native = findNativeFileViewToggle(region)
   const toggle = createToggleControl(path, region)
   placeToggle(region, toggle, native)
+
+  // Header re-render wiped our previous toggle; restore rich intent.
+  if (hasRichPathIntent(path)) {
+    ensureRichMounted(region)
+    syncToggleToActualMode(region, toggle)
+  }
 }

@@ -7,6 +7,10 @@ import {
   setRichViewContext,
 } from './selection'
 import { bindComposer } from './composer'
+import {
+  bindHeaderControlSuppress,
+  showInterferingHeaderControls,
+} from './headerControls'
 import { buildRichRoot } from './renderBody'
 import type { CommentableLines } from '../../shared/commentableLines'
 
@@ -88,6 +92,7 @@ export function showRichView(
   root.replaceChildren(buildRichRoot(rows, expanded))
   composerCleanups.get(root)?.()
   composerCleanups.set(root, bindComposer(root))
+  bindHeaderControlSuppress(region)
 }
 
 export function showRichLoading(region: Element): void {
@@ -111,6 +116,7 @@ export function showRichLoading(region: Element): void {
   status.className = 'rgm-rich-status'
   status.textContent = 'Loading rich Markdown view…'
   root.appendChild(status)
+  bindHeaderControlSuppress(region)
 }
 
 export function showRichError(region: Element, message: string): void {
@@ -133,9 +139,11 @@ export function showRichError(region: Element, message: string): void {
   status.className = 'rgm-rich-status rgm-rich-status-error'
   status.textContent = message
   root.appendChild(status)
+  bindHeaderControlSuppress(region)
 }
 
 export function hideRichView(region: Element): void {
+  showInterferingHeaderControls(region)
   const diffBody = findDiffBody(region)
   diffBody?.removeAttribute(HIDDEN_ATTR)
   const rich = region.querySelector('[data-rgm-rich]')

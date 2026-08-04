@@ -1,5 +1,7 @@
 import { getFilePath, isMarkdownPath, isPrFilesPage } from './detect'
-import { FILE_REGION, PROGRESSIVE_DIFFS_LIST, RGM_TOGGLE } from './selectors'
+import { hasRichPathIntent } from './richIntent'
+import { ensureRichMounted } from './richStub'
+import { FILE_REGION, PROGRESSIVE_DIFFS_LIST } from './selectors'
 import { injectStyles } from './styles'
 import { injectToggle } from './toggle'
 
@@ -17,16 +19,17 @@ export function enhanceMarkdownRegions(): void {
 
   const regions = document.querySelectorAll(FILE_REGION)
   for (const region of regions) {
-    if (region.querySelector(RGM_TOGGLE)) {
-      continue
-    }
-
     const path = getFilePath(region)
     if (!path || !isMarkdownPath(path)) {
       continue
     }
 
     injectToggle(region, path)
+
+    // Collapse/expand may destroy `[data-rgm-rich]` while intent stays on.
+    if (hasRichPathIntent(path)) {
+      ensureRichMounted(region)
+    }
   }
 }
 
