@@ -19,6 +19,11 @@ import { RGM_TOGGLE } from './selectors'
 import { syncThreadsFromServer } from './syncThreads'
 
 export { isRichMode }
+
+/**
+ * Parse the current URL to extract owner, repo, and pull number.
+ * @returns The parsed pull request identifiers, or null if not on a PR page.
+ */
 function parseLocationPull(): {
   owner: string
   repo: string
@@ -37,6 +42,11 @@ function parseLocationPull(): {
   }
 }
 
+/**
+ * Get the file path associated with a file region element.
+ * @param region - The file region element.
+ * @returns The file path string, or null if not found.
+ */
 function filePathForRegion(region: Element): string | null {
   const fromToggle = region
     .querySelector(RGM_TOGGLE)
@@ -48,6 +58,14 @@ function filePathForRegion(region: Element): string | null {
   return button?.getAttribute('data-file-path') ?? null
 }
 
+/**
+ * Fetch the base and head file content from the background script.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param path - File path within the repository.
+ * @returns The file snapshot with base and head text.
+ */
 async function loadSnapshot(
   owner: string,
   repo: string,
@@ -70,7 +88,10 @@ async function loadSnapshot(
 
 /**
  * Turn rich mode on or off for a file region.
- * When rich mode turns on, fetch base/head Markdown and render the view.
+ * When turning on, fetch base/head Markdown and render the rich view.
+ * @param region - The file region element.
+ * @param rich - True to activate rich mode, false to deactivate.
+ * @returns Nothing.
  */
 export function setRichMode(region: Element, rich: boolean): void {
   const path = filePathForRegion(region)
@@ -82,8 +103,8 @@ export function setRichMode(region: Element, rich: boolean): void {
     const needsNativeRefresh = consumeCommentsDirty(region)
     region.removeAttribute('data-rgm-mode')
     hideRichView(region)
-    // GitHub's native Files DOM was painted before our API comments existed.
-    // Unhiding it alone leaves stale widgets — reload so pending threads appear.
+    // GitHub native Files DOM was painted before our API comments existed.
+    // Unhiding alone leaves stale widgets. Reload so pending threads appear.
     if (needsNativeRefresh) {
       window.location.reload()
     }
@@ -96,7 +117,9 @@ export function setRichMode(region: Element, rich: boolean): void {
 
 /**
  * Re-apply rich mode after GitHub re-renders a file section.
- * No-op when intent is off or the rich root is already mounted.
+ * Does nothing when intent is off or the rich root is already mounted.
+ * @param region - The file region element.
+ * @returns Nothing.
  */
 export function ensureRichMounted(region: Element): void {
   const path = filePathForRegion(region)
@@ -107,7 +130,7 @@ export function ensureRichMounted(region: Element): void {
   region.setAttribute('data-rgm-mode', 'rich')
 
   if (region.querySelector('[data-rgm-rich]')) {
-    // Collapse/expand remounts GitHub's diff body without our hide marker.
+    // Collapse/expand remounts GitHub diff body without our hide marker.
     ensureNativeDiffHidden(region)
     syncFileCollapsedState(region)
     return
@@ -116,6 +139,11 @@ export function ensureRichMounted(region: Element): void {
   void mountRichView(region)
 }
 
+/**
+ * Load the file snapshot and render the rich markdown diff view.
+ * @param region - The file region element.
+ * @returns Nothing.
+ */
 async function mountRichView(region: Element): Promise<void> {
   const pull = parseLocationPull()
   const path = filePathForRegion(region)
@@ -186,7 +214,14 @@ async function mountRichView(region: Element): Promise<void> {
   }
 }
 
-/** @internal Vitest helper — render from local strings (no GitHub API). */
+/**
+ * Render from local strings without calling the GitHub API.
+ * @internal Vitest helper.
+ * @param region - The file region element.
+ * @param baseText - Base-side markdown text.
+ * @param headText - Head-side markdown text.
+ * @returns Nothing.
+ */
 export function setRichModeFromTexts(
   region: Element,
   baseText: string,
@@ -201,6 +236,12 @@ export function setRichModeFromTexts(
   showRichView(region, rows, { baseText, headText })
 }
 
+/**
+ * Load and apply the thread index for a file region.
+ * @param region - The file region element.
+ * @param snapshot - The file snapshot containing pull request metadata.
+ * @returns Nothing.
+ */
 async function loadThreadIndex(
   region: Element,
   snapshot: FileSnapshot,
@@ -219,11 +260,14 @@ async function loadThreadIndex(
     return
   }
   if (!result.ok) {
-    // Keep the markdown view; thread cards stay empty until a later sync.
     console.warn('[Markdup] thread sync failed', result.error)
   }
 }
 
+/**
+ * Fetch the signed-in GitHub login from the background script.
+ * @returns The viewer login string, or undefined if unavailable.
+ */
 async function fetchViewerLogin(): Promise<string | undefined> {
   try {
     const status = (await chrome.runtime.sendMessage({

@@ -24,7 +24,12 @@ const TEXT_DIFF_TYPES = new Set([
   'blockquote',
 ])
 
-/** Header + body for the rich Before/After view. */
+/**
+ * Build the header and body fragment for the rich Before/After view.
+ * @param rows - Aligned row models for the diff.
+ * @param expandedIds - Set of unchanged section ids that are expanded.
+ * @returns A DocumentFragment containing header and body elements.
+ */
 export function buildRichRoot(
   rows: RowModel[],
   expandedIds: ReadonlySet<string>,
@@ -43,8 +48,12 @@ export function buildRichRoot(
 }
 
 /**
- * Body rows grouped into sections: changed rows always render; consecutive
- * unchanged rows render behind a +/- fold bar (collapsed unless expanded).
+ * Build the body element with rows grouped into sections.
+ * Changed rows always render. Consecutive unchanged rows render
+ * behind a fold bar (collapsed unless expanded).
+ * @param rows - Aligned row models for the diff.
+ * @param expandedIds - Set of unchanged section ids that are expanded.
+ * @returns The body element containing all row and fold elements.
  */
 export function buildRichBody(
   rows: RowModel[],
@@ -77,7 +86,9 @@ export function buildRichBody(
 
 /**
  * Rebuild the rich body from context state and re-place thread cards.
- * Keeps the header, composer, bubble, and highlight layer (richRoot children).
+ * Keeps the header, composer, bubble, and highlight layer.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
  */
 export function renderRichBody(richRoot: Element): void {
   const ctx = getRichViewContext(richRoot)
@@ -94,8 +105,10 @@ export function renderRichBody(richRoot: Element): void {
 }
 
 /**
- * Expand every collapsed unchanged section that owns a thread's row so
- * synced comments are never hidden behind a fold. Call before renderRichBody.
+ * Expand every collapsed unchanged section that owns a thread row.
+ * Call this before renderRichBody so comments are never hidden behind a fold.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
  */
 export function expandSectionsForThreads(richRoot: Element): void {
   const ctx = getRichViewContext(richRoot)
@@ -113,6 +126,12 @@ export function expandSectionsForThreads(richRoot: Element): void {
   }
 }
 
+/**
+ * Build a collapsible fold bar for an unchanged section.
+ * @param section - The unchanged section descriptor.
+ * @param expanded - True when this section is currently expanded.
+ * @returns The fold bar element.
+ */
 function buildFoldBar(
   section: UnchangedSection,
   expanded: boolean,
@@ -168,6 +187,11 @@ function buildFoldBar(
   return bar
 }
 
+/**
+ * Build a single diff row with Before and After cells.
+ * @param row - The row model to render.
+ * @returns The row element.
+ */
 export function buildRow(row: RowModel): HTMLElement {
   const el = document.createElement('div')
   el.className = 'rgm-rich-row'
@@ -197,6 +221,11 @@ export function buildRow(row: RowModel): HTMLElement {
   return el
 }
 
+/**
+ * Build a single cell (Before or After) for a diff row.
+ * @param args - Cell configuration with side, block, peer, and metadata.
+ * @returns The cell element.
+ */
 function buildCell(args: {
   side: 'before' | 'after'
   block?: BlockView
@@ -239,6 +268,11 @@ function buildCell(args: {
   return cell
 }
 
+/**
+ * Build the line-number gutter for a cell.
+ * @param block - The block view containing source line information.
+ * @returns The gutter element.
+ */
 function buildGutter(block: BlockView): HTMLElement {
   const gutter = document.createElement('div')
   gutter.className = 'rgm-rich-gutter'
@@ -267,6 +301,14 @@ function buildGutter(block: BlockView): HTMLElement {
   return gutter
 }
 
+/**
+ * Build the content area for a block, with optional word-level diff markup.
+ * @param block - The block view to render.
+ * @param side - Which side this cell belongs to (before or after).
+ * @param peer - The peer block on the opposite side.
+ * @param changed - True when this row has changes.
+ * @returns The content wrapper element.
+ */
 function buildBlockContent(
   block: BlockView,
   side: 'before' | 'after',
@@ -309,6 +351,13 @@ function buildBlockContent(
   return wrap
 }
 
+/**
+ * Render a block with inline word-diff segments (ins/del spans).
+ * @param block - The block view to render.
+ * @param segments - Word-diff segments for this side.
+ * @param side - Which side this cell belongs to.
+ * @returns The rendered block element with diff markup.
+ */
 function renderSegmentedBlock(
   block: BlockView,
   segments: DiffSegment[],
@@ -339,6 +388,13 @@ function renderSegmentedBlock(
   return el
 }
 
+/**
+ * Append diff segments as child spans to a parent element.
+ * @param parent - The element to append segment spans into.
+ * @param segments - Word-diff segments to render.
+ * @param side - Which side this cell belongs to.
+ * @returns Nothing.
+ */
 function appendSegments(
   parent: HTMLElement,
   segments: DiffSegment[],
@@ -362,6 +418,11 @@ function appendSegments(
   }
 }
 
+/**
+ * Render a front-matter block as a labeled card.
+ * @param block - The block view containing front-matter content.
+ * @returns The front-matter card element.
+ */
 function renderFrontMatter(block: BlockView): HTMLElement {
   const card = document.createElement('div')
   card.className = 'rgm-rich-front-matter'
@@ -383,6 +444,12 @@ function renderFrontMatter(block: BlockView): HTMLElement {
   return card
 }
 
+/**
+ * Add language chip and plain-text offset annotations to a serialized block.
+ * @param dom - The serialized DOM element.
+ * @param block - The block view with metadata.
+ * @returns Nothing.
+ */
 function enhanceSerialized(dom: HTMLElement, block: BlockView): void {
   if (block.type === 'code_block') {
     const lang = String(block.node.attrs.params ?? '')
@@ -399,8 +466,10 @@ function enhanceSerialized(dom: HTMLElement, block: BlockView): void {
 }
 
 /**
- * Wrap contiguous text under a serialized block with a single offset map
- * entry so selection can resolve without walking chrome.
+ * Wrap contiguous text under a serialized block with offset map entries.
+ * This lets selection resolve without walking chrome elements.
+ * @param root - The serialized block element.
+ * @returns Nothing.
  */
 function annotatePlainTextOffsets(root: HTMLElement): void {
   let offset = 0

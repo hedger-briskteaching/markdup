@@ -34,6 +34,10 @@ import {
 } from './github/orgAccess'
 import { createReviewComment, fetchThreadIndex, replyToReviewComment, updateReviewComment, deleteReviewComment } from './github/pulls'
 
+/**
+ * Send an event to all open GitHub PR tabs and the extension runtime.
+ * @param event - The extension event payload to broadcast.
+ */
 async function broadcast(event: ExtensionEvent): Promise<void> {
   const tabs = await chrome.tabs.query({ url: ['https://github.com/*/pull/*'] })
   await Promise.all(
@@ -56,11 +60,19 @@ async function broadcast(event: ExtensionEvent): Promise<void> {
   }
 }
 
+/**
+ * Probe organization access and persist the result as an access warning.
+ * @param token - GitHub access token to probe with.
+ */
 async function refreshOauthAccessWarning(token: string): Promise<void> {
   const warning = await probeOauthOrgAccess(token)
   await setAccessWarning(warning)
 }
 
+/**
+ * Make sure the user is authenticated, starting a device flow if needed.
+ * @returns An AuthEnsureResponse indicating current auth state.
+ */
 async function ensureAuth(): Promise<AuthEnsureResponse> {
   const existing = await getAccessToken()
   if (existing) {
@@ -121,6 +133,11 @@ async function ensureAuth(): Promise<AuthEnsureResponse> {
   }
 }
 
+/**
+ * Return the current authentication status and optionally re-probe org access.
+ * @param probe - When true, re-run the OAuth org access probe.
+ * @returns An AuthStatusResponse with login, method, and access warning.
+ */
 async function authStatus(
   probe = false,
 ): Promise<AuthStatusResponse> {
@@ -159,6 +176,11 @@ async function authStatus(
   }
 }
 
+/**
+ * Validate and store a personal access token provided by the user.
+ * @param token - Raw PAT string to validate.
+ * @returns An AuthSetPatResponse with status and login on success.
+ */
 async function authSetPat(token: string): Promise<AuthSetPatResponse> {
   try {
     const auth = await setPersonalAccessToken(token)
@@ -179,6 +201,13 @@ async function authSetPat(token: string): Promise<AuthSetPatResponse> {
   }
 }
 
+/**
+ * Format a caught API error into a user-facing message.
+ * Records an access warning if the error is an OAuth org restriction.
+ * @param error - The caught error value.
+ * @param fallback - Fallback message when the error is not an Error instance.
+ * @returns A formatted error string for display.
+ */
 function formatCaughtApiError(error: unknown, fallback: string): string {
   const raw =
     error instanceof Error ? error.message : fallback

@@ -27,6 +27,10 @@ import { syncThreadsFromServer } from './syncThreads'
 /**
  * Insert or replace a thread built from a newly created review comment.
  * Used for optimistic UI before FETCH_THREAD_INDEX returns.
+ * @param threads - The current array of threads.
+ * @param comment - The newly created comment DTO.
+ * @param options - Optional flags (for example pending status).
+ * @returns An updated thread array sorted by start line.
  */
 export function upsertThreadFromComment(
   threads: ReviewThreadDto[],
@@ -60,7 +64,9 @@ export function upsertThreadFromComment(
 
 /**
  * Render review thread cards under matching rich rows.
- * LEFT threads attach to Before; RIGHT to After.
+ * LEFT threads attach to Before cells. RIGHT threads attach to After cells.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
  */
 export function renderThreadCards(richRoot: Element): void {
   clearThreadCards(richRoot)
@@ -120,7 +126,12 @@ export function renderThreadCards(richRoot: Element): void {
   bindThreadTextInteractions(root)
 }
 
-/** @internal Source range a thread targets (whole-line grain). */
+/**
+ * Build the source range a thread targets (whole-line grain).
+ * @internal Exported for tests.
+ * @param thread - The review thread DTO.
+ * @returns The source range for the thread.
+ */
 export function rangeForThread(thread: ReviewThreadDto): SourceRange {
   const endLine = thread.line
   const startLine = Math.min(thread.startLine ?? endLine, endLine)
@@ -134,12 +145,27 @@ export function rangeForThread(thread: ReviewThreadDto): SourceRange {
   }
 }
 
+/**
+ * Attach hover/focus highlight listeners to a thread card.
+ * @param card - The thread card element.
+ * @param richRoot - The rich view root element.
+ * @param range - The source range to highlight on hover.
+ * @returns Nothing.
+ */
 function attachHoverHighlight(
   card: HTMLElement,
   richRoot: HTMLElement,
   range: SourceRange,
 ): void {
+  /**
+   * Apply the hover highlight for this thread range.
+   * @returns Nothing.
+   */
   const show = () => applyThreadHoverHighlight(richRoot, range)
+  /**
+   * Clear the hover highlight for this thread range.
+   * @returns Nothing.
+   */
   const hide = () => clearThreadHoverHighlight(richRoot)
   card.addEventListener('mouseenter', show)
   card.addEventListener('mouseleave', hide)
@@ -149,6 +175,11 @@ function attachHoverHighlight(
 
 const textInteractionsBound = new WeakSet<Element>()
 
+/**
+ * Bind click-to-scroll interactions on commented text regions.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
 function bindThreadTextInteractions(richRoot: HTMLElement): void {
   if (textInteractionsBound.has(richRoot)) return
   textInteractionsBound.add(richRoot)
@@ -174,6 +205,12 @@ function bindThreadTextInteractions(richRoot: HTMLElement): void {
   })
 }
 
+/**
+ * Find the thread id of a commented mark box under the click point.
+ * @param richRoot - The rich view root element.
+ * @param event - The mouse event.
+ * @returns The thread id string, or null if none found.
+ */
 function threadIdAtPoint(richRoot: Element, event: MouseEvent): string | null {
   const layer = richRoot.querySelector('[data-rgm-commented-layer]')
   if (!layer) return null
@@ -192,6 +229,11 @@ function threadIdAtPoint(richRoot: Element, event: MouseEvent): string | null {
   return null
 }
 
+/**
+ * Fall back to the cell-level commented-thread attribute.
+ * @param target - The clicked element.
+ * @returns The thread id string, or null if none found.
+ */
 function threadIdFromFallbackCell(target: Element): string | null {
   return (
     target
@@ -200,7 +242,13 @@ function threadIdFromFallbackCell(target: Element): string | null {
   )
 }
 
-/** @internal Exported for tests. */
+/**
+ * Scroll to a thread card and flash it for visual attention.
+ * @internal Exported for tests.
+ * @param richRoot - The rich view root element.
+ * @param threadId - The thread id to scroll to.
+ * @returns Nothing.
+ */
 export function scrollToThreadCard(
   richRoot: Element,
   threadId: string,
@@ -227,11 +275,22 @@ export function scrollToThreadCard(
   }, 1600)
 }
 
+/**
+ * Remove all thread card elements from the rich root.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
 export function clearThreadCards(richRoot: Element): void {
   richRoot.querySelectorAll('[data-rgm-thread-card]').forEach((el) => el.remove())
 }
 
-/** @internal Exported for tests. */
+/**
+ * Find the row id that best matches a thread by source line overlap.
+ * @internal Exported for tests.
+ * @param rows - All row models.
+ * @param thread - The review thread DTO.
+ * @returns The matching row id, or null if no match is found.
+ */
 export function findRowIdForThread(
   rows: RowModel[],
   thread: ReviewThreadDto,
@@ -274,13 +333,24 @@ export function findRowIdForThread(
   return bestId
 }
 
-/** @internal */
+/**
+ * Determine if a thread was re-anchored (source line moved since creation).
+ * @internal Exported for tests.
+ * @param thread - The review thread DTO.
+ * @returns True when the thread is re-anchored.
+ */
 export function isReanchored(thread: ReviewThreadDto): boolean {
   const root = thread.comments[0]
   if (!root || root.originalLine == null) return false
   return root.originalLine !== thread.line
 }
 
+/**
+ * Determine if a comment belongs to the current viewer.
+ * @param comment - The comment DTO.
+ * @param viewerLogin - The signed-in GitHub login.
+ * @returns True when the comment was authored by the viewer.
+ */
 function isOwnComment(
   comment: ReviewCommentDto,
   viewerLogin: string | undefined,
@@ -289,6 +359,14 @@ function isOwnComment(
   return viewerLogin.toLowerCase() === comment.userLogin.toLowerCase()
 }
 
+/**
+ * Build the full thread card element with header, detail, and footer.
+ * @param thread - The review thread DTO.
+ * @param fileName - The short file name for display.
+ * @param richRoot - The rich view root element.
+ * @param ctx - The rich view context.
+ * @returns The thread card element.
+ */
 function buildThreadCard(
   thread: ReviewThreadDto,
   fileName: string,
@@ -417,6 +495,13 @@ function buildThreadCard(
   return card
 }
 
+/**
+ * Build a single comment block inside a thread card.
+ * @param comment - The comment DTO.
+ * @param richRoot - The rich view root element.
+ * @param ctx - The rich view context.
+ * @returns The comment block element.
+ */
 function buildCommentBlock(
   comment: ReviewCommentDto,
   richRoot: HTMLElement,
@@ -478,6 +563,15 @@ function buildCommentBlock(
   return block
 }
 
+/**
+ * Open the reply composer inside a thread card.
+ * @param slot - The slot element to mount the reply into.
+ * @param thread - The review thread DTO.
+ * @param richRoot - The rich view root element.
+ * @param ctx - The rich view context.
+ * @param replyBtn - The Reply button to disable while composing.
+ * @returns Nothing.
+ */
 function openReplyComposer(
   slot: HTMLElement,
   thread: ReviewThreadDto,
@@ -511,6 +605,10 @@ function openReplyComposer(
   cancel.textContent = 'Cancel'
 
   let editor: CommentEditorHandle | null = null
+  /**
+   * Close the reply panel and re-enable the reply button.
+   * @returns Nothing.
+   */
   const close = () => {
     editor?.destroy()
     panel.remove()
@@ -541,6 +639,11 @@ function openReplyComposer(
   editor.focus()
 }
 
+/**
+ * Submit a reply to an existing thread via the background script.
+ * @param args - Editor, UI elements, thread, and context needed for submission.
+ * @returns Nothing.
+ */
 async function submitReply(args: {
   editor: CommentEditorHandle | null
   submit: HTMLButtonElement
@@ -595,6 +698,16 @@ async function submitReply(args: {
   onDone()
 }
 
+/**
+ * Open the edit composer for an existing comment.
+ * @param block - The comment block element.
+ * @param bodyHost - The comment body host element.
+ * @param actions - The actions container element.
+ * @param comment - The comment DTO.
+ * @param richRoot - The rich view root element.
+ * @param ctx - The rich view context.
+ * @returns Nothing.
+ */
 function openEditComposer(
   block: HTMLElement,
   bodyHost: HTMLElement,
@@ -628,6 +741,10 @@ function openEditComposer(
   cancel.textContent = 'Cancel'
 
   let editor: CommentEditorHandle | null = null
+  /**
+   * Close the edit panel and restore the comment body and actions.
+   * @returns Nothing.
+   */
   const close = () => {
     editor?.destroy()
     panel.remove()
@@ -660,6 +777,11 @@ function openEditComposer(
   editor.focus()
 }
 
+/**
+ * Submit an edited comment to GitHub via the background script.
+ * @param args - Editor, UI elements, comment, and context needed for submission.
+ * @returns Nothing.
+ */
 async function submitEdit(args: {
   editor: CommentEditorHandle | null
   save: HTMLButtonElement
@@ -704,7 +826,7 @@ async function submitEdit(args: {
   status.textContent = 'Syncing…'
   const synced = await syncThreadsFromServer(richRoot, ctx)
   if (!synced.ok) {
-    // Still update local body so the user isn't stuck; next sync will reconcile.
+    // Still update local body so the user is not stuck. Next sync will reconcile.
     bodyHost.replaceChildren(renderMarkdownBody(body))
     markCommentsDirty(richRoot)
     onDone()
@@ -714,6 +836,14 @@ async function submitEdit(args: {
   onDone()
 }
 
+/**
+ * Delete a comment via the background script and re-sync threads.
+ * @param comment - The comment DTO to delete.
+ * @param richRoot - The rich view root element.
+ * @param ctx - The rich view context.
+ * @param button - The delete button to disable during the operation.
+ * @returns Nothing.
+ */
 async function deleteComment(
   comment: ReviewCommentDto,
   richRoot: HTMLElement,
@@ -746,6 +876,13 @@ async function deleteComment(
   markCommentsDirty(richRoot)
 }
 
+/**
+ * Format the file path and line reference for a thread card header.
+ * @param fileName - The short file name.
+ * @param thread - The review thread DTO.
+ * @param reanchored - True when the thread is re-anchored.
+ * @returns The formatted path and line string.
+ */
 function formatPathLines(
   fileName: string,
   thread: ReviewThreadDto,
@@ -761,12 +898,22 @@ function formatPathLines(
   return `${fileName} L${thread.line}`
 }
 
+/**
+ * Extract uppercase initials from a GitHub login.
+ * @param login - The GitHub login string.
+ * @returns One or two uppercase characters.
+ */
 function initials(login: string): string {
   const clean = login.replace(/[^a-zA-Z0-9]/g, '')
   if (clean.length >= 2) return clean.slice(0, 2).toUpperCase()
   return (clean || '?').toUpperCase()
 }
 
+/**
+ * Format an ISO timestamp as a human-readable relative time string.
+ * @param iso - The ISO 8601 timestamp.
+ * @returns A relative time string like "5m ago" or "2 days ago".
+ */
 function formatRelativeTime(iso: string): string {
   const then = Date.parse(iso)
   if (!Number.isFinite(then)) return ''

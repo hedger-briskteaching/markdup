@@ -1,6 +1,11 @@
+/**
+ * Popup App component module.
+ * Shows the GitHub connection status and opens the options page.
+ */
 import { useCallback, useEffect, useState } from 'react'
 import type { AuthStatusResponse, ExtensionEvent } from '../shared/messages'
 
+/** Discriminated union that represents every possible popup UI state. */
 type UiState =
   | { kind: 'loading' }
   | { kind: 'connected'; login: string }
@@ -11,9 +16,17 @@ const LOGO_URL = chrome.runtime.getURL('icons/logo.svg')
 
 const TAGLINE = 'A better way to review Markdown files.'
 
+/**
+ * Popup root component. Shows the connection status and a link to settings.
+ * @returns JSX for the popup panel.
+ */
 export default function App() {
   const [state, setState] = useState<UiState>({ kind: 'loading' })
 
+  /**
+   * Query the background service worker for the current auth status and update UI state.
+   * @returns A promise that resolves when the status read finishes.
+   */
   const refreshStatus = useCallback(async () => {
     try {
       const status = (await chrome.runtime.sendMessage({
@@ -38,6 +51,11 @@ export default function App() {
   useEffect(() => {
     void refreshStatus()
 
+    /**
+     * Handle incoming extension messages and update UI state on auth events.
+     * @param message - The extension event from the background service worker.
+     * @returns Nothing.
+     */
     const onMessage = (message: ExtensionEvent) => {
       if (message.type === 'AUTH_COMPLETE') {
         setState({ kind: 'connected', login: message.login })
@@ -53,6 +71,10 @@ export default function App() {
     }
   }, [refreshStatus])
 
+  /**
+   * Open the extension options page in a new browser tab.
+   * @returns Nothing.
+   */
   const openSettings = () => {
     void chrome.runtime.openOptionsPage()
   }

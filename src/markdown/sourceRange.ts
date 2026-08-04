@@ -1,9 +1,9 @@
-/** GitHub review-comment side: Before = LEFT, After = RIGHT. */
+/** GitHub review-comment side. `'LEFT'` = before, `'RIGHT'` = after. */
 export type ReviewSide = 'LEFT' | 'RIGHT'
 
 /**
  * Source span for a rich-view selection.
- * Lines and columns are 1-based; endCol is exclusive for empty slices
+ * Lines and columns are 1-based. `endCol` is exclusive for empty slices
  * at end-of-line (col = lineLength + 1).
  */
 export type SourceRange = {
@@ -19,14 +19,18 @@ export type BlockSourceAnchor = {
   side: ReviewSide
   srcFrom: number
   srcTo: number
-  /** Block plain text (ProseMirror textContent / front matter value). */
+  /** Block plain text (ProseMirror `textContent` or front-matter value). */
   plainText: string
-  /** Inclusive source lines for [srcFrom, srcTo]. */
+  /** Inclusive source lines for the range [`srcFrom`, `srcTo`]. */
   sourceLines: string[]
 }
 
 /**
- * Slice 1-based inclusive line numbers from a full file string.
+ * Extract lines from a full file string by 1-based inclusive line numbers.
+ * @param fileText - The complete file content.
+ * @param srcFrom - First line (1-based, inclusive).
+ * @param srcTo - Last line (1-based, inclusive).
+ * @returns Array of source lines in the given range.
  */
 export function linesForRange(
   fileText: string,
@@ -37,14 +41,16 @@ export function linesForRange(
     return []
   }
   const all = fileText.split('\n')
-  // File text often ends with a trailing newline → final empty split entry.
-  // Source line N is all[N - 1]; do not trim the trailing empty unless
-  // it is past srcTo.
+  // File text often ends with a trailing newline, which creates a final empty
+  // split entry. Source line N is `all[N - 1]`. Do not trim the trailing
+  // empty entry unless it is past `srcTo`.
   return all.slice(srcFrom - 1, srcTo)
 }
 
 /**
- * Map a character offset inside block plain text to a source line/col.
+ * Map a character offset inside block plain text to a 1-based source line and column.
+ * @param args - Plain text, source range, source lines, and the offset to map.
+ * @returns An object with `line` and `col` (both 1-based).
  */
 export function plainOffsetToPos(args: {
   plainText: string
@@ -82,7 +88,7 @@ export function plainOffsetToPos(args: {
     }
   }
 
-  // Soft-wrapped / multi-line Markdown rendered as one plain blob (no `\n`).
+  // Soft-wrapped or multi-line Markdown rendered as one plain blob (no `\n`).
   return offsetInWrappedPlain({
     plainText,
     srcFrom,
@@ -93,8 +99,13 @@ export function plainOffsetToPos(args: {
 }
 
 /**
- * Build a SourceRange from plain-text offsets inside one block.
- * Offsets may be in either order (selection direction does not matter).
+ * Build a `SourceRange` from plain-text offsets inside one block.
+ * Offsets can be in either order because selection direction does not matter.
+ * @param anchor - Block-level source anchor.
+ * @param startOffset - First offset in the block's plain text.
+ * @param endOffset - Second offset in the block's plain text.
+ * @param quotedText - The selected text to attach to the range.
+ * @returns The computed `SourceRange`.
  */
 export function offsetsToSourceRange(
   anchor: BlockSourceAnchor,
@@ -130,8 +141,11 @@ export function offsetsToSourceRange(
 }
 
 /**
- * Expand a range to whole source lines (col 1 → end of last line).
- * Matches how GitHub review comments attach to line spans.
+ * Expand a range to whole source lines (col 1 to end of last line).
+ * This matches how GitHub review comments attach to line spans.
+ * @param range - The original source range.
+ * @param fileText - Full file content for line-length lookup.
+ * @returns A new `SourceRange` that covers complete lines.
  */
 export function expandSourceRangeToWholeLines(
   range: SourceRange,
@@ -153,9 +167,13 @@ export function expandSourceRangeToWholeLines(
 }
 
 /**
- * Map a 1-based source line/col to an offset in the block's plain text.
- * Prefer the closest offset when the exact column is outside plain text
- * (e.g. Markdown heading markers that are not rendered).
+ * Map a 1-based source line and column to an offset in the block's plain text.
+ * When the exact column falls outside the plain text (for example, a Markdown
+ * heading marker that is not rendered), the closest valid offset is returned.
+ * @param anchor - Block-level source anchor.
+ * @param line - 1-based source line.
+ * @param col - 1-based source column.
+ * @returns The best-matching character offset in `anchor.plainText`.
  */
 export function sourcePosToPlainOffset(
   anchor: BlockSourceAnchor,
@@ -187,8 +205,11 @@ export function sourcePosToPlainOffset(
 }
 
 /**
- * Plain-text offsets inside a block that cover [startLine, endLine].
- * Returns null when the block does not overlap the line span.
+ * Get plain-text offsets inside a block that cover [`startLine`, `endLine`].
+ * @param anchor - Block-level source anchor.
+ * @param startLine - First line of the span (1-based).
+ * @param endLine - Last line of the span (1-based).
+ * @returns `{ from, to }` offsets, or `null` when the block does not overlap.
  */
 export function plainOffsetsForLineSpan(
   anchor: BlockSourceAnchor,
@@ -215,7 +236,10 @@ export function plainOffsetsForLineSpan(
 }
 
 /**
- * Merge two same-side ranges (e.g. selection across adjacent blocks).
+ * Merge two same-side source ranges (for example, a selection across adjacent blocks).
+ * @param a - First source range.
+ * @param b - Second source range.
+ * @returns The merged range, or `null` when the sides differ.
  */
 export function mergeSourceRanges(
   a: SourceRange,
@@ -241,6 +265,12 @@ export function mergeSourceRanges(
   }
 }
 
+/**
+ * Join two quoted-text strings, avoiding duplication when one contains the other.
+ * @param left - Quoted text from the earlier range.
+ * @param right - Quoted text from the later range.
+ * @returns The combined quoted text.
+ */
 function joinQuoted(left: string, right: string): string {
   if (!left) return right
   if (!right) return left
@@ -249,6 +279,11 @@ function joinQuoted(left: string, right: string): string {
   return `${left}${right}`
 }
 
+/**
+ * Map an offset in multi-line plain text (contains `\n`) to a source line and column.
+ * @param args - Plain text, source range, source lines, and the target offset.
+ * @returns An object with `line` and `col` (both 1-based).
+ */
 function offsetInMultilinePlain(args: {
   plainText: string
   srcFrom: number
@@ -277,8 +312,10 @@ function offsetInMultilinePlain(args: {
 
 /**
  * Map an offset in rendered plain text onto soft-wrapped source lines.
- * Each source line's visible content is located in order inside `plainText`
- * (softbreaks may become a space or disappear in ProseMirror textContent).
+ * Each source line's visible content is located in order inside `plainText`.
+ * Softbreaks can become a space or disappear in ProseMirror `textContent`.
+ * @param args - Plain text, source range, source lines, and the target offset.
+ * @returns An object with `line` and `col` (both 1-based).
  */
 function offsetInWrappedPlain(args: {
   plainText: string
@@ -316,10 +353,17 @@ type WrappedSegment = {
   line: number
   plainFrom: number
   plainTo: number
-  /** 1-based source column of plainFrom. */
+  /** 1-based source column that corresponds to `plainFrom`. */
   colBase: number
 }
 
+/**
+ * Locate each source line's visible content inside the plain text string.
+ * @param plainText - Rendered plain text of the block.
+ * @param sourceLines - Raw source lines for the block.
+ * @param srcFrom - 1-based line number of the first source line.
+ * @returns Array of segments that map plain-text ranges to source lines.
+ */
 function locateWrappedSegments(
   plainText: string,
   sourceLines: string[],
@@ -353,9 +397,13 @@ function locateWrappedSegments(
 }
 
 /**
- * Find the next source line's content inside plain text at/after `from`.
- * Handles Markdown markers that are not present in rendered plain text,
+ * Find the next source line's content inside plain text at or after `from`.
+ * This handles Markdown markers that are not present in rendered plain text
  * and optional whitespace inserted for softbreaks.
+ * @param plainText - Full rendered plain text of the block.
+ * @param from - Start index to search from.
+ * @param sourceLine - The raw source line to locate.
+ * @returns Match positions and column base, or `null` when not found.
  */
 function matchSourceLineInPlain(
   plainText: string,
@@ -374,7 +422,7 @@ function matchSourceLineInPlain(
     start += 1
   }
 
-  // Exact body match (paragraph / continuation lines).
+  // Exact body match (paragraph or continuation lines).
   if (plainText.startsWith(body, start)) {
     return {
       plainFrom: start,
@@ -383,7 +431,7 @@ function matchSourceLineInPlain(
     }
   }
 
-  // Heading / quote / list marker not in plain text.
+  // Heading, quote, or list marker not present in plain text.
   const stripped = stripMarkdownLinePrefix(body)
   if (stripped.length > 0 && stripped !== body) {
     const markerLen = body.length - stripped.length
@@ -397,7 +445,7 @@ function matchSourceLineInPlain(
     }
   }
 
-  // Fuzzy: walk source body vs plain, allowing extra plain whitespace.
+  // Fuzzy match: walk source body against plain text, allowing extra whitespace.
   let si = 0
   let pi = start
   const plainFrom = start
@@ -413,7 +461,7 @@ function matchSourceLineInPlain(
       pi += 1
       continue
     }
-    // Unmatched markdown marker in source (e.g. leftover #).
+    // Unmatched Markdown marker in source (for example, a leftover `#`).
     if (/[#>*`\-\d.]/.test(sc) && sc !== pc) {
       si += 1
       continue
@@ -428,6 +476,11 @@ function matchSourceLineInPlain(
   return null
 }
 
+/**
+ * Remove leading Markdown markers (headings, blockquotes, list bullets, task checkboxes).
+ * @param line - A single source line.
+ * @returns The line with leading Markdown syntax stripped.
+ */
 function stripMarkdownLinePrefix(line: string): string {
   return line
     .replace(/^#{1,6}\s+/, '')
@@ -436,6 +489,11 @@ function stripMarkdownLinePrefix(line: string): string {
     .replace(/^\[\s?[xX ]\]\s+/, '')
 }
 
+/**
+ * Determine whether the source lines represent a fenced code block.
+ * @param sourceLines - Raw source lines for the block.
+ * @returns `true` when the first and last lines are backtick fences.
+ */
 function isFencedCode(sourceLines: string[]): boolean {
   if (sourceLines.length < 2) return false
   const first = sourceLines[0] ?? ''
@@ -443,6 +501,13 @@ function isFencedCode(sourceLines: string[]): boolean {
   return /^`{3,}/.test(first) && /^`{3,}\s*$/.test(last)
 }
 
+/**
+ * Clamp a number to the [`min`, `max`] range.
+ * @param n - The value to clamp.
+ * @param min - Lower bound.
+ * @param max - Upper bound.
+ * @returns The clamped value.
+ */
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n))
 }

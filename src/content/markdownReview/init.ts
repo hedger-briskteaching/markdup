@@ -5,6 +5,7 @@ import { FILE_REGION, PROGRESSIVE_DIFFS_LIST } from './selectors'
 import { injectStyles, removeStyles } from './styles'
 import { injectToggle } from './toggle'
 
+/** Milliseconds to wait after a DOM mutation before scanning again. */
 const DEBOUNCE_MS = 75
 
 let observer: MutationObserver | null = null
@@ -12,7 +13,10 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let started = false
 let pageActive = false
 
-/** Scan the page and inject toggles on markdown file regions. */
+/**
+ * Scan the page and inject toggle controls on markdown file regions.
+ * @returns Nothing.
+ */
 export function enhanceMarkdownRegions(): void {
   if (!isPrFilesPage()) {
     return
@@ -27,13 +31,17 @@ export function enhanceMarkdownRegions(): void {
 
     injectToggle(region, path)
 
-    // Collapse/expand may destroy `[data-rgm-rich]` while intent stays on.
+    // Collapse/expand can destroy [data-rgm-rich] while intent stays on.
     if (hasRichPathIntent(path)) {
       ensureRichMounted(region)
     }
   }
 }
 
+/**
+ * Schedule a debounced page scan after a DOM mutation.
+ * @returns Nothing.
+ */
 function scheduleScan(): void {
   if (debounceTimer !== null) {
     clearTimeout(debounceTimer)
@@ -44,6 +52,10 @@ function scheduleScan(): void {
   }, DEBOUNCE_MS)
 }
 
+/**
+ * Attach a MutationObserver to the diff list or document body.
+ * @returns Nothing.
+ */
 function observeRoot(): void {
   observer?.disconnect()
 
@@ -56,7 +68,10 @@ function observeRoot(): void {
   observer.observe(root, { childList: true, subtree: true })
 }
 
-/** Drop observers, pending scans, and injected styles when leaving Files. */
+/**
+ * Drop observers, pending scans, and injected styles when leaving Files.
+ * @returns Nothing.
+ */
 function deactivatePage(): void {
   if (debounceTimer !== null) {
     clearTimeout(debounceTimer)
@@ -68,6 +83,10 @@ function deactivatePage(): void {
   pageActive = false
 }
 
+/**
+ * Inject styles, start observing, and trigger the first scan.
+ * @returns Nothing.
+ */
 function activatePage(): void {
   injectStyles()
   observeRoot()
@@ -75,6 +94,10 @@ function activatePage(): void {
   pageActive = true
 }
 
+/**
+ * Activate or deactivate the extension based on the current URL.
+ * @returns Nothing.
+ */
 function onNavigation(): void {
   if (!isPrFilesPage()) {
     if (pageActive) {
@@ -86,9 +109,10 @@ function onNavigation(): void {
 }
 
 /**
- * Start markdown review UI on GitHub PR Files changed pages.
- * Safe to call once from the content script entry.
- * No-ops (and tears down) when the URL is not a Files / Changes view.
+ * Start the markdown review UI on GitHub PR Files changed pages.
+ * Safe to call once from the content script entry point.
+ * Tears down automatically when the URL is not a Files or Changes view.
+ * @returns Nothing.
  */
 export function initMarkdownReview(): void {
   if (started) {
@@ -103,7 +127,7 @@ export function initMarkdownReview(): void {
   document.addEventListener('turbo:render', onNavigation)
   document.addEventListener('pjax:end', onNavigation)
 
-  // Soft SPA navigations that may not fire turbo/pjax events
+  // Soft SPA navigations that do not fire turbo/pjax events.
   const pushState = history.pushState.bind(history)
   history.pushState = (...args) => {
     pushState(...args)

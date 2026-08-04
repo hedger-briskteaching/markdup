@@ -4,10 +4,15 @@ export const RGM_AUTH_PANEL = '[data-rgm-auth-panel]'
 
 export type AuthPanelOptions = {
   onCancel: () => void
-  /** Optional error shown under the settings prompt. */
+  /** Optional error message shown under the configuration prompt. */
   errorMessage?: string
 }
 
+/**
+ * Find the DOM element that the auth panel will mount into.
+ * @param region - The file region element.
+ * @returns The mount point element, or null if not found.
+ */
 function findMountPoint(region: Element): HTMLElement | null {
   const stub = region.querySelector(RGM_STUB)
   if (stub?.parentElement) {
@@ -22,10 +27,21 @@ function findMountPoint(region: Element): HTMLElement | null {
   return region instanceof HTMLElement ? region : null
 }
 
+/**
+ * Remove the auth panel from a file region if present.
+ * @param region - The file region element.
+ * @returns Nothing.
+ */
 export function hideAuthPanel(region: Element): void {
   region.querySelector(RGM_AUTH_PANEL)?.remove()
 }
 
+/**
+ * Build and show the authentication panel inside a file region.
+ * @param region - The file region element.
+ * @param options - Callbacks and optional error message.
+ * @returns The created panel element.
+ */
 export function showAuthPanel(
   region: Element,
   options: AuthPanelOptions,
@@ -97,6 +113,12 @@ export function showAuthPanel(
   return panel
 }
 
+/**
+ * Show or clear an error message on an existing auth panel.
+ * @param region - The file region element containing the panel.
+ * @param message - Error text to show. Empty string hides the error.
+ * @returns Nothing.
+ */
 export function setAuthPanelError(region: Element, message: string): void {
   const error = region.querySelector<HTMLElement>('[data-rgm-auth-error]')
   if (!error) {

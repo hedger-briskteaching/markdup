@@ -96,8 +96,13 @@ type PendingReviewRef = {
 }
 
 /**
- * List pull review threads for one file path (includes pending drafts).
- * Uses GraphQL — REST often returns pending comments with null line/side.
+ * List pull review threads for one file path, including pending drafts.
+ * Uses GraphQL because REST often returns pending comments with null line/side.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param path - File path to filter threads by.
+ * @returns A ThreadIndex containing all threads anchored to the given path.
  */
 export async function fetchThreadIndex(
   owner: string,
@@ -149,7 +154,15 @@ type GraphqlThreadNode = {
   }
 }
 
-/** Paginate GraphQL reviewThreads and keep those on `path`. */
+/**
+ * Paginate GraphQL reviewThreads and keep only those on the given path.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param path - File path to match against thread anchors.
+ * @param token - GitHub access token.
+ * @returns Sorted array of ReviewThread objects for the file.
+ */
 export async function listReviewThreadsGraphql(
   owner: string,
   repo: string,
@@ -225,7 +238,12 @@ export async function listReviewThreadsGraphql(
   return threads
 }
 
-/** @internal Exported for tests. */
+/**
+ * Convert a single GraphQL thread node into a ReviewThread.
+ * @internal Exported for tests.
+ * @param node - Raw GraphQL thread node.
+ * @returns A ReviewThread, or null if the node lacks a usable line or side.
+ */
 export function threadFromGraphqlNode(
   node: GraphqlThreadNode,
 ): ReviewThread | null {
@@ -277,6 +295,14 @@ export function threadFromGraphqlNode(
   }
 }
 
+/**
+ * Fetch all review comments on a pull request via paginated REST API.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param token - GitHub access token.
+ * @returns Array of normalized PullReviewComment objects.
+ */
 export async function listPullReviewComments(
   owner: string,
   repo: string,
@@ -295,6 +321,14 @@ export async function listPullReviewComments(
   return out
 }
 
+/**
+ * Fetch all reviews on a pull request (one page, up to 100).
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param token - GitHub access token.
+ * @returns Array of raw ApiReview objects.
+ */
 export async function listPullReviews(
   owner: string,
   repo: string,
@@ -308,8 +342,14 @@ export async function listPullReviews(
 }
 
 /**
- * Find the current user's PENDING review on this PR, if any.
+ * Find the current user's PENDING review on this pull request, if any.
  * GitHub allows only one pending review per user per pull request.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param token - GitHub access token.
+ * @param login - GitHub username to match against review authors.
+ * @returns A PendingReviewRef with the review ID and node ID, or null.
  */
 export async function findPendingReview(
   owner: string,
@@ -329,7 +369,16 @@ export async function findPendingReview(
   return { id: pending.id, nodeId: pending.node_id }
 }
 
-/** @deprecated use findPendingReview */
+/**
+ * Find the current user's pending review ID (numeric only).
+ * @deprecated Use {@link findPendingReview} instead.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param token - GitHub access token.
+ * @param login - GitHub username to match.
+ * @returns The numeric review ID, or null.
+ */
 export async function findPendingReviewId(
   owner: string,
   repo: string,
@@ -341,6 +390,12 @@ export async function findPendingReviewId(
   return pending?.id ?? null
 }
 
+/**
+ * Create a new review comment on a pull request diff.
+ * Clamps the line range to commentable diff lines and attaches to a pending review.
+ * @param input - All fields needed to create the comment.
+ * @returns The created PullReviewComment.
+ */
 export async function createReviewComment(
   input: CreateReviewCommentInput,
 ): Promise<PullReviewComment> {
@@ -446,8 +501,15 @@ export async function createReviewComment(
 }
 
 /**
- * Start an empty pending review. Adding threads uses GraphQL — REST cannot
- * append comments to a pending review (returns 404 Not Found).
+ * Start an empty pending review so threads can be added via GraphQL.
+ * REST cannot append comments to a pending review (returns 404 Not Found).
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param commitId - Commit SHA to anchor the review to.
+ * @param pullNodeId - GraphQL node ID of the pull request.
+ * @param token - GitHub access token.
+ * @returns A PendingReviewRef for the new review.
  */
 async function createEmptyPendingReview(
   owner: string,
@@ -465,7 +527,6 @@ async function createEmptyPendingReview(
         method: 'POST',
         body: {
           commit_id: commitId,
-          // Omit `event` so the review stays PENDING.
         },
       },
     )
@@ -517,6 +578,11 @@ type GraphqlReviewThread = {
   comments: { nodes: GraphqlReviewComment[] }
 }
 
+/**
+ * Add a new review thread to an existing pending review via GraphQL.
+ * @param args - Token, node IDs, path, body, side, and line positions.
+ * @returns The created PullReviewComment.
+ */
 async function addThreadToPendingReviewGraphql(args: {
   token: string
   pullNodeId: string
@@ -601,6 +667,11 @@ async function addThreadToPendingReviewGraphql(args: {
   }
 }
 
+/**
+ * Make sure the error is a "one pending review" conflict from GitHub.
+ * @param error - The caught error value.
+ * @returns True if the error message indicates a pending-review conflict.
+ */
 export function isPendingReviewConflict(error: unknown): boolean {
   if (!(error instanceof GitHubApiError)) return false
   const message = error.message.toLowerCase()
@@ -617,6 +688,16 @@ type PullFileEntry = {
   status?: string
 }
 
+/**
+ * Fetch the set of commentable lines for a file in a pull request diff.
+ * Paginates through the files list until the target path is found.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param path - File path to find in the diff.
+ * @param token - GitHub access token.
+ * @returns CommentableLines with left and right line sets.
+ */
 export async function fetchCommentableLines(
   owner: string,
   repo: string,
@@ -634,7 +715,6 @@ export async function fetchCommentableLines(
     )
     if (file) {
       if (!file.patch) {
-        // New empty file / binary / too large for patch — let GitHub decide.
         return { left: new Set(), right: new Set() }
       }
       return parseCommentableLines(file.patch)
@@ -645,8 +725,11 @@ export async function fetchCommentableLines(
 }
 
 /**
- * Group flat review comments into root threads (replies nest under roots).
- * Only threads with a resolvable line + side are kept.
+ * Group flat review comments into threaded conversations by root comment.
+ * Only threads with a resolvable line and side are kept.
+ * @param comments - Flat array of PullReviewComment objects.
+ * @param pendingReviewIds - Set of review IDs that are in PENDING state.
+ * @returns Sorted array of ReviewThread objects.
  */
 export function buildThreads(
   comments: PullReviewComment[],
@@ -696,6 +779,12 @@ export function buildThreads(
   return threads
 }
 
+/**
+ * Collect all nested replies for a root comment using breadth-first traversal.
+ * @param root - The root comment of the thread.
+ * @param replies - Map from comment ID to its direct replies.
+ * @returns All comments in the thread sorted by creation time.
+ */
 function collectThreadComments(
   root: PullReviewComment,
   replies: Map<number, PullReviewComment[]>,
@@ -717,6 +806,11 @@ function collectThreadComments(
   return out
 }
 
+/**
+ * Convert a raw API comment into the normalized PullReviewComment shape.
+ * @param raw - Raw comment object from the GitHub REST API.
+ * @returns Normalized PullReviewComment.
+ */
 function normalizeComment(raw: ApiComment): PullReviewComment {
   const side = normalizeSide(raw)
   return {
@@ -736,12 +830,17 @@ function normalizeComment(raw: ApiComment): PullReviewComment {
   }
 }
 
+/**
+ * Determine the diff side for a comment from its API fields.
+ * Falls back to RIGHT for older comments that omit the side field.
+ * @param raw - Raw comment object from the GitHub REST API.
+ * @returns The ReviewSide string, or null if indeterminate.
+ */
 function normalizeSide(raw: ApiComment): ReviewSide | null {
   if (raw.side === 'LEFT' || raw.side === 'RIGHT') return raw.side
   if (raw.start_side === 'LEFT' || raw.start_side === 'RIGHT') {
     return raw.start_side
   }
-  // Older comments omit side; line comments default to the head (After).
   if (raw.line != null || raw.original_line != null) {
     return 'RIGHT'
   }
@@ -757,9 +856,11 @@ export type ReplyReviewCommentInput = {
 }
 
 /**
- * Reply to an existing review comment (must be a top-level root, not a reply).
- * Uses the dedicated replies endpoint — POST .../comments with in_reply_to
- * returns 404 for pending-review threads.
+ * Reply to an existing review comment thread.
+ * Prefers GraphQL when a pending review exists so the reply stays in the draft.
+ * Falls back to the REST replies endpoint otherwise.
+ * @param input - Owner, repo, pull number, root comment ID, and reply body.
+ * @returns The created reply as a PullReviewComment.
  */
 export async function replyToReviewComment(
   input: ReplyReviewCommentInput,
@@ -770,7 +871,6 @@ export async function replyToReviewComment(
   }
   const login = await getStoredLogin()
 
-  // Prefer GraphQL on the pending review so the reply stays in the draft.
   const pending =
     login != null
       ? await findPendingReview(
@@ -795,9 +895,7 @@ export async function replyToReviewComment(
         body: input.body,
       })
     } catch (error) {
-      // Fall through to the REST replies endpoint.
       if (!(error instanceof GitHubApiError) || error.status !== 404) {
-        // Keep trying REST for transient GraphQL shape issues; rethrow hard auth.
         const message =
           error instanceof Error ? error.message.toLowerCase() : ''
         if (message.includes('bad credentials') || message.includes('401')) {
@@ -810,11 +908,16 @@ export async function replyToReviewComment(
   return replyViaRest(input, token)
 }
 
+/**
+ * Post a reply to a review comment using the REST replies endpoint.
+ * @param input - Reply input with owner, repo, pull number, and body.
+ * @param token - GitHub access token.
+ * @returns The created reply as a PullReviewComment.
+ */
 async function replyViaRest(
   input: ReplyReviewCommentInput,
   token: string,
 ): Promise<PullReviewComment> {
-  // https://docs.github.com/en/rest/pulls/comments#create-a-reply-for-a-review-comment
   const raw = await githubFetch<ApiComment>(
     `/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}/comments/${input.inReplyToId}/replies`,
     {
@@ -829,8 +932,10 @@ async function replyViaRest(
 }
 
 /**
- * Resolve the review thread that owns `inReplyToId`, then add a reply via
- * addPullRequestReviewThreadReply (works on pending drafts).
+ * Find the thread that owns a comment, then add a reply via GraphQL.
+ * Works on pending drafts where the REST endpoint returns 404.
+ * @param args - Token, repo identifiers, review node ID, comment ID, and body.
+ * @returns The created reply as a PullReviewComment.
  */
 async function addReplyViaThreadGraphql(args: {
   token: string
@@ -915,6 +1020,16 @@ async function addReplyViaThreadGraphql(args: {
   }
 }
 
+/**
+ * Paginate through review threads to find the GraphQL node ID of the thread
+ * that contains a specific comment (by database ID).
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param commentDatabaseId - The numeric database ID of the target comment.
+ * @param token - GitHub access token.
+ * @returns The GraphQL node ID of the thread, or null if not found.
+ */
 async function findReviewThreadNodeIdForComment(
   owner: string,
   repo: string,
@@ -987,6 +1102,11 @@ export type UpdateReviewCommentInput = {
   body: string
 }
 
+/**
+ * Update the body of an existing review comment.
+ * @param input - Owner, repo, comment ID, and the new body text.
+ * @returns The updated PullReviewComment.
+ */
 export async function updateReviewComment(
   input: UpdateReviewCommentInput,
 ): Promise<PullReviewComment> {
@@ -1011,6 +1131,10 @@ export type DeleteReviewCommentInput = {
   commentId: number
 }
 
+/**
+ * Delete a review comment by its ID.
+ * @param input - Owner, repo, and comment ID to delete.
+ */
 export async function deleteReviewComment(
   input: DeleteReviewCommentInput,
 ): Promise<void> {

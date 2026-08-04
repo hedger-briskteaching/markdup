@@ -1,4 +1,4 @@
-/** Runtime message types between popup/content and the background worker. */
+/** Message types between the popup, content scripts, and the background worker. */
 
 export type AuthEnsureRequest = {
   type: 'AUTH_ENSURE'
@@ -10,7 +10,7 @@ export type AuthCancelRequest = {
 
 export type AuthStatusRequest = {
   type: 'AUTH_STATUS'
-  /** When true and auth is OAuth, re-check organization OAuth App access. */
+  /** When true and auth is OAuth, probe organization OAuth App access again. */
   probe?: boolean
 }
 
@@ -23,7 +23,7 @@ export type AuthSetPatRequest = {
   token: string
 }
 
-/** Content scripts cannot call chrome.runtime.openOptionsPage themselves. */
+/** Content scripts cannot call chrome.runtime.openOptionsPage. */
 export type OpenOptionsRequest = {
   type: 'OPEN_OPTIONS'
 }
@@ -112,8 +112,8 @@ export type AuthStatusResponse = {
   /** How the local token was stored. */
   method?: 'oauth' | 'pat'
   /**
-   * Set when OAuth works for /user but an organization blocks the Markdup
-   * OAuth App — guide the user to a personal access token.
+   * Present when OAuth works for /user but an organization blocks the Markdup
+   * OAuth App. Guide the user to a personal access token.
    */
   accessWarning?: {
     kind: 'oauth_org_restricted'
@@ -139,7 +139,7 @@ export type FileSnapshot = {
   headSha: string
   baseText: string | null
   headText: string | null
-  /** Lines GitHub accepts for LEFT/RIGHT review comments. */
+  /** Line numbers GitHub accepts for LEFT and RIGHT review comments. */
   commentable: {
     left: number[]
     right: number[]

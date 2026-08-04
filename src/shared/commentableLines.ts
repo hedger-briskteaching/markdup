@@ -11,6 +11,11 @@ export type CommentableLinesDto = {
   right: number[]
 }
 
+/**
+ * Convert commentable line sets to sorted arrays for messages.
+ * @param lines - LEFT and RIGHT commentable line sets.
+ * @returns DTO with sorted line number arrays.
+ */
 export function commentableToDto(lines: CommentableLines): CommentableLinesDto {
   return {
     left: [...lines.left].sort((a, b) => a - b),
@@ -18,6 +23,11 @@ export function commentableToDto(lines: CommentableLines): CommentableLinesDto {
   }
 }
 
+/**
+ * Convert a commentable-lines DTO back to Sets.
+ * @param dto - Sorted LEFT and RIGHT line arrays.
+ * @returns Commentable line sets.
+ */
 export function commentableFromDto(dto: CommentableLinesDto): CommentableLines {
   return {
     left: new Set(dto.left),
@@ -26,8 +36,10 @@ export function commentableFromDto(dto: CommentableLinesDto): CommentableLines {
 }
 
 /**
- * Parse a unified diff patch into file line numbers GitHub will accept
- * for LEFT / RIGHT review comments (context + deleted / added).
+ * Parse a unified diff patch into file line numbers GitHub accepts
+ * for LEFT and RIGHT review comments (context, deleted, and added).
+ * @param patch - Unified diff patch text from the pull request file.
+ * @returns Commentable line sets for LEFT and RIGHT.
  */
 export function parseCommentableLines(patch: string): CommentableLines {
   const left = new Set<number>()
@@ -70,7 +82,12 @@ export function parseCommentableLines(patch: string): CommentableLines {
  * Keep only a contiguous span of [start, end] that sits on commentable diff lines.
  * GitHub rejects multi-line comments whose interior lines are outside the PR diff.
  * Returns null when none of the selected lines are in the diff.
- * Empty commentable sets mean "unknown" (no patch) — pass the range through.
+ * Empty commentable sets mean unknown (no patch). Pass the range through.
+ * @param side - Review side (LEFT or RIGHT).
+ * @param startLine - Preferred start line.
+ * @param endLine - Preferred end line.
+ * @param commentable - Commentable line sets from the patch.
+ * @returns Longest contiguous commentable span, or null.
  */
 export function clampRangeToDiff(
   side: ReviewSide,
@@ -110,11 +127,15 @@ export function clampRangeToDiff(
 
 /**
  * Map a preferred line span onto GitHub-commentable lines.
- * 1) Prefer overlap with the selection
- * 2) Else nearest contiguous commentable run (rich view shows the full file;
- *    GitHub only accepts lines that appear in the PR diff)
- * Empty commentable sets mean "unknown" (no patch) — pass the range through.
+ * Prefer overlap with the selection. Else use the nearest contiguous commentable run.
+ * Empty commentable sets mean unknown (no patch). Pass the range through.
  * Always returns a range when possible so the Comment UI can still open.
+ * @param side - Review side (LEFT or RIGHT).
+ * @param startLine - Preferred start line.
+ * @param endLine - Preferred end line.
+ * @param commentable - Commentable line sets from the patch.
+ * @param _block - Unused block hint kept for call-site compatibility.
+ * @returns Snapped range, or null when the preferred lines are not finite.
  */
 export function snapToCommentableRange(
   side: ReviewSide,
@@ -143,7 +164,14 @@ export function snapToCommentableRange(
   )
 }
 
-/** Contiguous commentable run closest to the preferred span. */
+/**
+ * Find the contiguous commentable run closest to the preferred span.
+ * @param side - Review side (LEFT or RIGHT).
+ * @param startLine - Preferred start line.
+ * @param endLine - Preferred end line.
+ * @param commentable - Commentable line sets from the patch.
+ * @returns Nearest contiguous run, or null when none exist.
+ */
 export function nearestCommentableRange(
   side: ReviewSide,
   startLine: number,
@@ -174,6 +202,12 @@ export function nearestCommentableRange(
   return { start, end }
 }
 
+/**
+ * Pick the longer of two inclusive line ranges.
+ * @param a - Current best range, or null.
+ * @param b - Candidate range.
+ * @returns The longer range.
+ */
 function longerRange(
   a: { start: number; end: number } | null,
   b: { start: number; end: number },

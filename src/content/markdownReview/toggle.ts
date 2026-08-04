@@ -26,6 +26,11 @@ const TOOLTIP_ON =
 
 const pendingRegions = new Set<Element>()
 
+/**
+ * Find the kebab menu button inside a file region header.
+ * @param region - The file region element.
+ * @returns The kebab button element, or null if not found.
+ */
 function findKebabButton(region: Element): HTMLElement | null {
   const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region
   const buttons = header.querySelectorAll<HTMLElement>('button')
@@ -45,6 +50,11 @@ function findKebabButton(region: Element): HTMLElement | null {
   return null
 }
 
+/**
+ * Find the header actions container (parent of the kebab button).
+ * @param region - The file region element.
+ * @returns The actions container element, or null if not found.
+ */
 function findActionsContainer(region: Element): HTMLElement | null {
   const kebab = findKebabButton(region)
   if (kebab?.parentElement) {
@@ -55,17 +65,33 @@ function findActionsContainer(region: Element): HTMLElement | null {
   return header.querySelector<HTMLElement>(HEADER_ACTIONS)
 }
 
+/**
+ * Find GitHub native file-view segmented control in the header.
+ * @param region - The file region element.
+ * @returns The native toggle element, or null if not present.
+ */
 function findNativeFileViewToggle(region: Element): HTMLElement | null {
   const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region
   return header.querySelector<HTMLElement>(FILE_VIEW_SEGMENTED)
 }
 
+/**
+ * Hide a native file-view toggle by marking it with suppression attributes.
+ * @param native - The native toggle element to hide.
+ * @returns Nothing.
+ */
 function hideNativeFileViewToggle(native: HTMLElement): void {
   native.setAttribute('data-rgm-native-hidden', '')
   native.setAttribute('hidden', '')
   native.setAttribute('aria-hidden', 'true')
 }
 
+/**
+ * Update the toggle DOM to reflect the current rich/source mode.
+ * @param toggle - The Markdup toggle element.
+ * @param rich - True for rich mode, false for source mode.
+ * @returns Nothing.
+ */
 function syncToggleState(toggle: HTMLElement, rich: boolean): void {
   const tip = rich ? TOOLTIP_ON : TOOLTIP_OFF
   toggle.setAttribute('data-rgm-mode', rich ? 'rich' : 'source')
@@ -78,12 +104,22 @@ function syncToggleState(toggle: HTMLElement, rich: boolean): void {
   }
 }
 
+/**
+ * Request the current authentication status from the background script.
+ * @returns A promise that resolves with the auth status response.
+ */
 function sendAuthStatus(): Promise<AuthStatusResponse> {
   return chrome.runtime.sendMessage({
     type: 'AUTH_STATUS',
   }) as Promise<AuthStatusResponse>
 }
 
+/**
+ * Activate rich mode for a region after successful authentication.
+ * @param region - The file region element.
+ * @param toggle - The Markdup toggle element.
+ * @returns Nothing.
+ */
 function enableRich(region: Element, toggle: HTMLElement): void {
   pendingRegions.delete(region)
   hideAuthPanel(region)
@@ -91,6 +127,12 @@ function enableRich(region: Element, toggle: HTMLElement): void {
   syncToggleState(toggle, true)
 }
 
+/**
+ * Cancel the auth flow and revert to source mode.
+ * @param region - The file region element.
+ * @param toggle - The Markdup toggle element.
+ * @returns Nothing.
+ */
 function cancelAuth(region: Element, toggle: HTMLElement): void {
   pendingRegions.delete(region)
   hideAuthPanel(region)
@@ -99,6 +141,13 @@ function cancelAuth(region: Element, toggle: HTMLElement): void {
   syncToggleState(toggle, false)
 }
 
+/**
+ * Start the authentication flow for a file region.
+ * Shows the auth panel when the user is not yet authenticated.
+ * @param region - The file region element.
+ * @param toggle - The Markdup toggle element.
+ * @returns Nothing.
+ */
 function beginAuth(region: Element, toggle: HTMLElement): void {
   pendingRegions.add(region)
   syncToggleState(toggle, false)
@@ -136,6 +185,12 @@ function beginAuth(region: Element, toggle: HTMLElement): void {
     })
 }
 
+/**
+ * Build the Markdup toggle control element for a file region.
+ * @param path - The relative file path for this region.
+ * @param region - The file region element.
+ * @returns The toggle wrapper element.
+ */
 function createToggleControl(path: string, region: Element): HTMLElement {
   const toggle = document.createElement('div')
   toggle.setAttribute('data-rgm-toggle', '')
@@ -165,6 +220,11 @@ function createToggleControl(path: string, region: Element): HTMLElement {
 
   syncToggleState(toggle, isRichMode(region) || hasRichPathIntent(path))
 
+  /**
+   * Toggle rich Markdown mode, or cancel a pending auth flow.
+   * @param event - Click event from the switch or label.
+   * @returns Nothing.
+   */
   const onActivate = (event: Event) => {
     event.preventDefault()
     event.stopPropagation()
@@ -183,6 +243,10 @@ function createToggleControl(path: string, region: Element): HTMLElement {
   return toggle
 }
 
+/**
+ * Create a visual pipe divider for the file header.
+ * @returns The divider element.
+ */
 function createHeaderDivider(): HTMLElement {
   const divider = document.createElement('span')
   divider.setAttribute('data-rgm-header-divider', '')
@@ -192,9 +256,13 @@ function createHeaderDivider(): HTMLElement {
 }
 
 /**
- * Layout: [title …] [GitHub native controls] | [Markdup]
- * Hide GitHub's native File view segmented control; append Markdup after
- * Viewed / Comment / kebab with a pipe divider.
+ * Place the Markdup toggle in the file header.
+ * Layout: [title ...] [GitHub native controls] | [Markdup].
+ * Hides GitHub native File view segmented control when present.
+ * @param region - The file region element.
+ * @param toggle - The Markdup toggle element.
+ * @param native - The native file-view toggle, or null.
+ * @returns Nothing.
  */
 function placeToggle(
   region: Element,
@@ -218,6 +286,11 @@ function placeToggle(
   header.appendChild(toggle)
 }
 
+/**
+ * Handle AUTH_COMPLETE and AUTH_ERROR events from the background script.
+ * @param message - The extension event message.
+ * @returns Nothing.
+ */
 function onAuthEvent(message: ExtensionEvent): void {
   if (message.type === 'AUTH_COMPLETE') {
     for (const region of [...pendingRegions]) {
@@ -244,6 +317,10 @@ function onAuthEvent(message: ExtensionEvent): void {
 
 let authListenerAttached = false
 
+/**
+ * Attach the runtime message listener for auth events (one-shot).
+ * @returns Nothing.
+ */
 function ensureAuthListener(): void {
   if (authListenerAttached) {
     return
@@ -259,24 +336,39 @@ function ensureAuthListener(): void {
   })
 }
 
-/** @internal Vitest helper — resets the one-shot runtime listener flag. */
+/**
+ * Reset the one-shot runtime listener flag and clear pending state.
+ * @internal Vitest helper.
+ * @returns Nothing.
+ */
 export function resetAuthListenerForTests(): void {
   authListenerAttached = false
   pendingRegions.clear()
   clearRichPathIntents()
 }
 
+/**
+ * Sync a toggle element with the actual mode of its region.
+ * @param region - The file region element.
+ * @param toggle - The Markdup toggle element.
+ * @returns Nothing.
+ */
 function syncToggleToActualMode(region: Element, toggle: HTMLElement): void {
   syncToggleState(toggle, isRichMode(region))
 }
 
-/** Inject Markdup switch for a markdown file region. Idempotent. */
+/**
+ * Inject the Markdup switch for a markdown file region. Idempotent.
+ * @param region - The file region element.
+ * @param path - The relative file path for this region.
+ * @returns Nothing.
+ */
 export function injectToggle(region: Element, path: string): void {
   ensureAuthListener()
 
   const existing = region.querySelector<HTMLElement>(RGM_TOGGLE)
   if (existing) {
-    // GitHub may have re-rendered the body while the toggle survived — restore.
+    // GitHub can re-render the body while the toggle survives. Restore mode.
     if (hasRichPathIntent(path) || isRichMode(region)) {
       ensureRichMounted(region)
       syncToggleToActualMode(region, existing)
@@ -288,7 +380,7 @@ export function injectToggle(region: Element, path: string): void {
   const toggle = createToggleControl(path, region)
   placeToggle(region, toggle, native)
 
-  // Header re-render wiped our previous toggle; restore rich intent.
+  // Header re-render wiped previous toggle. Restore rich intent.
   if (hasRichPathIntent(path)) {
     ensureRichMounted(region)
     syncToggleToActualMode(region, toggle)

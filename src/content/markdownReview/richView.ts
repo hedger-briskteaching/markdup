@@ -16,6 +16,7 @@ import {
 import { buildRichRoot } from './renderBody'
 import type { CommentableLines } from '../../shared/commentableLines'
 
+/** Attribute used to hide the native diff body. */
 const HIDDEN_ATTR = 'data-rgm-diff-hidden'
 
 const composerCleanups = new WeakMap<Element, () => void>()
@@ -33,6 +34,11 @@ export type ShowRichViewOptions = {
   viewerLogin?: string
 }
 
+/**
+ * Find the native diff body element within a file region.
+ * @param region - The file region element.
+ * @returns The diff body element, or null if not found.
+ */
 function findDiffBody(region: Element): HTMLElement | null {
   const header = region.querySelector('[data-diff-header-wrapper]')
   if (header?.parentElement === region) {
@@ -53,7 +59,11 @@ function findDiffBody(region: Element): HTMLElement | null {
 
 /**
  * Hide the native source diff and show the rich Before/After view.
- * Unchanged sections start collapsed behind +/- fold bars.
+ * Unchanged sections start collapsed behind fold bars.
+ * @param region - The file region element.
+ * @param rows - Aligned row models for the diff.
+ * @param options - Text, metadata, and configuration for the view.
+ * @returns Nothing.
  */
 export function showRichView(
   region: Element,
@@ -98,6 +108,11 @@ export function showRichView(
   bindFileCollapseSync(region)
 }
 
+/**
+ * Show a loading indicator inside the rich view container.
+ * @param region - The file region element.
+ * @returns Nothing.
+ */
 export function showRichLoading(region: Element): void {
   const diffBody = findDiffBody(region)
   if (!diffBody) {
@@ -123,6 +138,12 @@ export function showRichLoading(region: Element): void {
   bindFileCollapseSync(region)
 }
 
+/**
+ * Show an error message inside the rich view container.
+ * @param region - The file region element.
+ * @param message - Error text to display.
+ * @returns Nothing.
+ */
 export function showRichError(region: Element, message: string): void {
   const diffBody = findDiffBody(region)
   if (!diffBody) {
@@ -147,6 +168,11 @@ export function showRichError(region: Element, message: string): void {
   bindFileCollapseSync(region)
 }
 
+/**
+ * Remove the rich view and restore the native source diff.
+ * @param region - The file region element.
+ * @returns Nothing.
+ */
 export function hideRichView(region: Element): void {
   showInterferingHeaderControls(region)
   unbindFileCollapseSync(region)
@@ -162,7 +188,11 @@ export function hideRichView(region: Element): void {
   region.querySelector(RGM_STUB)?.remove()
 }
 
-/** Re-hide the native diff body after GitHub remounts it (e.g. expand). */
+/**
+ * Re-hide the native diff body after GitHub remounts it on expand.
+ * @param region - The file region element.
+ * @returns Nothing.
+ */
 export function ensureNativeDiffHidden(region: Element): void {
   const diffBody = findDiffBody(region)
   if (diffBody) {
@@ -170,14 +200,22 @@ export function ensureNativeDiffHidden(region: Element): void {
   }
 }
 
+/**
+ * Determine if a file region is in rich mode.
+ * @param region - The file region element.
+ * @returns True when the region is in rich mode.
+ */
 export function isRichMode(region: Element): boolean {
   return region.getAttribute('data-rgm-mode') === 'rich'
 }
 
 /**
- * @internal Test helper — render rows to an isolated element.
- * Unchanged sections render expanded unless `startCollapsed` is set, so
- * selection-oriented tests can reach text inside equal rows.
+ * Render rows to an isolated element for testing.
+ * Unchanged sections render expanded unless startCollapsed is set.
+ * @internal Test helper.
+ * @param rows - Aligned row models for the diff.
+ * @param options - View configuration with optional startCollapsed flag.
+ * @returns The rendered host element.
  */
 export function renderRowsForTest(
   rows: RowModel[],
@@ -212,7 +250,12 @@ export function renderRowsForTest(
   return host
 }
 
-/** @internal Expose node text for tests. */
+/**
+ * Expose node text content for tests.
+ * @internal Test helper.
+ * @param node - A ProseMirror document node.
+ * @returns The plain text content of the node.
+ */
 export function blockTextForTest(node: PMNode): string {
   return node.textContent
 }

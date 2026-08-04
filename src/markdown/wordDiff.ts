@@ -1,13 +1,16 @@
 export type DiffSegment = {
   text: string
   tone?: 'ins' | 'del'
-  /** Length in this side's plain text (always `text.length`). */
+  /** Length in this side's plain text. Always equals `text.length`. */
   srcLen: number
 }
 
 /**
- * Word-level diff for inline text in changed rows.
- * Unchanged words have no tone. Deleted words use `del`. Inserted words use `ins`.
+ * Compute a word-level diff for inline text in changed rows.
+ * Unchanged words have no tone. Deleted words use `'del'`. Inserted words use `'ins'`.
+ * @param oldText - The original plain text.
+ * @param newText - The updated plain text.
+ * @returns Old-side and new-side segment arrays.
  */
 export function wordDiff(oldText: string, newText: string): {
   oldSegments: DiffSegment[]
@@ -64,11 +67,23 @@ export function wordDiff(oldText: string, newText: string): {
   }
 }
 
+/**
+ * Split text into word and whitespace tokens for diff comparison.
+ * @param text - The input string.
+ * @returns Array of token strings.
+ */
 function tokenize(text: string): string[] {
   const matches = text.match(/\s+|[^\s]+/g)
   return matches ?? []
 }
 
+/**
+ * Append a new diff segment to the list.
+ * @param list - Target segment array.
+ * @param text - Segment text.
+ * @param tone - `'ins'`, `'del'`, or `undefined` for unchanged.
+ * @returns Nothing.
+ */
 function pushSeg(
   list: DiffSegment[],
   text: string,
@@ -77,6 +92,11 @@ function pushSeg(
   list.push({ text, tone, srcLen: text.length })
 }
 
+/**
+ * Merge consecutive segments that share the same tone into one segment.
+ * @param segments - Array of diff segments.
+ * @returns A new array with adjacent same-tone segments combined.
+ */
 function mergeSegments(segments: DiffSegment[]): DiffSegment[] {
   if (segments.length === 0) return segments
   const out: DiffSegment[] = [{ ...segments[0]! }]

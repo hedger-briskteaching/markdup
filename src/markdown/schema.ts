@@ -2,10 +2,13 @@ import { Schema, type MarkSpec, type NodeSpec } from 'prosemirror-model'
 import { SRC_RANGE_ATTRS } from './positions'
 
 /**
- * ProseMirror schema for GitHub Markdown review.
+ * Add source-range attributes to a block node spec.
  *
- * Covers CommonMark, GFM (tables, task lists, strikethrough), YAML front matter,
- * and HTML blocks. Source line attrs (`srcFrom` / `srcTo`) sit on block nodes.
+ * The full schema covers CommonMark, GFM (tables, task lists, strikethrough),
+ * YAML front matter, and HTML blocks. Source line attributes (`srcFrom` / `srcTo`)
+ * sit on every block node.
+ * @param spec - Base node spec to extend.
+ * @returns A new node spec that includes `srcFrom` and `srcTo` attributes.
  */
 const blockWithSrc = (spec: NodeSpec): NodeSpec => ({
   ...spec,
@@ -15,6 +18,9 @@ const blockWithSrc = (spec: NodeSpec): NodeSpec => ({
   },
 })
 
+/**
+ * ProseMirror schema for GitHub-flavored Markdown review documents.
+ */
 export const markdownSchema = new Schema({
   nodes: {
     doc: {
@@ -159,7 +165,7 @@ export const markdownSchema = new Schema({
       content: 'block+',
       defining: true,
       attrs: {
-        /** `null` = normal item; `true` / `false` = GFM task item. */
+        /** `null` = normal list item. `true` / `false` = GFM task item. */
         checked: { default: null as boolean | null },
       },
       parseDOM: [
@@ -409,4 +415,5 @@ export const markdownSchema = new Schema({
   },
 })
 
+/** Type alias for the concrete schema instance used across the codebase. */
 export type MarkdownSchema = typeof markdownSchema

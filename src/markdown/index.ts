@@ -36,16 +36,20 @@ export type {
 export { docToMarkdown } from './toMarkdown'
 
 /**
- * Parse Markdown source into a ProseMirror document.
- *
- * Positions on block nodes use 1-based inclusive line numbers (`srcFrom` / `srcTo`).
+ * Parse a Markdown string into a ProseMirror document.
+ * Block nodes carry 1-based inclusive line numbers (`srcFrom` / `srcTo`).
+ * @param source - Raw Markdown text.
+ * @returns The ProseMirror document node.
  */
 export function markdownToDoc(source: string): PMNode {
   const tree = parseMarkdown(source)
   return mdastToProseMirror(tree)
 }
 
-/** Empty document that still matches `markdownSchema`. */
+/**
+ * Create an empty document that is valid against `markdownSchema`.
+ * @returns A doc node with a single empty paragraph.
+ */
 export function emptyDoc(): PMNode {
   return markdownSchema.node('doc', null, [
     markdownSchema.node('paragraph', { srcFrom: null, srcTo: null }),

@@ -25,11 +25,11 @@ export type RichViewContext = {
   baseSha?: string
   headSha?: string
   threads?: ReviewThreadDto[]
-  /** Empty sets = unknown (no patch). */
+  /** Empty sets mean unknown (no patch). */
   commentable?: CommentableLines
   /**
    * Unchanged section ids that are currently expanded.
-   * Default empty = all unchanged sections start collapsed.
+   * Default empty means all unchanged sections start collapsed.
    */
   expandedUnchangedIds?: Set<string>
   /** Signed-in GitHub login for own-comment edit/delete. */
@@ -41,7 +41,12 @@ const HIGHLIGHT_ATTR = 'data-rgm-sel-highlight'
 const THREAD_HOVER_ATTR = 'data-rgm-thread-hover'
 const COMMENTED_ATTR = 'data-rgm-commented-layer'
 
-/** Attach snapshot text + rows to the rich root for selection mapping. */
+/**
+ * Attach snapshot text and rows to the rich root for selection mapping.
+ * @param richRoot - The rich view root element.
+ * @param ctx - Context object with text, rows, and metadata.
+ * @returns Nothing.
+ */
 export function setRichViewContext(
   richRoot: Element,
   ctx: RichViewContext,
@@ -52,16 +57,32 @@ export function setRichViewContext(
   })
 }
 
+/**
+ * Remove the stored context for a rich root.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
 export function clearRichViewContext(richRoot: Element): void {
   contexts.delete(richRoot)
 }
 
+/**
+ * Get the stored context for a rich root.
+ * @param richRoot - The rich view root element.
+ * @returns The context object, or undefined if not set.
+ */
 export function getRichViewContext(
   richRoot: Element,
 ): RichViewContext | undefined {
   return contexts.get(richRoot)
 }
 
+/**
+ * Determine if an unchanged section is currently expanded.
+ * @param richRoot - The rich view root element.
+ * @param sectionId - The unchanged section identifier.
+ * @returns True when the section is expanded.
+ */
 export function isUnchangedSectionExpanded(
   richRoot: Element,
   sectionId: string,
@@ -69,6 +90,12 @@ export function isUnchangedSectionExpanded(
   return Boolean(getRichViewContext(richRoot)?.expandedUnchangedIds?.has(sectionId))
 }
 
+/**
+ * Mark an unchanged section as expanded in the context.
+ * @param richRoot - The rich view root element.
+ * @param sectionId - The unchanged section identifier.
+ * @returns Nothing.
+ */
 export function expandUnchangedSection(
   richRoot: Element,
   sectionId: string,
@@ -80,6 +107,12 @@ export function expandUnchangedSection(
   setRichViewContext(richRoot, { ...ctx, expandedUnchangedIds: next })
 }
 
+/**
+ * Mark an unchanged section as collapsed in the context.
+ * @param richRoot - The rich view root element.
+ * @param sectionId - The unchanged section identifier.
+ * @returns Nothing.
+ */
 export function collapseUnchangedSection(
   richRoot: Element,
   sectionId: string,
@@ -91,6 +124,12 @@ export function collapseUnchangedSection(
   setRichViewContext(richRoot, { ...ctx, expandedUnchangedIds: next })
 }
 
+/**
+ * Toggle an unchanged section between expanded and collapsed.
+ * @param richRoot - The rich view root element.
+ * @param sectionId - The unchanged section identifier.
+ * @returns True if the section is now expanded, false if collapsed.
+ */
 export function toggleUnchangedSection(
   richRoot: Element,
   sectionId: string,
@@ -108,6 +147,9 @@ export function toggleUnchangedSection(
  * Map the current DOM selection inside a rich root to a source range.
  * Returns null when the selection is empty, crosses sides, or has no anchors.
  * Ranges are expanded to whole source lines (GitHub line-comment grain).
+ * @param selection - The browser Selection object.
+ * @param richRoot - The rich view root element.
+ * @returns A SourceRange, or null if mapping fails.
  */
 export function selectionToSourceRange(
   selection: Selection,
@@ -162,8 +204,7 @@ export function selectionToSourceRange(
     if (startOffset == null || endOffset == null) return null
     mapped = offsetsToSourceRange(anchor, startOffset, endOffset, quotedText)
   } else {
-    // Multi-cell on the same side: span from first block start through last block end
-    // using the selected offsets at each end.
+    // Multi-cell on the same side: span from first block start through last block end.
     const startAnchor = anchorFromCell(startCell, ctx)
     const endAnchor = anchorFromCell(endCell, ctx)
     if (!startAnchor || !endAnchor) return null
@@ -198,15 +239,17 @@ export function selectionToSourceRange(
   if (!mapped) return null
 
   const fileText = mapped.side === 'LEFT' ? ctx.baseText : ctx.headText
-  // Expand to whole source lines for the *user's* selection only.
-  // Do not jump to distant commentable hunks here — that hijacks the live
-  // selection (e.g. L10–12 → L90–93). GitHub line rules are enforced on create.
+  // Expand to whole source lines for the user selection only.
+  // Do not jump to distant commentable hunks here.
   return expandSourceRangeToWholeLines(mapped, fileText)
 }
 
 /**
  * Expand the live DOM selection to cover the rendered text for a source range.
- * Returns the DOM Range used, or null when it cannot be resolved.
+ * @param selection - The browser Selection object.
+ * @param richRoot - The rich view root element.
+ * @param sourceRange - The target source range.
+ * @returns The DOM Range used, or null when it cannot be resolved.
  */
 export function snapDomSelectionToSourceRange(
   selection: Selection,
@@ -224,7 +267,13 @@ export function snapDomSelectionToSourceRange(
   }
 }
 
-/** Paint a persistent highlight for the active comment range (survives focus loss). */
+/**
+ * Paint a persistent highlight for the active comment range.
+ * Survives focus loss.
+ * @param richRoot - The rich view root element.
+ * @param sourceRange - The source range to highlight.
+ * @returns Nothing.
+ */
 export function applySelectionHighlight(
   richRoot: HTMLElement,
   sourceRange: SourceRange,
@@ -238,6 +287,11 @@ export function applySelectionHighlight(
   richRoot.appendChild(layer)
 }
 
+/**
+ * Remove the selection highlight layer and associated cell classes.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
 export function clearSelectionHighlight(richRoot: Element): void {
   richRoot.querySelector(`[${HIGHLIGHT_ATTR}]`)?.remove()
   for (const cell of richRoot.querySelectorAll('.rgm-sel-highlight-cell')) {
@@ -245,7 +299,12 @@ export function clearSelectionHighlight(richRoot: Element): void {
   }
 }
 
-/** Highlight the text a hovered / focused thread card targets. */
+/**
+ * Highlight the text range that a hovered or focused thread card targets.
+ * @param richRoot - The rich view root element.
+ * @param sourceRange - The source range to highlight.
+ * @returns Nothing.
+ */
 export function applyThreadHoverHighlight(
   richRoot: HTMLElement,
   sourceRange: SourceRange,
@@ -262,6 +321,11 @@ export function applyThreadHoverHighlight(
   richRoot.appendChild(layer)
 }
 
+/**
+ * Remove the thread hover highlight layer and associated cell classes.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
 export function clearThreadHoverHighlight(richRoot: Element): void {
   richRoot.querySelector(`[${THREAD_HOVER_ATTR}]`)?.remove()
   for (const cell of richRoot.querySelectorAll('.rgm-thread-hover-cell')) {
@@ -270,9 +334,12 @@ export function clearThreadHoverHighlight(richRoot: Element): void {
 }
 
 /**
- * Paint persistent marks over every commented text range so reviewers can
- * see at a glance which passages have threads. Boxes carry the thread id
- * for click-to-scroll hit-testing.
+ * Paint persistent marks over every commented text range.
+ * Reviewers can see at a glance which passages have threads.
+ * Boxes carry the thread id for click-to-scroll hit-testing.
+ * @param richRoot - The rich view root element.
+ * @param marks - Array of thread id and source range pairs.
+ * @returns Nothing.
  */
 export function paintCommentedMarks(
   richRoot: HTMLElement,
@@ -292,6 +359,11 @@ export function paintCommentedMarks(
   richRoot.appendChild(layer)
 }
 
+/**
+ * Remove the commented marks layer and associated cell classes.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
 export function clearCommentedMarks(richRoot: Element): void {
   richRoot.querySelector(`[${COMMENTED_ATTR}]`)?.remove()
   for (const cell of richRoot.querySelectorAll('.rgm-commented-cell')) {
@@ -300,6 +372,12 @@ export function clearCommentedMarks(richRoot: Element): void {
   }
 }
 
+/**
+ * Create a positioned highlight layer element.
+ * @param attr - Data attribute to mark the layer.
+ * @param className - CSS class name for the layer.
+ * @returns The layer element.
+ */
 function createHighlightLayer(attr: string, className: string): HTMLElement {
   const layer = document.createElement('div')
   layer.setAttribute(attr, '')
@@ -310,7 +388,12 @@ function createHighlightLayer(attr: string, className: string): HTMLElement {
 
 /**
  * Append positioned boxes covering a source range to a highlight layer.
- * Falls back to tinting overlapping cells when layout APIs are missing (jsdom).
+ * Falls back to tinting overlapping cells when layout APIs are missing.
+ * @param richRoot - The rich view root element.
+ * @param layer - The highlight layer to append boxes into.
+ * @param sourceRange - The source range to cover.
+ * @param opts - Box class, cell class, and optional thread id.
+ * @returns Nothing.
  */
 function appendRangeBoxes(
   richRoot: HTMLElement,
@@ -353,7 +436,13 @@ function appendRangeBoxes(
   }
 }
 
-/** Prefer the cell that owns the end line of a source range (composer mount point). */
+/**
+ * Find the cell that owns the end line of a source range.
+ * Used as the composer mount point.
+ * @param richRoot - The rich view root element.
+ * @param range - The source range to locate.
+ * @returns The target cell element, or null if not found.
+ */
 export function findCellForSourceRange(
   richRoot: Element,
   range: SourceRange,
@@ -369,6 +458,12 @@ export function findCellForSourceRange(
   return endCell ?? overlapping[overlapping.length - 1]!
 }
 
+/**
+ * Create a DOM Range that covers the given source range.
+ * @param richRoot - The rich view root element.
+ * @param sourceRange - The source range to resolve.
+ * @returns The DOM Range, or null when it cannot be resolved.
+ */
 function domRangeForSourceRange(
   richRoot: Element,
   sourceRange: SourceRange,
@@ -411,6 +506,12 @@ function domRangeForSourceRange(
   }
 }
 
+/**
+ * Find all cells on the given side that overlap with a source range.
+ * @param richRoot - The rich view root element.
+ * @param range - The source range to match against.
+ * @returns Array of overlapping cell elements.
+ */
 function cellsOverlappingRange(
   richRoot: Element,
   range: SourceRange,
@@ -430,6 +531,9 @@ function cellsOverlappingRange(
 
 /**
  * Resolve a plain-text offset inside a cell to a DOM text point.
+ * @param cell - The cell element to search within.
+ * @param srcOffset - The zero-based plain-text offset.
+ * @returns A text node and local offset, or null if not resolved.
  */
 export function domPointAtSrcOffset(
   cell: HTMLElement,
@@ -465,6 +569,12 @@ export function domPointAtSrcOffset(
   return null
 }
 
+/**
+ * Find the nearest rich-cell ancestor for a DOM node.
+ * @param node - The DOM node to start from.
+ * @param richRoot - The rich view root element.
+ * @returns The cell element, or null if the node is not in a valid cell.
+ */
 function cellForNode(node: Node, richRoot: Element): HTMLElement | null {
   const el = node instanceof Element ? node : node.parentElement
   const cell = el?.closest<HTMLElement>('.rgm-rich-cell')
@@ -477,6 +587,11 @@ function cellForNode(node: Node, richRoot: Element): HTMLElement | null {
   return cell
 }
 
+/**
+ * Extract the review side from a cell data attribute.
+ * @param cell - The cell element.
+ * @returns The review side, or null if the attribute is invalid.
+ */
 function sideFromCell(cell: HTMLElement): ReviewSide | null {
   const side = cell.getAttribute('data-side')
   if (side === 'LEFT' || side === 'RIGHT') {
@@ -485,6 +600,12 @@ function sideFromCell(cell: HTMLElement): ReviewSide | null {
   return null
 }
 
+/**
+ * Build a block source anchor from a cell element and view context.
+ * @param cell - The cell element.
+ * @param ctx - The rich view context.
+ * @returns The anchor object, or null if the cell lacks required data.
+ */
 function anchorFromCell(
   cell: HTMLElement,
   ctx: RichViewContext,
@@ -513,8 +634,13 @@ function anchorFromCell(
   }
 }
 
+/**
+ * Find a block view by its composite id (rowId::side).
+ * @param blockId - The composite block identifier.
+ * @param rows - All row models.
+ * @returns The block view, or null if not found.
+ */
 function blockFromId(blockId: string, rows: RowModel[]): BlockView | null {
-  // blockId format: `${rowId}::before` | `${rowId}::after`
   const sep = blockId.lastIndexOf('::')
   if (sep < 0) return null
   const rowId = blockId.slice(0, sep)
@@ -526,6 +652,11 @@ function blockFromId(blockId: string, rows: RowModel[]): BlockView | null {
   return null
 }
 
+/**
+ * Extract the plain text content of a block view node.
+ * @param block - The block view.
+ * @returns The plain text string.
+ */
 function plainTextForBlock(block: BlockView): string {
   if (block.type === 'front_matter') {
     return String(block.node.attrs.value ?? '')
@@ -537,9 +668,13 @@ function plainTextForBlock(block: BlockView): string {
 }
 
 /**
- * Resolve a DOM point to an offset in the block's plain / source text.
- * Prefers `data-src-offset` segment maps; falls back to a text walk that
- * skips chrome (`data-rgm-chrome`).
+ * Resolve a DOM point to an offset in the block plain/source text.
+ * Prefers data-src-offset segment maps. Falls back to a text walk
+ * that skips chrome (data-rgm-chrome).
+ * @param cell - The cell element.
+ * @param node - The DOM node the selection starts or ends in.
+ * @param offset - The offset within that DOM node.
+ * @returns The source-text offset, or null if not resolvable.
  */
 export function srcOffsetInCell(
   cell: HTMLElement,
@@ -548,7 +683,6 @@ export function srcOffsetInCell(
 ): number | null {
   const content = cell.querySelector('.rgm-rich-content')
   if (!content || (!content.contains(node) && node !== content)) {
-    // Click in gutter — treat as start of content
     if (cell.contains(node)) {
       return 0
     }
@@ -566,6 +700,12 @@ export function srcOffsetInCell(
   return walkTextOffset(content, node, offset)
 }
 
+/**
+ * Walk up the DOM to find the nearest ancestor with data-src-offset.
+ * @param node - The starting DOM node.
+ * @param content - The content boundary element.
+ * @returns The host element, or null if not found.
+ */
 function closestSrcOffsetHost(
   node: Node,
   content: Element,
@@ -581,6 +721,13 @@ function closestSrcOffsetHost(
   return null
 }
 
+/**
+ * Count the text offset of a target node within a host element.
+ * @param host - The container element.
+ * @param target - The target DOM node.
+ * @param targetOffset - The offset within the target node.
+ * @returns The cumulative text offset.
+ */
 function textOffsetWithin(
   host: Element,
   target: Node,
@@ -606,13 +753,19 @@ function textOffsetWithin(
   return total
 }
 
+/**
+ * Walk text nodes under a root to compute an offset to the target node.
+ * @param root - The root element to walk.
+ * @param target - The target DOM node.
+ * @param targetOffset - The offset within the target node.
+ * @returns The cumulative text offset, or null if the target is not found.
+ */
 function walkTextOffset(
   root: Element,
   target: Node,
   targetOffset: number,
 ): number | null {
   if (target === root) {
-    // Element offset: count text in previous sibling children
     let total = 0
     for (let i = 0; i < targetOffset && i < root.childNodes.length; i++) {
       total += countableTextLength(root.childNodes[i]!)
@@ -637,6 +790,11 @@ function walkTextOffset(
   return null
 }
 
+/**
+ * Count the selectable text length of a node, skipping chrome nodes.
+ * @param node - The DOM node to measure.
+ * @returns The text length.
+ */
 function countableTextLength(node: Node): number {
   if (node instanceof Element && node.hasAttribute('data-rgm-chrome')) {
     return 0
@@ -657,11 +815,21 @@ function countableTextLength(node: Node): number {
   return total
 }
 
+/**
+ * Determine if a text node lives inside a chrome element.
+ * @param node - The DOM node to test.
+ * @returns True when the node is inside data-rgm-chrome.
+ */
 function isChromeText(node: Node): boolean {
   const el = node.parentElement
   return Boolean(el?.closest('[data-rgm-chrome]'))
 }
 
+/**
+ * Normalize selected text for comparison (collapse whitespace).
+ * @param text - Raw selected text.
+ * @returns Normalized string.
+ */
 function normalizeQuoted(text: string): string {
   return text.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim()
 }

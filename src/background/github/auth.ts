@@ -52,28 +52,50 @@ type FetchLike = typeof fetch
 let activePoll: AbortController | null = null
 let activeDevice: DeviceCodeResponse | null = null
 
+/**
+ * Return the in-progress device code response, or null if no flow is active.
+ * @returns The active DeviceCodeResponse or null.
+ */
 export function getActiveDeviceCode(): DeviceCodeResponse | null {
   return activeDevice
 }
 
+/**
+ * Read the stored GitHub access token from local storage.
+ * @returns The token string, or null if none is stored.
+ */
 export async function getAccessToken(): Promise<string | null> {
   const result = await chrome.storage.local.get(TOKEN_KEY)
   const token = result[TOKEN_KEY]
   return typeof token === 'string' && token.length > 0 ? token : null
 }
 
+/**
+ * Read the stored GitHub login (username) from local storage.
+ * @returns The login string, or null if none is stored.
+ */
 export async function getStoredLogin(): Promise<string | null> {
   const result = await chrome.storage.local.get(LOGIN_KEY)
   const login = result[LOGIN_KEY]
   return typeof login === 'string' && login.length > 0 ? login : null
 }
 
+/**
+ * Read the authentication method used for the stored token.
+ * @returns `'oauth'`, `'pat'`, or null if not set.
+ */
 export async function getAuthMethod(): Promise<AuthMethod | null> {
   const result = await chrome.storage.local.get(METHOD_KEY)
   const method = result[METHOD_KEY]
   return method === 'oauth' || method === 'pat' ? method : null
 }
 
+/**
+ * Persist a GitHub token, login, and auth method to local storage.
+ * @param token - GitHub access token.
+ * @param login - GitHub username.
+ * @param method - How the token was obtained.
+ */
 export async function setAccessToken(
   token: string,
   login: string,
@@ -87,6 +109,9 @@ export async function setAccessToken(
   })
 }
 
+/**
+ * Remove all stored authentication data and cancel any active device poll.
+ */
 export async function clearAccessToken(): Promise<void> {
   cancelDevicePoll()
   await chrome.storage.local.remove([
@@ -100,6 +125,9 @@ export async function clearAccessToken(): Promise<void> {
 /**
  * Validate and store a personal access token (classic or fine-grained).
  * Use when an org blocks the Markdup OAuth App.
+ * @param rawToken - The raw PAT string pasted by the user.
+ * @param fetchImpl - Optional fetch implementation for testing.
+ * @returns The stored auth record with token, login, and method.
  */
 export async function setPersonalAccessToken(
   rawToken: string,
@@ -127,6 +155,11 @@ export async function setPersonalAccessToken(
   return { token, login: user.login, method: 'pat' }
 }
 
+/**
+ * Make sure the token string matches a known GitHub PAT prefix.
+ * @param token - Token string to test.
+ * @returns True if the prefix is `ghp_` or `github_pat_`.
+ */
 function looksLikeGithubToken(token: string): boolean {
   return (
     token.startsWith('ghp_') ||
@@ -134,6 +167,12 @@ function looksLikeGithubToken(token: string): boolean {
   )
 }
 
+/**
+ * Call the GitHub `/user` endpoint to make sure the token is valid.
+ * @param token - GitHub access token to test.
+ * @param fetchImpl - Optional fetch implementation for testing.
+ * @returns An object with the login, or null if the token is invalid.
+ */
 export async function validateToken(
   token: string,
   fetchImpl: FetchLike = fetch,
@@ -156,6 +195,11 @@ export async function validateToken(
   }
 }
 
+/**
+ * Begin the GitHub OAuth device code flow and return the device code data.
+ * @param fetchImpl - Optional fetch implementation for testing.
+ * @returns Device code response containing the user code and verification URI.
+ */
 export async function startDeviceFlow(
   fetchImpl: FetchLike = fetch,
 ): Promise<DeviceCodeResponse> {
@@ -188,12 +232,22 @@ export async function startDeviceFlow(
   return data
 }
 
+/**
+ * Abort any active device-code polling and clear the active device state.
+ */
 export function cancelDevicePoll(): void {
   activePoll?.abort()
   activePoll = null
   activeDevice = null
 }
 
+/**
+ * Poll GitHub for an access token until the user authorizes or the code expires.
+ * @param deviceCode - The device code string from the initial flow request.
+ * @param intervalSeconds - Minimum seconds to wait between poll attempts.
+ * @param options - Configuration for fetch, abort signal, max attempts, and sleep.
+ * @returns The access token string once the user authorizes.
+ */
 export async function pollDeviceFlow(
   deviceCode: string,
   intervalSeconds: number,
@@ -262,6 +316,13 @@ export async function pollDeviceFlow(
   throw new Error('Timed out waiting for GitHub authorization.')
 }
 
+/**
+ * Poll for authorization, validate the token, and store the result.
+ * Cancels any previous in-progress poll before starting.
+ * @param device - Device code response from {@link startDeviceFlow}.
+ * @param fetchImpl - Optional fetch implementation for testing.
+ * @returns The stored auth record on success.
+ */
 export async function runDevicePollAndStore(
   device: DeviceCodeResponse,
   fetchImpl: FetchLike = fetch,
@@ -290,6 +351,11 @@ export async function runDevicePollAndStore(
   }
 }
 
+/**
+ * Wait for the given duration, aborting early if the signal fires.
+ * @param ms - Milliseconds to sleep.
+ * @param signal - Optional abort signal to cancel the sleep.
+ */
 async function sleepMs(ms: number, signal?: AbortSignal): Promise<void> {
   if (signal?.aborted) {
     throw new DOMException('Device flow cancelled', 'AbortError')
@@ -299,6 +365,10 @@ async function sleepMs(ms: number, signal?: AbortSignal): Promise<void> {
       signal?.removeEventListener('abort', onAbort)
       resolve()
     }, ms)
+    /**
+     * Abort the sleep when the signal fires.
+     * @returns Nothing.
+     */
     const onAbort = () => {
       clearTimeout(timer)
       reject(new DOMException('Device flow cancelled', 'AbortError'))

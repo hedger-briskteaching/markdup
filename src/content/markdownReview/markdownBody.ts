@@ -4,7 +4,11 @@ import { docToMarkdown } from '../../markdown/toMarkdown'
 
 const serializer = DOMSerializer.fromSchema(markdownSchema)
 
-/** Render markdown to a read-only DOM fragment for thread cards. */
+/**
+ * Render a markdown string to a read-only DOM fragment for thread cards.
+ * @param markdown - Raw markdown text to render.
+ * @returns A DocumentFragment containing the rendered HTML.
+ */
 export function renderMarkdownBody(markdown: string): DocumentFragment {
   const frag = document.createDocumentFragment()
   const wrap = document.createElement('div')
@@ -34,6 +38,12 @@ export function renderMarkdownBody(markdown: string): DocumentFragment {
   return frag
 }
 
+/**
+ * Parse a markdown string into a ProseMirror document node.
+ * Returns an empty document when the input is blank or parsing fails.
+ * @param markdown - Raw markdown text to parse.
+ * @returns A ProseMirror document node.
+ */
 export function docFromMarkdown(markdown: string): PMNode {
   const trimmed = markdown.trim()
   if (!trimmed) return emptyDoc()

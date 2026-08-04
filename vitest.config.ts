@@ -1,3 +1,4 @@
+/** Vitest configuration for unit tests. Runs in a jsdom environment. */
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({

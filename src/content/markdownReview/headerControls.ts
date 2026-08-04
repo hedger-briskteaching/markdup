@@ -1,7 +1,7 @@
 /**
- * Hide GitHub header controls that conflict with rich Markdown view.
- * Mirror GitHub's file collapse state onto our rich root.
- * Re-applies suppression when GitHub re-renders the header.
+ * Hide GitHub header controls that conflict with the rich Markdown view.
+ * Mirror GitHub file collapse state onto the rich root.
+ * Re-apply suppression when GitHub re-renders the header.
  */
 
 const SUPPRESSED_ATTR = 'data-rgm-rich-suppressed'
@@ -24,18 +24,33 @@ type CollapseBinding = {
 const suppressBindings = new WeakMap<Element, SuppressBinding>()
 const collapseBindings = new WeakMap<Element, CollapseBinding>()
 
+/**
+ * Mark an element as suppressed with hidden and aria attributes.
+ * @param el - The element to suppress.
+ * @returns Nothing.
+ */
 function suppress(el: HTMLElement): void {
   el.setAttribute(SUPPRESSED_ATTR, '')
   el.setAttribute('hidden', '')
   el.setAttribute('aria-hidden', 'true')
 }
 
+/**
+ * Remove suppression attributes from an element.
+ * @param el - The element to restore.
+ * @returns Nothing.
+ */
 function unsuppress(el: HTMLElement): void {
   el.removeAttribute(SUPPRESSED_ATTR)
   el.removeAttribute('hidden')
   el.removeAttribute('aria-hidden')
 }
 
+/**
+ * Collect all header buttons that are not inside Markdup UI elements.
+ * @param region - The file region element.
+ * @returns Array of header button elements.
+ */
 function headerButtons(region: Element): HTMLElement[] {
   const header = region.querySelector('[data-diff-header-wrapper]')
   if (!header) return []
@@ -44,7 +59,12 @@ function headerButtons(region: Element): HTMLElement[] {
   )
 }
 
-/** Resolve Primer tooltip labels wired through aria-labelledby. */
+/**
+ * Resolve the accessible label of a header control element.
+ * Handles Primer tooltip labels wired through aria-labelledby.
+ * @param el - The control element.
+ * @returns Lowercase label text.
+ */
 function controlLabel(el: HTMLElement): string {
   const labelledBy = el.getAttribute('aria-labelledby')
   if (labelledBy) {
@@ -64,9 +84,10 @@ function controlLabel(el: HTMLElement): string {
 }
 
 /**
- * File-section chevron (Expand/Collapse file).
- * Prefer the chevron octicon — GitHub no longer sets aria-expanded, and a
- * bare /\bexpand\b/ label match wrongly hits "Expand all lines".
+ * Find the file-section collapse/expand chevron button.
+ * Prefer the chevron octicon. GitHub no longer sets aria-expanded.
+ * @param region - The file region element.
+ * @returns The collapse button, or null if not found.
  */
 export function findFileCollapseButton(region: Element): HTMLElement | null {
   const buttons = headerButtons(region)
@@ -88,7 +109,12 @@ export function findFileCollapseButton(region: Element): HTMLElement | null {
   return byLabel ?? null
 }
 
-/** "Expand all lines" — source-diff only; hide while rich mode is on. */
+/**
+ * Find the "Expand all lines" button. This is source-diff only.
+ * Hide it while rich mode is on.
+ * @param region - The file region element.
+ * @returns The button element, or null if not found.
+ */
 export function findExpandAllLinesButton(region: Element): HTMLElement | null {
   const buttons = headerButtons(region)
 
@@ -104,7 +130,11 @@ export function findExpandAllLinesButton(region: Element): HTMLElement | null {
   )
 }
 
-/** Viewed / Not Viewed control. */
+/**
+ * Find the "Viewed" or "Not Viewed" control in the header.
+ * @param region - The file region element.
+ * @returns The control element, or null if not found.
+ */
 export function findViewedControl(region: Element): HTMLElement | null {
   const header = region.querySelector('[data-diff-header-wrapper]') ?? region
 
@@ -131,7 +161,9 @@ export function findViewedControl(region: Element): HTMLElement | null {
 }
 
 /**
- * "Comment on this file" header control — label, title, or comment octicon.
+ * Find the "Comment on this file" button by label, title, or comment octicon.
+ * @param region - The file region element.
+ * @returns The button element, or null if not found.
  */
 export function findFileCommentButton(region: Element): HTMLElement | null {
   const buttons = headerButtons(region)
@@ -155,7 +187,6 @@ export function findFileCommentButton(region: Element): HTMLElement | null {
   )
   if (byIcon) return byIcon
 
-  // Primer / React icon components sometimes expose the name in className.
   const byClass = buttons.find((btn) =>
     Boolean(btn.querySelector('[class*="CommentIcon"]')),
   )
@@ -163,9 +194,10 @@ export function findFileCommentButton(region: Element): HTMLElement | null {
 }
 
 /**
- * Whether GitHub currently has this file section collapsed.
- * Relies on DiffFileHeader-module__collapsed and/or chevron-right —
- * the chevron itself has no aria-expanded in the new Files UI.
+ * Determine if GitHub currently has this file section collapsed.
+ * Uses DiffFileHeader-module__collapsed and chevron direction.
+ * @param region - The file region element.
+ * @returns True when the file section is collapsed.
  */
 export function isFileCollapsed(region: Element): boolean {
   const header = region.querySelector('[data-diff-header-wrapper]')
@@ -175,7 +207,6 @@ export function isFileCollapsed(region: Element): boolean {
     return true
   }
 
-  // Prefer explicit chevron direction when present.
   if (header.querySelector('svg.octicon-chevron-right')) {
     return true
   }
@@ -186,14 +217,20 @@ export function isFileCollapsed(region: Element): boolean {
   return false
 }
 
-/** Stamp / clear data-rgm-file-collapsed so CSS can hide the rich root. */
+/**
+ * Stamp or clear data-rgm-file-collapsed so CSS can hide the rich root.
+ * @param region - The file region element.
+ * @returns Nothing.
+ */
 export function syncFileCollapsedState(region: Element): void {
   region.toggleAttribute(FILE_COLLAPSED_ATTR, isFileCollapsed(region))
 }
 
 /**
- * Watch GitHub's header class / chevron swaps and mirror collapse onto the
- * region. Safe to call repeatedly while rich mode is mounted.
+ * Watch GitHub header class and chevron swaps to mirror collapse state.
+ * Safe to call many times while rich mode is mounted. Idempotent.
+ * @param region - The file region element.
+ * @returns Nothing.
  */
 export function bindFileCollapseSync(region: Element): void {
   syncFileCollapsedState(region)
@@ -219,6 +256,11 @@ export function bindFileCollapseSync(region: Element): void {
   collapseBindings.set(region, { observer })
 }
 
+/**
+ * Disconnect the collapse-sync observer and remove the collapsed attribute.
+ * @param region - The file region element.
+ * @returns Nothing.
+ */
 export function unbindFileCollapseSync(region: Element): void {
   const binding = collapseBindings.get(region)
   if (!binding) return
@@ -228,8 +270,10 @@ export function unbindFileCollapseSync(region: Element): void {
 }
 
 /**
- * Hide Viewed / file-comment / Expand-all while rich mode is active.
+ * Hide Viewed, file-comment, and Expand-all while rich mode is active.
  * The file-collapse chevron stays visible so users can fold the section.
+ * @param region - The file region element.
+ * @returns Nothing.
  */
 export function hideInterferingHeaderControls(region: Element): void {
   for (const el of [
@@ -241,7 +285,11 @@ export function hideInterferingHeaderControls(region: Element): void {
   }
 }
 
-/** Restore controls previously hidden for rich mode. */
+/**
+ * Restore controls previously hidden for rich mode.
+ * @param region - The file region element.
+ * @returns Nothing.
+ */
 export function showInterferingHeaderControls(region: Element): void {
   unbindHeaderControlSuppress(region)
   const header = region.querySelector('[data-diff-header-wrapper]') ?? region
@@ -253,8 +301,10 @@ export function showInterferingHeaderControls(region: Element): void {
 }
 
 /**
- * Keep Viewed / Comment / Expand-all suppressed across GitHub header
+ * Keep Viewed, Comment, and Expand-all suppressed across GitHub header
  * re-renders for as long as rich mode is mounted.
+ * @param region - The file region element.
+ * @returns Nothing.
  */
 export function bindHeaderControlSuppress(region: Element): void {
   hideInterferingHeaderControls(region)
@@ -270,8 +320,6 @@ export function bindHeaderControlSuppress(region: Element): void {
     scheduled = true
     queueMicrotask(() => {
       scheduled = false
-      // Only childList-driven reappearance matters; attribute churn from our
-      // own suppress() must not re-enter forever.
       hideInterferingHeaderControls(region)
     })
   })
@@ -282,6 +330,11 @@ export function bindHeaderControlSuppress(region: Element): void {
   suppressBindings.set(region, { observer })
 }
 
+/**
+ * Disconnect the header-control suppression observer.
+ * @param region - The file region element.
+ * @returns Nothing.
+ */
 export function unbindHeaderControlSuppress(region: Element): void {
   const binding = suppressBindings.get(region)
   if (!binding) return

@@ -39,6 +39,11 @@ type ContentFileResponse = {
   sha: string
 }
 
+/**
+ * Extract owner, repo, and pull number from a GitHub pull request URL path.
+ * @param pathname - The URL pathname (for example `/owner/repo/pull/42/files`).
+ * @returns Parsed components, or null if the path does not match.
+ */
 export function parsePullPath(
   pathname: string,
 ): { owner: string; repo: string; pullNumber: number } | null {
@@ -55,6 +60,14 @@ export function parsePullPath(
   }
 }
 
+/**
+ * Fetch the base and head commit SHAs for a pull request.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param token - GitHub access token.
+ * @returns PullRefs containing the owner, repo, pull number, and SHAs.
+ */
 export async function fetchPullRefs(
   owner: string,
   repo: string,
@@ -74,6 +87,15 @@ export async function fetchPullRefs(
   }
 }
 
+/**
+ * Fetch the text content of a file at a specific git ref.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param path - File path within the repository.
+ * @param ref - Git ref (SHA, branch, or tag) to read from.
+ * @param token - GitHub access token.
+ * @returns The decoded file text, or null if the file does not exist at that ref.
+ */
 export async function fetchFileTextAtRef(
   owner: string,
   repo: string,
@@ -106,6 +128,15 @@ export async function fetchFileTextAtRef(
   }
 }
 
+/**
+ * Load the full file snapshot for a Markdown file in a pull request.
+ * Fetches both base and head text plus commentable line ranges in parallel.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param path - File path within the repository.
+ * @returns A complete FileSnapshot with base text, head text, and commentable lines.
+ */
 export async function fetchFileSnapshot(
   owner: string,
   repo: string,
@@ -137,6 +168,11 @@ export async function fetchFileSnapshot(
   }
 }
 
+/**
+ * URI-encode each segment of a file path individually.
+ * @param path - Slash-separated file path.
+ * @returns Encoded path safe for use in GitHub API URLs.
+ */
 function encodePath(path: string): string {
   return path
     .split('/')
@@ -144,6 +180,11 @@ function encodePath(path: string): string {
     .join('/')
 }
 
+/**
+ * Decode a base64-encoded string into UTF-8 text.
+ * @param content - Base64 string (newlines are stripped before decoding).
+ * @returns The decoded UTF-8 text.
+ */
 function decodeBase64(content: string): string {
   const cleaned = content.replace(/\n/g, '')
   const binary = atob(cleaned)

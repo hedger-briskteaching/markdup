@@ -9,7 +9,7 @@ export type UnchangedSection = {
   kind: 'unchanged'
   id: string
   rows: RowModel[]
-  /** Inclusive source line span across both sides when known. */
+  /** Inclusive source line span across both sides, when known. */
   lineFrom: number | null
   lineTo: number | null
 }
@@ -17,8 +17,10 @@ export type UnchangedSection = {
 export type ViewSection = ChangedSection | UnchangedSection
 
 /**
- * Group consecutive RowModel runs into changed vs unchanged sections.
+ * Group consecutive row-model runs into changed and unchanged sections.
  * Unchanged sections get stable ids for expand/collapse UI state.
+ * @param rows - Flat array of row models from alignment.
+ * @returns Array of view sections ready for rendering.
  */
 export function buildViewSections(rows: RowModel[]): ViewSection[] {
   if (rows.length === 0) return []
@@ -52,7 +54,12 @@ export function buildViewSections(rows: RowModel[]): ViewSection[] {
   return sections
 }
 
-/** Find the unchanged section that owns a row id, if any. */
+/**
+ * Find the unchanged section that contains a given row id.
+ * @param sections - Array of view sections.
+ * @param rowId - The row id to search for.
+ * @returns The matching `UnchangedSection`, or `null` when not found.
+ */
 export function findUnchangedSectionForRow(
   sections: ViewSection[],
   rowId: string,
@@ -66,6 +73,11 @@ export function findUnchangedSectionForRow(
   return null
 }
 
+/**
+ * Compute the overall source line span for a group of rows.
+ * @param rows - Array of row models to scan.
+ * @returns An object with `lineFrom` and `lineTo` (both `null` when no source data exists).
+ */
 function lineSpanForRows(rows: RowModel[]): {
   lineFrom: number | null
   lineTo: number | null

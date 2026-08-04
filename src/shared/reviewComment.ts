@@ -13,6 +13,8 @@ export type CreateReviewCommentFields = {
 /**
  * Build GitHub create-comment fields from a source range.
  * Single-line ranges omit start_line.
+ * @param args - Body, path, commit, side, and start/end source lines.
+ * @returns Fields for the create-review-comment API.
  */
 export function createPayloadFromRange(args: {
   body: string

@@ -1,3 +1,7 @@
+/**
+ * Options (settings) page App component module.
+ * Lets the user connect to GitHub via OAuth or a personal access token (PAT).
+ */
 import { useCallback, useEffect, useState } from 'react'
 import type {
   AuthEnsureResponse,
@@ -17,6 +21,7 @@ import {
   TOKEN_STORAGE_FACTS,
 } from '../shared/authCopy'
 
+/** Discriminated union that represents every possible options-page UI state. */
 type UiState =
   | { kind: 'loading' }
   | {
@@ -39,6 +44,10 @@ const LOGO_URL = chrome.runtime.getURL('icons/logo.svg')
 const TAGLINE = 'A better way to review Markdown files.'
 const PAT_SECTION_ID = 'rgm-pat-fallback'
 
+/**
+ * Options page root component. Shows OAuth and PAT connection forms for GitHub.
+ * @returns JSX for the full-page settings view.
+ */
 export default function App() {
   const [state, setState] = useState<UiState>({ kind: 'loading' })
   const [oauthBusy, setOauthBusy] = useState(false)
@@ -49,6 +58,11 @@ export default function App() {
     AuthStatusResponse['accessWarning']
   >(null)
 
+  /**
+   * Queries the background service worker for the current auth status and updates UI state.
+   * Sends a probe request so the worker also checks token validity.
+   * @returns A promise that resolves when the status check finishes.
+   */
   const refreshStatus = useCallback(async () => {
     try {
       const status = (await chrome.runtime.sendMessage({
@@ -80,6 +94,11 @@ export default function App() {
   useEffect(() => {
     void refreshStatus()
 
+    /**
+     * Handles incoming extension messages for auth-complete and auth-error events.
+     * On success, resets PAT fields and scrolls to the PAT section when OAuth is org-restricted.
+     * @param message - The extension event from the background service worker.
+     */
     const onMessage = (message: ExtensionEvent) => {
       if (message.type === 'AUTH_COMPLETE') {
         setOauthBusy(false)
@@ -112,6 +131,10 @@ export default function App() {
     }
   }, [refreshStatus])
 
+  /**
+   * Starts the OAuth device-code flow by sending AUTH_ENSURE to the background service worker.
+   * @returns A promise that resolves when the flow starts or an error is set.
+   */
   const connect = async () => {
     setOauthBusy(true)
     try {
@@ -149,6 +172,10 @@ export default function App() {
     }
   }
 
+  /**
+   * Sends the PAT to the background service worker for validation and storage.
+   * @returns A promise that resolves after the token is saved or an error is shown.
+   */
   const savePat = async () => {
     setPatBusy(true)
     setPatError(null)
@@ -176,12 +203,20 @@ export default function App() {
     }
   }
 
+  /**
+   * Removes the stored token and disconnects the extension from GitHub on this browser.
+   * @returns A promise that resolves after the token is removed.
+   */
   const removeLocalAccess = async () => {
     await chrome.runtime.sendMessage({ type: 'AUTH_DISCONNECT' })
     setAccessWarning(null)
     setState({ kind: 'disconnected' })
   }
 
+  /**
+   * Cancels an in-progress OAuth device-code flow and refreshes the UI state.
+   * @returns A promise that resolves after cancellation.
+   */
   const cancel = async () => {
     await chrome.runtime.sendMessage({ type: 'AUTH_CANCEL' })
     setOauthBusy(false)

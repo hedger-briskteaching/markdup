@@ -1,8 +1,10 @@
 import type { Mark, Node as PMNode } from 'prosemirror-model'
 
 /**
- * Serialize a ProseMirror document (markdownSchema) back to CommonMark/GFM.
- * Covers the comment-editor subset; exotic nodes fall back to plain text.
+ * Serialize a ProseMirror document (`markdownSchema`) back to CommonMark / GFM text.
+ * Unsupported node types fall back to plain text.
+ * @param doc - The ProseMirror document node.
+ * @returns The Markdown string, with a trailing newline.
  */
 export function docToMarkdown(doc: PMNode): string {
   const parts: string[] = []
@@ -13,6 +15,12 @@ export function docToMarkdown(doc: PMNode): string {
   return parts.join('').replace(/\n{3,}/g, '\n\n').trimEnd() + (parts.length ? '\n' : '')
 }
 
+/**
+ * Serialize a single block-level ProseMirror node to Markdown.
+ * @param node - The block node to serialize.
+ * @param listDepth - Current nesting depth for list indentation.
+ * @returns The Markdown fragment for this block.
+ */
 function serializeBlock(node: PMNode, listDepth: number): string {
   switch (node.type.name) {
     case 'paragraph':
@@ -50,6 +58,12 @@ function serializeBlock(node: PMNode, listDepth: number): string {
   }
 }
 
+/**
+ * Serialize all child blocks of a node, separated by blank lines.
+ * @param node - Parent ProseMirror node.
+ * @param listDepth - Current list nesting depth.
+ * @returns Combined Markdown for the child blocks.
+ */
 function serializeChildrenBlocks(node: PMNode, listDepth: number): string {
   const parts: string[] = []
   node.forEach((child, _o, i) => {
@@ -59,6 +73,13 @@ function serializeChildrenBlocks(node: PMNode, listDepth: number): string {
   return parts.join('')
 }
 
+/**
+ * Serialize a bullet or ordered list node to Markdown.
+ * @param node - The list ProseMirror node.
+ * @param listDepth - Current nesting depth for indentation.
+ * @param kind - `'bullet'` or `'ordered'`.
+ * @returns The Markdown list text.
+ */
 function serializeList(
   node: PMNode,
   listDepth: number,
@@ -87,6 +108,12 @@ function serializeList(
   return lines.join('\n')
 }
 
+/**
+ * Serialize the body of a list item (everything after the marker).
+ * @param item - The `list_item` ProseMirror node.
+ * @param nestedDepth - Nesting depth for any sub-lists inside this item.
+ * @returns The Markdown body text.
+ */
 function serializeListItemBody(item: PMNode, nestedDepth: number): string {
   const parts: string[] = []
   item.forEach((child, _o, i) => {
@@ -101,6 +128,11 @@ function serializeListItemBody(item: PMNode, nestedDepth: number): string {
   return parts.join('')
 }
 
+/**
+ * Serialize a GFM table node to a pipe-delimited Markdown table.
+ * @param node - The `table` ProseMirror node.
+ * @returns The Markdown table string, or an empty string if there are no rows.
+ */
 function serializeTable(node: PMNode): string {
   const rows: string[][] = []
   node.forEach((row) => {
@@ -112,6 +144,11 @@ function serializeTable(node: PMNode): string {
   })
   if (rows.length === 0) return ''
   const width = Math.max(...rows.map((r) => r.length))
+  /**
+   * Pad a table row with empty cells up to the table width.
+   * @param r - Cell strings for one row.
+   * @returns A new row array with length equal to width.
+   */
   const pad = (r: string[]) => {
     const copy = [...r]
     while (copy.length < width) copy.push('')
@@ -127,6 +164,11 @@ function serializeTable(node: PMNode): string {
   return out.join('\n')
 }
 
+/**
+ * Serialize the inline content of a block node to Markdown.
+ * @param node - A ProseMirror node whose children are inline.
+ * @returns The Markdown inline text.
+ */
 function serializeInline(node: PMNode): string {
   let out = ''
   node.forEach((child) => {
@@ -152,9 +194,21 @@ function serializeInline(node: PMNode): string {
   return out
 }
 
+/**
+ * Wrap a text string in its Markdown mark syntax (bold, italic, and code).
+ * Marks are applied in a fixed order so that nesting is always consistent.
+ * @param text - The raw text content.
+ * @param marks - ProseMirror marks on this text node.
+ * @returns The text with Markdown formatting applied.
+ */
 function serializeTextWithMarks(text: string, marks: readonly Mark[]): string {
   if (!text) return ''
   const ordered = [...marks].sort((a, b) => {
+    /**
+     * Rank a mark for stable nesting order (code first, then link, strong, em).
+     * @param m - ProseMirror mark to rank.
+     * @returns Sort rank (lower binds first).
+     */
     const rank = (m: Mark) =>
       m.type.name === 'code'
         ? 0
@@ -198,15 +252,26 @@ function serializeTextWithMarks(text: string, marks: readonly Mark[]): string {
   return result
 }
 
+/**
+ * Wrap text in backtick fences for inline code, using extra ticks when needed.
+ * @param text - The code content.
+ * @returns The backtick-wrapped string.
+ */
 function wrapCode(text: string): string {
   const ticks = text.includes('``') ? '```' : text.includes('`') ? '``' : '`'
   const pad = text.startsWith('`') || text.endsWith('`') ? ' ' : ''
   return `${ticks}${pad}${text}${pad}${ticks}`
 }
 
+/**
+ * Escape characters that can start unintended Markdown constructs.
+ * No escaping is applied inside code spans.
+ * @param text - The raw text.
+ * @param inCode - `true` when the text is inside an inline code mark.
+ * @returns The escaped text.
+ */
 function escapeMarkdownText(text: string, inCode: boolean): string {
   if (inCode) return text
-  // Escape characters that would start unintended markdown constructs.
   return text
     .replace(/\\/g, '\\\\')
     .replace(/`/g, '\\`')

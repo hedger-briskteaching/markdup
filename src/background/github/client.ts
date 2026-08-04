@@ -1,5 +1,11 @@
 const API_VERSION = '2022-11-28'
 
+/**
+ * Error thrown when a GitHub REST API request fails.
+ * @param message - Human-readable error description.
+ * @param status - HTTP status code from GitHub.
+ * @param body - Parsed response body, if available.
+ */
 export class GitHubApiError extends Error {
   readonly status: number
   readonly body?: unknown
@@ -12,7 +18,13 @@ export class GitHubApiError extends Error {
   }
 }
 
-/** Prefer GitHub's per-field validation messages over the generic "Validation Failed". */
+/**
+ * Build a human-readable message from a GitHub error response.
+ * Prefers per-field validation messages over the generic "Validation Failed".
+ * @param status - HTTP status code from the response.
+ * @param parsed - Parsed JSON body of the error response.
+ * @returns A single descriptive error string.
+ */
 export function formatGitHubErrorMessage(
   status: number,
   parsed: unknown,
@@ -47,6 +59,12 @@ export function formatGitHubErrorMessage(
   return `GitHub request failed (${status})`
 }
 
+/**
+ * Run an authenticated request against the GitHub REST API.
+ * @param path - API path relative to the base URL (for example `/repos/owner/repo`).
+ * @param options - Request configuration (token, method, body, headers, base URL).
+ * @returns Parsed JSON response body typed as T.
+ */
 export async function githubFetch<T>(
   path: string,
   options: {

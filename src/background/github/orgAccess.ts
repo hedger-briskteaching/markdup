@@ -8,6 +8,10 @@ import { GitHubApiError, githubFetch } from './client'
 
 const ACCESS_WARNING_KEY = 'github.accessWarning'
 
+/**
+ * Read the stored access warning from local storage.
+ * @returns The persisted AccessWarning, or null if none exists.
+ */
 export async function getAccessWarning(): Promise<AccessWarning | null> {
   const result = await chrome.storage.local.get(ACCESS_WARNING_KEY)
   const value = result[ACCESS_WARNING_KEY]
@@ -22,6 +26,10 @@ export async function getAccessWarning(): Promise<AccessWarning | null> {
   return null
 }
 
+/**
+ * Persist or clear an access warning in local storage.
+ * @param warning - The warning to store, or null to remove it.
+ */
 export async function setAccessWarning(
   warning: AccessWarning | null,
 ): Promise<void> {
@@ -33,7 +41,10 @@ export async function setAccessWarning(
 }
 
 /**
- * After OAuth, check whether any of the user's orgs block the Markdup OAuth App.
+ * After OAuth, make sure none of the user's orgs block the Markdup OAuth App.
+ * Tests up to 15 orgs by fetching one repo from each.
+ * @param token - GitHub access token to probe with.
+ * @returns An AccessWarning if a restriction is found, or null.
  */
 export async function probeOauthOrgAccess(
   token: string,
@@ -76,7 +87,12 @@ export async function probeOauthOrgAccess(
   return null
 }
 
-/** Remember a restriction discovered while calling the API (e.g. file snapshot). */
+/**
+ * Record an OAuth restriction discovered during a normal API call.
+ * Persists the warning if the error message matches a known pattern.
+ * @param errorMessage - The error message string from the failed API call.
+ * @returns The stored AccessWarning, or null if the error was not a restriction.
+ */
 export async function recordApiAccessWarning(
   errorMessage: string,
 ): Promise<AccessWarning | null> {

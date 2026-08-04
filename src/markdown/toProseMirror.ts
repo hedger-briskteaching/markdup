@@ -21,7 +21,9 @@ import { markdownSchema } from './schema'
 type Align = 'left' | 'right' | 'center' | null
 
 /**
- * Convert an mdast tree into a ProseMirror document for `markdownSchema`.
+ * Convert an mdast tree into a ProseMirror document that uses `markdownSchema`.
+ * @param tree - Root node of the mdast syntax tree.
+ * @returns A ProseMirror doc node.
  */
 export function mdastToProseMirror(tree: Root): PMNode {
   const defs = collectDefinitions(tree)
@@ -38,6 +40,11 @@ export function mdastToProseMirror(tree: Root): PMNode {
   return markdownSchema.node('doc', null, blocks)
 }
 
+/**
+ * Collect all link/image reference definitions from the tree.
+ * @param tree - Root mdast node.
+ * @returns A map from lowercase identifier to its definition node.
+ */
 function collectDefinitions(tree: Root): Map<string, Definition> {
   const defs = new Map<string, Definition>()
   walk(tree, (node) => {
@@ -48,6 +55,12 @@ function collectDefinitions(tree: Root): Map<string, Definition> {
   return defs
 }
 
+/**
+ * Recursively walk every node in an mdast tree and run a visitor on each one.
+ * @param node - Current node.
+ * @param visit - Callback to run for each node.
+ * @returns Nothing.
+ */
 function walk(node: Nodes, visit: (node: Nodes) => void): void {
   visit(node)
   if ('children' in node && Array.isArray(node.children)) {
@@ -57,6 +70,12 @@ function walk(node: Nodes, visit: (node: Nodes) => void): void {
   }
 }
 
+/**
+ * Convert a single mdast block-level node into a ProseMirror node.
+ * @param node - An mdast content or block node.
+ * @param defs - Collected reference definitions for link/image resolution.
+ * @returns The ProseMirror node, or `null` if the block type is not rendered.
+ */
 function blockToNode(
   node: Content | BlockContent | YAML,
   defs: Map<string, Definition>,
@@ -115,15 +134,20 @@ function blockToNode(
 
     case 'definition':
     case 'footnoteDefinition':
-      // Reference targets are resolved into links; defs are not rendered.
+      // Reference targets are resolved into links. Definitions are not rendered.
       return null
 
     default:
-      // Unknown block → skip rather than fail the whole file.
+      // Unknown block type. Skip it instead of failing the whole file.
       return null
   }
 }
 
+/**
+ * Clamp an mdast heading depth to the valid 1-6 range.
+ * @param node - An mdast heading node.
+ * @returns The clamped level number.
+ */
 function clampHeadingLevel(node: Heading): number {
   const level = node.depth
   if (level < 1) return 1
@@ -131,6 +155,13 @@ function clampHeadingLevel(node: Heading): number {
   return level
 }
 
+/**
+ * Convert a parent node's children into an array of ProseMirror block nodes.
+ * An empty paragraph is added when no children produce output.
+ * @param parent - Any mdast parent node.
+ * @param defs - Collected reference definitions.
+ * @returns Array of ProseMirror block nodes (at least one).
+ */
 function childrenBlocks(
   parent: Parents,
   defs: Map<string, Definition>,
@@ -148,6 +179,12 @@ function childrenBlocks(
   return out
 }
 
+/**
+ * Convert an mdast list into a ProseMirror `ordered_list` or `bullet_list` node.
+ * @param node - An mdast list node.
+ * @param defs - Collected reference definitions.
+ * @returns The ProseMirror list node.
+ */
 function listToNode(node: List, defs: Map<string, Definition>): PMNode {
   const src = srcAttrsFromNode(node)
   const items = node.children.map((item) => listItemToNode(item, defs))
@@ -172,6 +209,12 @@ function listToNode(node: List, defs: Map<string, Definition>): PMNode {
   )
 }
 
+/**
+ * Convert an mdast list item into a ProseMirror `list_item` node.
+ * @param node - An mdast list-item node.
+ * @param defs - Collected reference definitions.
+ * @returns The ProseMirror list-item node.
+ */
 function listItemToNode(
   node: ListItem,
   defs: Map<string, Definition>,
@@ -183,6 +226,12 @@ function listItemToNode(
   return markdownSchema.node('list_item', { ...src, checked }, content)
 }
 
+/**
+ * Convert an mdast table into a ProseMirror `table` node.
+ * @param node - An mdast table node.
+ * @param defs - Collected reference definitions.
+ * @returns The ProseMirror table node.
+ */
 function tableToNode(node: Table, defs: Map<string, Definition>): PMNode {
   const src = srcAttrsFromNode(node)
   const aligns = node.align ?? []
@@ -192,6 +241,14 @@ function tableToNode(node: Table, defs: Map<string, Definition>): PMNode {
   return markdownSchema.node('table', src, rows)
 }
 
+/**
+ * Convert an mdast table row into a ProseMirror `table_row` node.
+ * @param row - An mdast table-row node.
+ * @param aligns - Column alignment array from the parent table.
+ * @param defs - Collected reference definitions.
+ * @param isHeader - `true` when this is the first (header) row.
+ * @returns The ProseMirror table-row node.
+ */
 function tableRowToNode(
   row: TableRow,
   aligns: Array<Align | undefined | null>,
@@ -205,6 +262,14 @@ function tableRowToNode(
   return markdownSchema.node('table_row', src, cells)
 }
 
+/**
+ * Convert an mdast table cell into a ProseMirror `table_header` or `table_cell` node.
+ * @param cell - An mdast table-cell node.
+ * @param align - Column alignment for this cell (`null` when unset).
+ * @param defs - Collected reference definitions.
+ * @param isHeader - `true` when the cell belongs to the header row.
+ * @returns The ProseMirror cell node.
+ */
 function tableCellToNode(
   cell: TableCell,
   align: Align,
@@ -220,6 +285,14 @@ function tableCellToNode(
   )
 }
 
+/**
+ * Convert an array of mdast phrasing nodes into ProseMirror inline nodes.
+ * Adjacent text nodes with identical marks are merged before returning.
+ * @param nodes - Phrasing content children.
+ * @param defs - Collected reference definitions.
+ * @param active - Marks currently applied by ancestor inline wrappers.
+ * @returns Array of ProseMirror inline nodes.
+ */
 function phrasingToInline(
   nodes: PhrasingContent[],
   defs: Map<string, Definition>,
@@ -232,6 +305,13 @@ function phrasingToInline(
   return mergeAdjacentText(out)
 }
 
+/**
+ * Convert a single mdast phrasing node into one or more ProseMirror inline nodes.
+ * @param node - An mdast phrasing-content node.
+ * @param defs - Collected reference definitions.
+ * @param active - Marks currently applied from ancestor wrappers.
+ * @returns Array of ProseMirror inline nodes (can be empty for unknown types).
+ */
 function phrasingNode(
   node: PhrasingContent,
   defs: Map<string, Definition>,
@@ -316,7 +396,7 @@ function phrasingNode(
     }
 
     case 'html':
-      // Inline HTML is kept as plain text so selection/anchors stay simple.
+      // Inline HTML is kept as plain text so that selection and anchors stay simple.
       return node.value
         ? [markdownSchema.text(node.value, Mark.setFrom(active))]
         : []
@@ -334,6 +414,11 @@ function phrasingNode(
   }
 }
 
+/**
+ * Merge consecutive text nodes that have identical mark sets into one node.
+ * @param nodes - Array of ProseMirror inline nodes.
+ * @returns A new array with adjacent same-mark text nodes combined.
+ */
 function mergeAdjacentText(nodes: PMNode[]): PMNode[] {
   if (nodes.length < 2) return nodes
   const out: PMNode[] = []

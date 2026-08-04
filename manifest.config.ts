@@ -1,3 +1,4 @@
+/** Chrome extension manifest configuration for Markdup (Manifest V3). */
 import { defineManifest } from '@crxjs/vite-plugin'
 
 export default defineManifest({
@@ -5,9 +6,8 @@ export default defineManifest({
   name: 'Markdup',
   description: 'Markdup — A better way to review Markdown files.',
   version: '0.1.0',
-  // Fixed public key → stable extension ID for all unpacked installs:
-  // knlaahnhnocjejneaobpbbnfibfnoiei
-  // OAuth callback: https://knlaahnhnocjejneaobpbbnfibfnoiei.chromiumapp.org/
+  // This public key gives a stable extension ID (knlaahnhnocjejneaobpbbnfibfnoiei) for all unpacked installs.
+  // OAuth callback URL: https://knlaahnhnocjejneaobpbbnfibfnoiei.chromiumapp.org/
   key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApd1viQ3+mOFcr4ykTO40K5tSx+tyToZZQKuOIW1VYDmA8b5TMuK5eQNo4ABlk0D8qMzvTkYdgH8hPnmCzWd8WTBrdLJsLiwuo4EO2IWJ/GOeDFs42x+FB7SbraQK7i+R6YNgTIX4pPipjT+XkaOCxqr/2WbFiEYE6/jLip2jZfJSHw6Xgjvh5utD8J1L6Ii4K7euHRihmzCKnV6rnw9OUiC8br6mxjSBnYwQqttMmcaDK3YRbAFSyJAGS4uKZZfDyXDOkOcpAKAicwdKsLmzJD6XGJ0C+w4sRLpRo7KdW9AyRwoaBdv88g78XkWx0IWcv6TsJdaBGg0EiYW3HWWfkwIDAQAB',
   action: {
     default_popup: 'index.html',
@@ -34,8 +34,7 @@ export default defineManifest({
   permissions: ['storage'],
   content_scripts: [
     {
-      // PR Files changed only (new /changes and classic /files). Not conversation,
-      // commits, issues, or other github.com pages.
+      // Match only PR diff views (/changes and /files). Do not match conversations, commits, or other pages.
       matches: [
         'https://github.com/*/pull/*/changes*',
         'https://github.com/*/pull/*/files*',

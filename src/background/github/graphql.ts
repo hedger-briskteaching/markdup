@@ -2,6 +2,13 @@ import { githubFetch, GitHubApiError, formatGitHubErrorMessage } from './client'
 
 const GRAPHQL_URL = 'https://api.github.com/graphql'
 
+/**
+ * Run a GitHub GraphQL query or mutation and return the `data` payload.
+ * @param token - GitHub access token for authorization.
+ * @param query - GraphQL query or mutation string.
+ * @param variables - Optional variables passed to the query.
+ * @returns The `data` field from the GraphQL response typed as T.
+ */
 export async function githubGraphql<T>(
   token: string,
   query: string,
@@ -58,14 +65,21 @@ export async function githubGraphql<T>(
   return payload.data
 }
 
-/** Resolve the GraphQL node id for a pull request. */
+/**
+ * Get the GraphQL node ID for a pull request via the REST API.
+ * REST is cheaper than a full GraphQL lookup for this single field.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param token - GitHub access token.
+ * @returns The global GraphQL node ID string.
+ */
 export async function fetchPullRequestNodeId(
   owner: string,
   repo: string,
   pullNumber: number,
   token: string,
 ): Promise<string> {
-  // REST includes node_id; cheaper than a GraphQL lookup.
   const pull = await githubFetch<{ node_id: string }>(
     `/repos/${owner}/${repo}/pulls/${pullNumber}`,
     { token },

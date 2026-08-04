@@ -29,24 +29,38 @@ type PendingSelection = {
 }
 
 /**
- * Listen for selections inside a rich root.
- * Shows a small Comment bubble first; expands to a composer on click.
+ * Listen for text selections inside a rich root.
+ * Shows a small Comment bubble first, then expands to a composer on click.
+ * @param richRoot - The rich view root element.
+ * @returns A cleanup function that removes all listeners and UI.
  */
 export function bindComposer(richRoot: HTMLElement): () => void {
+  /**
+   * After mouse-up, show the Comment bubble for the current selection.
+   * @returns Nothing.
+   */
   const onMouseUp = () => {
     window.setTimeout(() => {
       maybeShowBubble(richRoot)
     }, 0)
   }
 
+  /**
+   * Clear the composer UI when the user presses Escape.
+   * @param event - Keyboard event from the document.
+   * @returns Nothing.
+   */
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       clearUi(richRoot)
     }
   }
 
-  // Soften pointerdown dismiss: selecting text can synthesize events that
-  // would clear the bubble before mouseup shows it.
+  /**
+   * Clear the bubble when the pointer presses outside the composer UI.
+   * @param event - Pointer event from the document.
+   * @returns Nothing.
+   */
   const onPointerDown = (event: PointerEvent) => {
     const target = event.target
     if (!(target instanceof Node)) return
@@ -59,15 +73,11 @@ export function bindComposer(richRoot: HTMLElement): () => void {
     if (richRoot.querySelector(`[${COMPOSER_ATTR}]`)) {
       return
     }
-    // Only dismiss when the press is outside the rich root (or on chrome).
-    // No composer is open here, so drop the highlight with the selection —
-    // mouseup outside the root never reaches our handler.
     if (!richRoot.contains(target)) {
       removeBubble(richRoot)
       clearSelectionHighlight(richRoot)
       return
     }
-    // Inside rich content: let mouseup recreate the bubble for a new selection.
     removeBubble(richRoot)
   }
 
@@ -83,22 +93,23 @@ export function bindComposer(richRoot: HTMLElement): () => void {
   }
 }
 
+/**
+ * Show the comment bubble when a valid selection exists inside the rich root.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
 function maybeShowBubble(richRoot: HTMLElement): void {
   try {
     const selection = window.getSelection()
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
       removeBubble(richRoot)
-      // Clicking off collapses the selection — drop the highlight with it
-      // (native behavior). Keep it only while the composer is open, since
-      // it marks the comment anchor.
       if (!richRoot.querySelector(`[${COMPOSER_ATTR}]`)) {
         clearSelectionHighlight(richRoot)
       }
       return
     }
 
-    // Selecting inside the composer / reply editor / thread chrome must not
-    // steal the selection or spawn another Comment bubble.
+    // Selecting inside comment UI must not steal the selection or spawn a bubble.
     if (selectionIsInCommentUi(selection, richRoot)) {
       return
     }
@@ -112,7 +123,7 @@ function maybeShowBubble(richRoot: HTMLElement): void {
       return
     }
 
-    // A new document selection replaces any open composer (GitHub-style).
+    // A new selection replaces any open composer (GitHub-style).
     richRoot.querySelector(`[${COMPOSER_ATTR}]`)?.remove()
 
     const ctx = getRichViewContext(richRoot)
@@ -122,8 +133,6 @@ function maybeShowBubble(richRoot: HTMLElement): void {
 
     const liveRange =
       selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null
-    // Expand the live selection to the mapped whole source lines only
-    // (same span the user picked — never jump to another hunk).
     const snapped = snapDomSelectionToSourceRange(selection, richRoot, range)
     const forRect =
       snapped ??
@@ -142,7 +151,12 @@ function maybeShowBubble(richRoot: HTMLElement): void {
   }
 }
 
-/** True when the live selection is inside composer / thread / editor chrome. */
+/**
+ * Determine if the live selection is inside composer, thread, or editor chrome.
+ * @param selection - The browser Selection object.
+ * @param richRoot - The rich view root element.
+ * @returns True when the selection is inside comment UI.
+ */
 function selectionIsInCommentUi(
   selection: Selection,
   richRoot: Element,
@@ -158,6 +172,12 @@ function selectionIsInCommentUi(
   )
 }
 
+/**
+ * Get a bounding rect for a DOM range, with fallback for jsdom.
+ * @param domRange - The DOM Range to measure.
+ * @param richRoot - The rich view root element.
+ * @returns A DOMRect for positioning.
+ */
 function rectForDomRange(domRange: Range, richRoot: HTMLElement): DOMRect {
   if (typeof domRange.getBoundingClientRect === 'function') {
     const rect = domRange.getBoundingClientRect()
@@ -166,7 +186,6 @@ function rectForDomRange(domRange: Range, richRoot: HTMLElement): DOMRect {
     }
   }
 
-  // jsdom (and some edge selections) lack layout — fall back to the rich root.
   const rootRect = richRoot.getBoundingClientRect()
   if (rootRect.width > 0 || rootRect.height > 0) {
     return rootRect
@@ -175,6 +194,12 @@ function rectForDomRange(domRange: Range, richRoot: HTMLElement): DOMRect {
   return new DOMRect(8, 8, 120, 24)
 }
 
+/**
+ * Show the comment bubble near the selected text.
+ * @param richRoot - The rich view root element.
+ * @param pending - The pending selection state with range and context.
+ * @returns Nothing.
+ */
 function showBubble(richRoot: HTMLElement, pending: PendingSelection): void {
   removeBubble(richRoot)
 
@@ -190,7 +215,6 @@ function showBubble(richRoot: HTMLElement, pending: PendingSelection): void {
   commentBtn.innerHTML =
     '<span class="rgm-comment-bubble-icon" aria-hidden="true">✎</span> Comment'
   commentBtn.addEventListener('mousedown', (event) => {
-    // Keep selection while opening the composer.
     event.preventDefault()
   })
   commentBtn.addEventListener('click', (event) => {
@@ -209,6 +233,13 @@ function showBubble(richRoot: HTMLElement, pending: PendingSelection): void {
   positionBubble(bubble, richRoot, pending.clientRect)
 }
 
+/**
+ * Position the bubble above (or below) the selected text.
+ * @param bubble - The bubble element to position.
+ * @param richRoot - The rich view root element.
+ * @param clientRect - The bounding rect of the selection.
+ * @returns Nothing.
+ */
 function positionBubble(
   bubble: HTMLElement,
   richRoot: HTMLElement,
@@ -219,7 +250,6 @@ function positionBubble(
   let top = clientRect.top - rootRect.top - gap
   let left = clientRect.left - rootRect.left
 
-  // Measure after mount for flip-above / clamp.
   const bubbleRect = bubble.getBoundingClientRect()
   top -= bubbleRect.height
   if (top < 4) {
@@ -234,6 +264,11 @@ function positionBubble(
 
 /**
  * Open the comment composer anchored under the live text selection.
+ * @param richRoot - The rich view root element.
+ * @param range - The source range for the comment.
+ * @param ctx - The rich view context.
+ * @param clientRect - The bounding rect of the selection.
+ * @returns Nothing.
  */
 function showComposer(
   richRoot: HTMLElement,
@@ -320,7 +355,14 @@ function showComposer(
   editor.focus()
 }
 
-/** Place the composer directly under the selected text (GitHub-style inline). */
+/**
+ * Place the composer directly under the selected text (GitHub-style inline).
+ * @param panel - The composer panel element.
+ * @param richRoot - The rich view root element.
+ * @param clientRect - The bounding rect of the selection.
+ * @param range - The source range for column alignment.
+ * @returns Nothing.
+ */
 function positionComposer(
   panel: HTMLElement,
   richRoot: HTMLElement,
@@ -347,7 +389,7 @@ function positionComposer(
   )
   left = Math.min(Math.max(8, left), maxLeft)
 
-  // If it would overflow the bottom of the root, flip above the selection.
+  // Flip above the selection if the bubble overflows the bottom.
   if (
     rootRect.height > 0 &&
     clientRect.bottom - rootRect.top + gap + panelRect.height >
@@ -382,6 +424,11 @@ function positionComposer(
   panel.style.left = `${Math.round(left)}px`
 }
 
+/**
+ * Submit a new review comment to GitHub via the background script.
+ * @param args - Editor, UI elements, range, and context needed for submission.
+ * @returns Nothing.
+ */
 async function submitComment(args: {
   panel: HTMLElement
   editor: CommentEditorHandle | null
@@ -403,7 +450,6 @@ async function submitComment(args: {
     return
   }
 
-  // Review comments attach to the PR head commit; side selects Before/After.
   const commitId = ctx.headSha || ctx.baseSha
   if (!commitId) {
     status.hidden = false
@@ -468,13 +514,23 @@ async function submitComment(args: {
   }, 400)
 }
 
-/** Native Files view DOM is stale until reload after API-created comments. */
+/**
+ * Mark that the native Files view is stale due to API-created comments.
+ * A page reload will be needed when leaving rich mode.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
 export function markCommentsDirty(richRoot: Element): void {
   const region = richRoot.closest(FILE_REGION) ?? richRoot.parentElement
   region?.setAttribute(COMMENTS_DIRTY_ATTR, '')
   document.documentElement.setAttribute(COMMENTS_DIRTY_ATTR, '')
 }
 
+/**
+ * Consume and clear the comments-dirty flag for a region.
+ * @param region - The file region element.
+ * @returns True if any dirty flag was set.
+ */
 export function consumeCommentsDirty(region: Element): boolean {
   const local = region.hasAttribute(COMMENTS_DIRTY_ATTR)
   const global = document.documentElement.hasAttribute(COMMENTS_DIRTY_ATTR)
@@ -483,10 +539,20 @@ export function consumeCommentsDirty(region: Element): boolean {
   return local || global
 }
 
+/**
+ * Find the rich root ancestor of a panel element.
+ * @param panel - The composer panel element.
+ * @returns The rich root element, or null.
+ */
 function richRootFrom(panel: HTMLElement): HTMLElement | null {
   return panel.closest('[data-rgm-rich]')
 }
 
+/**
+ * Format a source range as a line reference string (for example "L5" or "L5-10").
+ * @param range - The source range.
+ * @returns The formatted line reference.
+ */
 function formatLineRef(range: SourceRange): string {
   if (range.startLine === range.endLine) {
     return `L${range.startLine}`
@@ -494,15 +560,31 @@ function formatLineRef(range: SourceRange): string {
   return `L${range.startLine}–${range.endLine}`
 }
 
+/**
+ * Format the anchor pill text showing file name and line reference.
+ * @param path - The file path.
+ * @param range - The source range.
+ * @returns The formatted pill text.
+ */
 function formatAnchorPill(path: string, range: SourceRange): string {
   const name = path.split('/').pop() || path || 'file'
   return `${name} ${formatLineRef(range)}`
 }
 
+/**
+ * Remove the comment bubble from the rich root.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
 function removeBubble(richRoot: Element): void {
   richRoot.querySelector(`[${BUBBLE_ATTR}]`)?.remove()
 }
 
+/**
+ * Remove all composer UI (bubble, panel, highlight) from the rich root.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
 function clearUi(richRoot: Element): void {
   removeBubble(richRoot)
   richRoot.querySelector(`[${COMPOSER_ATTR}]`)?.remove()

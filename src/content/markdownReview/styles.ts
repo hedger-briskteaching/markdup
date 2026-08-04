@@ -1,3 +1,4 @@
+/** DOM id for the injected stylesheet element. */
 const STYLE_ID = 'rgm-markdown-review-styles'
 
 const CSS = `
@@ -313,7 +314,7 @@ const CSS = `
 }
 
 .rgm-comment-editor-content blockquote::before {
-  content: '“';
+  content: '"';
   display: block;
   margin: 0 0 4px;
   color: var(--borderColor-accent-emphasis, #1b9e8a);
@@ -383,7 +384,7 @@ const CSS = `
 }
 
 .rgm-md-body blockquote::before {
-  content: '“';
+  content: '"';
   display: block;
   margin: 0 0 4px;
   color: var(--borderColor-accent-emphasis, #1b9e8a);
@@ -719,7 +720,7 @@ const CSS = `
 }
 
 [data-rgm-rich] .rgm-rich-content blockquote::before {
-  content: '“';
+  content: '"';
   display: block;
   margin: 0 0 6px;
   color: var(--borderColor-accent-emphasis, #1b9e8a);
@@ -1284,6 +1285,11 @@ const CSS = `
 }
 `
 
+/**
+ * Insert the extension stylesheet into the document head.
+ * Does nothing if the stylesheet already exists.
+ * @returns Nothing.
+ */
 export function injectStyles(): void {
   if (document.getElementById(STYLE_ID)) {
     return
@@ -1295,7 +1301,10 @@ export function injectStyles(): void {
   document.head.appendChild(style)
 }
 
-/** Remove styles injected by {@link injectStyles}. */
+/**
+ * Remove the stylesheet injected by {@link injectStyles}.
+ * @returns Nothing.
+ */
 export function removeStyles(): void {
   document.getElementById(STYLE_ID)?.remove()
 }

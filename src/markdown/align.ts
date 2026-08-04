@@ -22,7 +22,10 @@ type AlignOp =
   | { kind: 'insert'; new: BlockView }
 
 /**
- * Align two Markdown strings into Before/After block rows.
+ * Align two Markdown strings into before/after block rows for diff display.
+ * @param oldSource - The original Markdown text.
+ * @param newSource - The updated Markdown text.
+ * @returns Array of row models with old and new block views.
  */
 export function alignMarkdown(oldSource: string, newSource: string): RowModel[] {
   const oldDoc = markdownToDoc(oldSource || '')
@@ -31,7 +34,10 @@ export function alignMarkdown(oldSource: string, newSource: string): RowModel[] 
 }
 
 /**
- * Align two ProseMirror docs (top-level blocks) into row models.
+ * Align two ProseMirror documents (top-level blocks) into row models.
+ * @param oldDoc - The original ProseMirror document.
+ * @param newDoc - The updated ProseMirror document.
+ * @returns Array of row models ready for side-by-side display.
  */
 export function alignDocs(oldDoc: PMNode, newDoc: PMNode): RowModel[] {
   const oldBlocks = extractBlocks(oldDoc)
@@ -41,6 +47,11 @@ export function alignDocs(oldDoc: PMNode, newDoc: PMNode): RowModel[] {
   return collapsed.map((op, index) => opToRow(op, index))
 }
 
+/**
+ * Extract top-level block views from a ProseMirror document.
+ * @param doc - A ProseMirror document node.
+ * @returns Array of block views with type, source range, node, and normalized text.
+ */
 export function extractBlocks(doc: PMNode): BlockView[] {
   const blocks: BlockView[] = []
   doc.forEach((node) => {
@@ -55,6 +66,11 @@ export function extractBlocks(doc: PMNode): BlockView[] {
   return blocks
 }
 
+/**
+ * Get the normalized plain text for a block node (whitespace-collapsed, trimmed).
+ * @param node - A ProseMirror block node.
+ * @returns The normalized text string.
+ */
 export function normalizeBlockText(node: PMNode): string {
   if (node.type.name === 'front_matter') {
     return normalizeText(String(node.attrs.value ?? ''))
@@ -68,15 +84,31 @@ export function normalizeBlockText(node: PMNode): string {
   return normalizeText(node.textContent)
 }
 
+/**
+ * Collapse whitespace and trim a string for block comparison.
+ * @param text - Raw text.
+ * @returns The normalized string.
+ */
 function normalizeText(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
 }
 
+/**
+ * Determine whether two block views are equal (same type and normalized text).
+ * @param a - First block view.
+ * @param b - Second block view.
+ * @returns `true` when the blocks match.
+ */
 function blocksMatch(a: BlockView, b: BlockView): boolean {
   return a.type === b.type && a.normText === b.normText
 }
 
-/** Classic LCS over identical blocks (type + normalized text). */
+/**
+ * Run classic LCS alignment over identical blocks (type + normalized text).
+ * @param oldBlocks - Block views from the original document.
+ * @param newBlocks - Block views from the updated document.
+ * @returns Sequence of equal, delete, and insert operations.
+ */
 function lcsOps(oldBlocks: BlockView[], newBlocks: BlockView[]): AlignOp[] {
   const n = oldBlocks.length
   const m = newBlocks.length
@@ -128,7 +160,9 @@ type CollapsedOp =
   | { kind: 'insert'; new: BlockView }
 
 /**
- * Pair a deletion and the next same-type insertion into one changed row.
+ * Pair a deletion with the next same-type insertion into one "change" row.
+ * @param ops - Raw alignment operations from LCS.
+ * @returns Collapsed operations where adjacent delete+insert pairs become changes.
  */
 function collapseChanged(ops: AlignOp[]): CollapsedOp[] {
   const out: CollapsedOp[] = []
@@ -153,6 +187,12 @@ function collapseChanged(ops: AlignOp[]): CollapsedOp[] {
   return out
 }
 
+/**
+ * Convert a collapsed alignment operation into a display row model.
+ * @param op - A collapsed alignment operation.
+ * @param index - Row index used to generate the row id.
+ * @returns The row model for rendering.
+ */
 function opToRow(op: CollapsedOp, index: number): RowModel {
   switch (op.kind) {
     case 'equal':
