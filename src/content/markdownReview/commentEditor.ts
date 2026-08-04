@@ -1,11 +1,19 @@
 import {
   baseKeymap,
+  lift,
   setBlockType,
   toggleMark,
   wrapIn,
 } from 'prosemirror-commands'
 import { history, redo, undo } from 'prosemirror-history'
+import {
+  InputRule,
+  inputRules,
+  textblockTypeInputRule,
+  wrappingInputRule,
+} from 'prosemirror-inputrules'
 import { keymap } from 'prosemirror-keymap'
+import type { MarkType, NodeType } from 'prosemirror-model'
 import {
   liftListItem,
   sinkListItem,
@@ -60,12 +68,12 @@ export function mountCommentEditor(
     schema: markdownSchema,
     plugins: [
       history(),
+      buildInputRules(),
       keymap({
         'Mod-z': undo,
         'Shift-Mod-z': redo,
         'Mod-y': redo,
         'Mod-b': toggleMark(markdownSchema.marks.strong!),
-        'Mod-i': toggleMark(markdownSchema.marks.em!),
         'Mod-e': toggleMark(markdownSchema.marks.code!),
         'Mod-Enter': (_s, _d, view) => {
           options.onSubmit?.()
@@ -89,11 +97,13 @@ export function mountCommentEditor(
       const next = view.state.apply(tr)
       view.updateState(next)
       updatePlaceholder(view)
+      updateToolbar(toolbar, view)
     },
   })
 
   buildToolbar(toolbar, view)
   updatePlaceholder(view)
+  updateToolbar(toolbar, view)
 
   const handle: CommentEditorHandle = {
     getMarkdown: () => docToMarkdown(view.state.doc).trimEnd(),
@@ -106,6 +116,7 @@ export function mountCommentEditor(
       )
       view.dispatch(tr)
       updatePlaceholder(view)
+      updateToolbar(toolbar, view)
     },
     focus: () => view.focus(),
     destroy: () => {
@@ -137,18 +148,179 @@ function updatePlaceholder(view: EditorView): void {
   view.dom.classList.toggle('rgm-comment-editor-empty', empty)
 }
 
+function buildInputRules() {
+  const strong = markdownSchema.marks.strong!
+  const code = markdownSchema.marks.code!
+  const bullet = markdownSchema.nodes.bullet_list!
+  const ordered = markdownSchema.nodes.ordered_list!
+  const quote = markdownSchema.nodes.blockquote!
+  const codeBlock = markdownSchema.nodes.code_block!
+
+  return inputRules({
+    rules: [
+      markInputRule(/`([^`]+)`$/, code),
+      markInputRule(/\*\*([^*]+)\*\*$/, strong),
+      markInputRule(/__([^_]+)__$/, strong),
+      wrappingInputRule(/^\s*([-+*])\s$/, bullet),
+      wrappingInputRule(
+        /^(\d+)\.\s$/,
+        ordered,
+        (match) => ({ order: Number(match[1]) }),
+        (match, node) =>
+          node.childCount + (node.attrs.order as number) === Number(match[1]),
+      ),
+      wrappingInputRule(/^\s*>\s$/, quote),
+      textblockTypeInputRule(/^```$/, codeBlock),
+    ],
+  })
+}
+
+/** Apply a mark to the captured group when the closing delimiter is typed. */
+function markInputRule(regexp: RegExp, markType: MarkType): InputRule {
+  return new InputRule(regexp, (state, match, start, end) => {
+    const text = match[1]
+    if (!text) return null
+
+    const full = match[0]!
+    const textOffset = full.indexOf(text)
+    if (textOffset < 0) return null
+    const textStart = start + textOffset
+    const textEnd = textStart + text.length
+
+    const tr = state.tr
+    if (textEnd < end) tr.delete(textEnd, end)
+    if (textStart > start) tr.delete(start, textStart)
+    tr.addMark(start, start + text.length, markType.create())
+    tr.removeStoredMark(markType)
+    return tr
+  })
+}
+
+function parentHasType(state: EditorState, type: NodeType): boolean {
+  const { $from } = state.selection
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type === type) {
+      return true
+    }
+  }
+  return false
+}
+
+type BlockKind = 'bullet' | 'ordered' | 'quote' | 'code'
+
+/**
+ * Apply a block style. Same tool again exits to a paragraph; a different
+ * tool switches (e.g. bullet list → numbered list, list → quote).
+ */
+function applyBlock(view: EditorView, kind: BlockKind): void {
+  const bullet = markdownSchema.nodes.bullet_list!
+  const ordered = markdownSchema.nodes.ordered_list!
+  const quote = markdownSchema.nodes.blockquote!
+  const codeBlock = markdownSchema.nodes.code_block!
+  const paragraph = markdownSchema.nodes.paragraph!
+  const listItem = markdownSchema.nodes.list_item!
+
+  const { state } = view
+  const inBullet = parentHasType(state, bullet)
+  const inOrdered = parentHasType(state, ordered)
+  const inQuote = parentHasType(state, quote)
+  const inCode = state.selection.$from.parent.type === codeBlock
+
+  // Same block type → turn off.
+  if (kind === 'bullet' && inBullet) {
+    liftListItem(listItem)(view.state, view.dispatch)
+    return
+  }
+  if (kind === 'ordered' && inOrdered) {
+    liftListItem(listItem)(view.state, view.dispatch)
+    return
+  }
+  if (kind === 'quote' && inQuote) {
+    lift(view.state, view.dispatch)
+    return
+  }
+  if (kind === 'code' && inCode) {
+    setBlockType(paragraph)(view.state, view.dispatch)
+    return
+  }
+
+  // Leave the current wrapper, then apply the new one.
+  for (let i = 0; i < 8; i++) {
+    const s = view.state
+    if (s.selection.$from.parent.type === codeBlock) {
+      setBlockType(paragraph)(s, view.dispatch)
+      continue
+    }
+    if (parentHasType(s, quote)) {
+      lift(s, view.dispatch)
+      continue
+    }
+    if (parentHasType(s, bullet) || parentHasType(s, ordered)) {
+      liftListItem(listItem)(s, view.dispatch)
+      continue
+    }
+    break
+  }
+
+  if (kind === 'bullet') {
+    wrapInList(bullet)(view.state, view.dispatch)
+  } else if (kind === 'ordered') {
+    wrapInList(ordered)(view.state, view.dispatch)
+  } else if (kind === 'quote') {
+    wrapIn(quote)(view.state, view.dispatch)
+  } else {
+    setBlockType(codeBlock)(view.state, view.dispatch)
+  }
+}
+
+function selectionFullyHasMark(state: EditorState, type: MarkType): boolean {
+  const { from, to, empty, $from } = state.selection
+  if (empty) {
+    return Boolean(type.isInSet(state.storedMarks || $from.marks()))
+  }
+
+  let sawText = false
+  let missing = false
+  state.doc.nodesBetween(from, to, (node, pos) => {
+    if (!node.isText || missing) return
+    const start = Math.max(pos, from)
+    const end = Math.min(pos + node.nodeSize, to)
+    if (start >= end) return
+    sawText = true
+    if (!type.isInSet(node.marks)) missing = true
+  })
+  return sawText && !missing
+}
+
+function updateToolbar(toolbar: HTMLElement, view: EditorView): void {
+  for (const button of toolbar.querySelectorAll<HTMLButtonElement>(
+    '.rgm-comment-editor-btn[data-mark]',
+  )) {
+    const markName = button.getAttribute('data-mark')
+    const type = markName ? markdownSchema.marks[markName] : undefined
+    const active = Boolean(type && selectionFullyHasMark(view.state, type))
+    button.classList.toggle('is-active', active)
+    button.setAttribute('aria-pressed', active ? 'true' : 'false')
+  }
+}
+
 function buildToolbar(toolbar: HTMLElement, view: EditorView): void {
   const btn = (
     label: string,
-    title: string,
+    tooltip: string,
     run: () => void,
+    markName?: 'strong' | 'code',
   ): HTMLButtonElement => {
     const el = document.createElement('button')
     el.type = 'button'
     el.className = 'rgm-comment-editor-btn'
     el.textContent = label
-    el.title = title
-    el.setAttribute('aria-label', title)
+    el.setAttribute('data-tooltip', tooltip)
+    el.setAttribute('aria-label', tooltip)
+    if (markName) {
+      el.setAttribute('data-mark', markName)
+      el.setAttribute('aria-pressed', 'false')
+    }
     el.addEventListener('mousedown', (event) => {
       event.preventDefault()
       view.focus()
@@ -157,45 +329,17 @@ function buildToolbar(toolbar: HTMLElement, view: EditorView): void {
     return el
   }
 
-  const mark = (name: 'strong' | 'em' | 'code' | 'strikethrough') => {
+  const mark = (name: 'strong' | 'code') => {
     const type = markdownSchema.marks[name]!
     return () => toggleMark(type)(view.state, view.dispatch)
   }
 
   toolbar.append(
-    btn('B', 'Bold', mark('strong')),
-    btn('I', 'Italic', mark('em')),
-    btn('<>', 'Code', mark('code')),
-    btn('S', 'Strikethrough', mark('strikethrough')),
-    btn('Link', 'Link', () => setLink(view)),
-    btn('•', 'Bulleted list', () =>
-      wrapInList(markdownSchema.nodes.bullet_list!)(view.state, view.dispatch),
-    ),
-    btn('1.', 'Numbered list', () =>
-      wrapInList(markdownSchema.nodes.ordered_list!)(view.state, view.dispatch),
-    ),
-    btn('“', 'Quote', () =>
-      wrapIn(markdownSchema.nodes.blockquote!)(view.state, view.dispatch),
-    ),
-    btn('{}', 'Code block', () =>
-      setBlockType(markdownSchema.nodes.code_block!)(view.state, view.dispatch),
-    ),
-    btn('P', 'Paragraph', () =>
-      setBlockType(markdownSchema.nodes.paragraph!)(view.state, view.dispatch),
-    ),
+    btn('B', 'Bold (⌘B)', mark('strong'), 'strong'),
+    btn('<>', 'Inline code (⌘E)', mark('code'), 'code'),
+    btn('•', 'Bulleted list', () => applyBlock(view, 'bullet')),
+    btn('1.', 'Numbered list', () => applyBlock(view, 'ordered')),
+    btn('“', 'Block quote', () => applyBlock(view, 'quote')),
+    btn('{}', 'Code block', () => applyBlock(view, 'code')),
   )
-}
-
-function setLink(view: EditorView): void {
-  const type = markdownSchema.marks.link!
-  const { from, to, empty } = view.state.selection
-  if (empty) return
-  const href = window.prompt('Link URL')
-  if (href == null) return
-  if (!href.trim()) {
-    toggleMark(type)(view.state, view.dispatch)
-    return
-  }
-  const tr = view.state.tr.addMark(from, to, type.create({ href: href.trim() }))
-  view.dispatch(tr)
 }

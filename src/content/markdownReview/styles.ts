@@ -143,7 +143,7 @@ const CSS = `
   border: 1px solid var(--rgm-bp-300, var(--borderColor-default, #c4cbd1));
   border-radius: 6px;
   background: var(--bgColor-default, #ffffff);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .rgm-comment-editor-toolbar {
@@ -153,9 +153,12 @@ const CSS = `
   padding: 4px 6px;
   border-bottom: 1px solid var(--rgm-bp-200, var(--borderColor-muted, #e0e7ed));
   background: var(--rgm-bp-25, var(--bgColor-muted, #f7f8f9));
+  border-radius: 6px 6px 0 0;
+  overflow: visible;
 }
 
 .rgm-comment-editor-btn {
+  position: relative;
   margin: 0;
   padding: 4px 8px;
   border: none;
@@ -170,6 +173,37 @@ const CSS = `
 
 .rgm-comment-editor-btn:hover {
   background: var(--control-transparent-bgColor-hover, rgba(208, 215, 222, 0.32));
+}
+
+.rgm-comment-editor-btn.is-active,
+.rgm-comment-editor-btn[aria-pressed='true'] {
+  background: var(--control-transparent-bgColor-selected, rgba(208, 215, 222, 0.48));
+  box-shadow: inset 0 0 0 1px var(--rgm-bp-300, var(--borderColor-default, #c4cbd1));
+}
+
+.rgm-comment-editor-btn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--bgColor-emphasis, #24292f);
+  color: var(--fgColor-onEmphasis, #ffffff);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.rgm-comment-editor-btn[data-tooltip]:hover::after,
+.rgm-comment-editor-btn[data-tooltip]:focus-visible::after {
+  opacity: 1;
 }
 
 .rgm-comment-editor-surface {
@@ -201,6 +235,12 @@ const CSS = `
   margin-bottom: 0;
 }
 
+.rgm-comment-editor-content ul,
+.rgm-comment-editor-content ol {
+  margin: 0.35em 0;
+  padding-left: 1.5em;
+}
+
 .rgm-comment-editor-content pre {
   margin: 0.5em 0;
   padding: 8px;
@@ -208,6 +248,49 @@ const CSS = `
   background: var(--bgColor-muted, #f6f8fa);
   overflow: auto;
   font-size: 12px;
+}
+
+.rgm-comment-editor-content code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--rgm-ocean-25, var(--bgColor-accent-muted, #f0f5fa));
+  color: var(--rgm-ocean-700, var(--fgColor-accent, #124c5f));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.rgm-comment-editor-content pre code {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+.rgm-comment-editor-content blockquote {
+  position: relative;
+  margin: 0.5em 0;
+  padding: 10px 12px 10px 14px;
+  border-left: 4px solid var(--borderColor-accent-emphasis, #1b9e8a);
+  border-radius: 0 6px 6px 0;
+  background: var(--rgm-bp-25, var(--bgColor-muted, #f7f8f9));
+  color: var(--rgm-bp-700, var(--fgColor-muted, #5a656f));
+  font-style: italic;
+}
+
+.rgm-comment-editor-content blockquote::before {
+  content: '“';
+  display: block;
+  margin: 0 0 4px;
+  color: var(--borderColor-accent-emphasis, #1b9e8a);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rgm-comment-editor-content blockquote p {
+  margin: 0;
 }
 
 .rgm-md-body {
@@ -252,6 +335,36 @@ const CSS = `
 
 .rgm-md-body a {
   color: var(--fgColor-accent, #0969da);
+}
+
+.rgm-md-body blockquote {
+  position: relative;
+  margin: 0.5em 0;
+  padding: 10px 12px 10px 14px;
+  border-left: 4px solid var(--borderColor-accent-emphasis, #1b9e8a);
+  border-radius: 0 6px 6px 0;
+  background: var(--rgm-bp-25, var(--bgColor-muted, #f7f8f9));
+  color: var(--rgm-bp-700, var(--fgColor-muted, #5a656f));
+  font-style: italic;
+}
+
+.rgm-md-body blockquote::before {
+  content: '“';
+  display: block;
+  margin: 0 0 4px;
+  color: var(--borderColor-accent-emphasis, #1b9e8a);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rgm-md-body blockquote > :first-child {
+  margin-top: 0;
+}
+
+.rgm-md-body blockquote > :last-child {
+  margin-bottom: 0;
 }
 
 .rgm-thread-comment {
@@ -561,10 +674,33 @@ const CSS = `
 }
 
 [data-rgm-rich] .rgm-rich-content blockquote {
-  margin: 0;
-  padding-left: 12px;
-  border-left: 3px solid var(--rgm-bp-300);
+  position: relative;
+  margin: 0.75em 0;
+  padding: 12px 14px 12px 16px;
+  border-left: 4px solid var(--borderColor-accent-emphasis, #1b9e8a);
+  border-radius: 0 8px 8px 0;
+  background: var(--rgm-bp-25);
   color: var(--rgm-bp-700);
+  font-style: italic;
+}
+
+[data-rgm-rich] .rgm-rich-content blockquote::before {
+  content: '“';
+  display: block;
+  margin: 0 0 6px;
+  color: var(--borderColor-accent-emphasis, #1b9e8a);
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+
+[data-rgm-rich] .rgm-rich-content blockquote > :first-child {
+  margin-top: 0;
+}
+
+[data-rgm-rich] .rgm-rich-content blockquote > :last-child {
+  margin-bottom: 0;
 }
 
 [data-rgm-rich] .rgm-rich-content ul,
