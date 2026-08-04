@@ -38,6 +38,8 @@ GitHub OAuth callback URL (Device Flow / identity):
 
 `https://knlaahnhnocjejneaobpbbnfibfnoiei.chromiumapp.org/`
 
+OAuth **Client ID** (public) lives in [`src/shared/githubAuth.ts`](src/shared/githubAuth.ts). Device Flow is enabled on the Markdup OAuth App — no client secret in the extension.
+
 After a rebuild, remove any old unpacked Markdup install and load `dist/` again so Chrome picks up the new ID.
 
 ### Use the extension

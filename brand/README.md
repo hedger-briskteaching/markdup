@@ -10,3 +10,4 @@ With the public `key` in `manifest.config.ts`:
 
 - **ID:** `knlaahnhnocjejneaobpbbnfibfnoiei`
 - **OAuth callback:** `https://knlaahnhnocjejneaobpbbnfibfnoiei.chromiumapp.org/`
+- **Client ID:** `Ov23ligHmXvOghPDOSCF` (also in `src/shared/githubAuth.ts`)
