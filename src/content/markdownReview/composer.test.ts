@@ -87,6 +87,80 @@ describe('bindComposer', () => {
     expect(host.textContent).toMatch(/L\d+/)
   })
 
+  it('clears the highlight when clicking off collapses the selection', async () => {
+    const baseText = '# Title\n\nOld.\n'
+    const headText = '# Title\n\nNew line.\n'
+    const rows = alignMarkdown(baseText, headText)
+    const host = renderRowsForTest(rows, {
+      baseText,
+      headText,
+      owner: 'o',
+      repo: 'r',
+      pullNumber: 1,
+      path: 'docs/PLAN.md',
+      baseSha: 'aaa',
+      headSha: 'bbb',
+    })
+    document.body.appendChild(host)
+    bindComposer(host)
+
+    selectNeedle(host, 'New line')
+    host.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-rgm-sel-highlight]')).not.toBeNull()
+    })
+
+    // Click off: the browser collapses the selection before mouseup fires.
+    window.getSelection()!.removeAllRanges()
+    host.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-rgm-sel-highlight]')).toBeNull()
+    })
+    expect(host.querySelector('.rgm-sel-highlight-cell')).toBeNull()
+    expect(host.querySelector('[data-rgm-comment-bubble]')).toBeNull()
+  })
+
+  it('keeps the highlight on collapsed-selection clicks while the composer is open', async () => {
+    vi.stubGlobal('chrome', { runtime: { sendMessage: vi.fn() } })
+    const baseText = 'Hello world.\n'
+    const headText = 'Hello world.\n'
+    const rows = alignMarkdown(baseText, headText)
+    const host = renderRowsForTest(rows, {
+      baseText,
+      headText,
+      owner: 'o',
+      repo: 'r',
+      pullNumber: 7,
+      path: 'README.md',
+      headSha: 'bbb',
+    })
+    document.body.appendChild(host)
+    bindComposer(host)
+
+    selectNeedle(host, 'Hello')
+    host.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-rgm-comment-bubble]')).not.toBeNull()
+    })
+    host
+      .querySelector<HTMLButtonElement>(
+        '[data-rgm-comment-bubble] .rgm-comment-bubble-btn',
+      )!
+      .click()
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-rgm-composer]')).not.toBeNull()
+    })
+
+    // Clicking into the textarea collapses the selection; anchor must stay.
+    window.getSelection()!.removeAllRanges()
+    host.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(host.querySelector('[data-rgm-sel-highlight]')).not.toBeNull()
+    expect(host.querySelector('[data-rgm-composer]')).not.toBeNull()
+  })
+
   it('opens the composer from the Comment bubble and posts', async () => {
     const created = {
       id: 99,

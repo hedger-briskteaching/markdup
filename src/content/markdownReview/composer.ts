@@ -56,8 +56,11 @@ export function bindComposer(richRoot: HTMLElement): () => void {
       return
     }
     // Only dismiss when the press is outside the rich root (or on chrome).
+    // No composer is open here, so drop the highlight with the selection —
+    // mouseup outside the root never reaches our handler.
     if (!richRoot.contains(target)) {
       removeBubble(richRoot)
+      clearSelectionHighlight(richRoot)
       return
     }
     // Inside rich content: let mouseup recreate the bubble for a new selection.
@@ -81,6 +84,12 @@ function maybeShowBubble(richRoot: HTMLElement): void {
     const selection = window.getSelection()
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
       removeBubble(richRoot)
+      // Clicking off collapses the selection — drop the highlight with it
+      // (native behavior). Keep it only while the composer is open, since
+      // it marks the comment anchor.
+      if (!richRoot.querySelector(`[${COMPOSER_ATTR}]`)) {
+        clearSelectionHighlight(richRoot)
+      }
       return
     }
 
