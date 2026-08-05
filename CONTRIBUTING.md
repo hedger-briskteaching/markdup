@@ -42,8 +42,6 @@ End users install from [GitHub Releases](https://github.com/hedger-briskteaching
 
 Maintainers cut a release with `pnpm release` (always bumps; default **patch**). Use `pnpm release -- minor`, `pnpm release -- major`, or `pnpm release -- X.Y.Z` when needed. That script packages a zip locally and prints tag / `gh release create` commands. Do **not** commit files under `releases/release-*/` — zips are gitignored and uploaded as Release assets only.
 
-AI agents should follow [.cursor/prompts/create-release.md](.cursor/prompts/create-release.md).
-
 ## Code of conduct
 
 This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
