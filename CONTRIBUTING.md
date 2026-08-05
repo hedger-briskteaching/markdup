@@ -34,15 +34,12 @@ After you change `manifest.config.ts`, refresh the extension card on `chrome://e
 2. Add or update tests when behavior changes.
 3. Make sure `pnpm type-check`, `pnpm test`, and `pnpm build` pass locally.
 4. For UI or content-script changes, smoke-test on a real GitHub PR **Files changed** page.
-5. Use the PR template checklist.
 
 ## Releases (maintainers)
 
 End users install from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases). See [releases/README.md](releases/README.md).
 
 Maintainers cut a release with `pnpm release` (always bumps; default **patch**). Use `pnpm release -- minor`, `pnpm release -- major`, or `pnpm release -- X.Y.Z` when needed. That script packages a zip locally and prints tag / `gh release create` commands. Do **not** commit files under `releases/release-*/` — zips are gitignored and uploaded as Release assets only.
-
-AI agents should follow [.cursor/prompts/create-release.md](.cursor/prompts/create-release.md).
 
 ## Code of conduct
 
