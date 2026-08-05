@@ -6,5 +6,11 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['src/**/*.test.ts'],
     restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.d.ts'],
+    },
   },
 })

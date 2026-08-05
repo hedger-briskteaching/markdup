@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="brand/markdup-logo.png" alt="Markdup" width="160" height="160" />
+  <img src="public/icons/logo.svg" alt="Markdup" width="160" height="160" />
 </p>
 
 <h1 align="center">Markdup</h1>
@@ -14,10 +14,19 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/hedger-briskteaching/markdup/actions/workflows/ci.yml"><img src="https://github.com/hedger-briskteaching/markdup/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg" alt="Node.js 20+" />
+  <img src="https://img.shields.io/badge/typescript-5.8-blue.svg" alt="TypeScript" />
+</p>
+
+<p align="center">
   <a href="#why-markdup">Why Markdup</a> ·
   <a href="#what-you-get">What you get</a> ·
   <a href="#getting-started">Getting started</a> ·
-  <a href="#use-the-extension">Use the extension</a>
+  <a href="#use-the-extension">Use the extension</a> ·
+  <a href="#privacy">Privacy</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
 ---
@@ -43,6 +52,12 @@ Markdup loads the file at the pull request base and head. Then it aligns blocks 
 | **Local GitHub access** | OAuth or a personal access token. The token stays in this browser. |
 
 Markdup runs on the pull request **Files changed** page. It targets `.md` and `.markdown` files.
+
+---
+
+## Privacy
+
+Markdup has **no backend**. Your GitHub token (OAuth or personal access token) stays in this browser via Chrome extension storage. The OAuth Client ID is public; the extension does not ship a client secret. See [SECURITY.md](SECURITY.md) for how to report vulnerabilities.
 
 ---
 
@@ -101,7 +116,7 @@ Both paths store one access token in this browser only. Markdup has no server th
 
 ## Use the extension
 
-1. Open a pull request **Files changed** page on GitHub  
+1. Open a pull request **Files changed** page on GitHub
    (`…/pull/<n>/changes` or classic `…/pull/<n>/files`).
 2. On a changed `.md` file, turn on the **Markdup** switch in the file header.
 3. Click the extension icon in the Chrome toolbar to open the popup (or Settings).
@@ -138,6 +153,11 @@ This command type-checks and writes an optimized bundle to `dist/`. Load that fo
 | `pnpm build` | Production build into `dist/` |
 | `pnpm type-check` | TypeScript check only |
 | `pnpm test` | Run unit tests |
+| `pnpm test:coverage` | Unit tests with a coverage summary |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Project layout
 
@@ -158,5 +178,5 @@ This command type-checks and writes an optimized bundle to `dist/`. Load that fo
 ---
 
 <p align="center">
-  <sub>Built with Vite, CRXJS, React, TypeScript, and Tailwind CSS.</sub>
+  <sub>Built with Vite, CRXJS, React, TypeScript, and Tailwind CSS. · <a href="LICENSE">MIT</a></sub>
 </p>
