@@ -7,6 +7,7 @@ import {
   setAuthPanelError,
   showAuthPanel,
 } from './authPanel'
+import { maybeShowToggleNux, resetToggleNuxForTests } from './nux'
 import { clearRichPathIntents, hasRichPathIntent } from './richIntent'
 import { ensureRichMounted, isRichMode, setRichMode } from './richStub'
 import {
@@ -345,6 +346,7 @@ export function resetAuthListenerForTests(): void {
   authListenerAttached = false
   pendingRegions.clear()
   clearRichPathIntents()
+  resetToggleNuxForTests()
 }
 
 /**
@@ -379,6 +381,7 @@ export function injectToggle(region: Element, path: string): void {
   const native = findNativeFileViewToggle(region)
   const toggle = createToggleControl(path, region)
   placeToggle(region, toggle, native)
+  void maybeShowToggleNux(toggle)
 
   // Header re-render wiped previous toggle. Restore rich intent.
   if (hasRichPathIntent(path)) {

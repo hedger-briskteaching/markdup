@@ -13,6 +13,7 @@ describe('injectStyles', () => {
     const styles = document.querySelectorAll('#rgm-markdown-review-styles')
     expect(styles).toHaveLength(1)
     expect(styles[0]?.textContent).toContain('[data-rgm-toggle]')
+    expect(styles[0]?.textContent).toContain('[data-rgm-nux]')
     expect(styles[0]?.textContent).toContain('[data-rgm-stub]')
   })
 

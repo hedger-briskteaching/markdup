@@ -52,6 +52,75 @@ const CSS = `
   opacity: 1;
 }
 
+/* Hide the hover tooltip while the one-time NUX coachmark is open. */
+[data-rgm-toggle]:has([data-rgm-nux])[data-tooltip]::after {
+  display: none;
+}
+
+[data-rgm-nux] {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 60;
+  box-sizing: border-box;
+  width: 260px;
+  pointer-events: auto;
+}
+
+[data-rgm-nux] .rgm-nux-arrow {
+  position: absolute;
+  right: 28px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  background: var(--bgColor-emphasis, #24292f);
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+[data-rgm-nux] .rgm-nux-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--bgColor-emphasis, #24292f);
+  color: var(--fgColor-onEmphasis, #ffffff);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+[data-rgm-nux] .rgm-nux-message {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+}
+
+[data-rgm-nux] .rgm-nux-dismiss {
+  align-self: flex-end;
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fgColor-onEmphasis, #ffffff);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+[data-rgm-nux] .rgm-nux-dismiss:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+[data-rgm-nux] .rgm-nux-dismiss:focus-visible {
+  outline: 2px solid var(--focus-outlineColor, #0969da);
+  outline-offset: 2px;
+}
+
 [data-rgm-header-divider] {
   display: inline-flex;
   align-items: center;

@@ -43,6 +43,12 @@ function mockAuthOk(login = 'tester') {
         removeListener: vi.fn(),
       },
     },
+    storage: {
+      local: {
+        get: vi.fn(async () => ({})),
+        set: vi.fn(async () => undefined),
+      },
+    },
   })
 }
 
@@ -76,6 +82,12 @@ function mockAuthNeedsConnect() {
           listeners.push(listener)
         }),
         removeListener: vi.fn(),
+      },
+    },
+    storage: {
+      local: {
+        get: vi.fn(async () => ({})),
+        set: vi.fn(async () => undefined),
       },
     },
   })
@@ -132,6 +144,21 @@ describe('injectToggle', () => {
     expect(divider?.nextElementSibling).toBe(toggle)
     expect(kebab?.nextElementSibling).toBe(divider)
     expect(actions?.lastElementChild).toBe(toggle)
+  })
+
+  it('shows the toggle NUX once on first mount', async () => {
+    const region = createFileRegion({ path: 'docs/PLAN.md' })
+    document.body.appendChild(region)
+
+    injectToggle(region, 'docs/PLAN.md')
+
+    await vi.waitFor(() => {
+      expect(region.querySelector('[data-rgm-nux]')).not.toBeNull()
+    })
+    expect(region.textContent).toContain(
+      'review markdown files in rich text format',
+    )
+    expect(chrome.storage.local.set).toHaveBeenCalled()
   })
 
   it('is idempotent', () => {
