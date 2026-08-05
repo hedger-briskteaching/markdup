@@ -33,7 +33,7 @@
 
 ## Demo
 
-<video src="https://github.com/user-attachments/assets/00826144-6cc4-4e03-87db-6a7929987911" controls autoplay loop muted playsinline width="800"></video>
+https://github.com/user-attachments/assets/00826144-6cc4-4e03-87db-6a7929987911
 
 ---
 
