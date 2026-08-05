@@ -40,7 +40,7 @@ After you change `manifest.config.ts`, refresh the extension card on `chrome://e
 
 End users install from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases). See [releases/README.md](releases/README.md).
 
-Maintainers cut a release with `pnpm release` (always bumps; default **patch**). Use `pnpm release -- minor`, `pnpm release -- major`, or `pnpm release -- X.Y.Z` when needed. That script packages a zip locally and prints tag / `gh release create` commands. Do **not** commit files under `releases/release-*/` — zips are gitignored and uploaded as Release assets only.
+Maintainers cut a release with `pnpm release` (always bumps; default **patch**). Use `pnpm release -- minor`, `pnpm release -- major`, or `pnpm release -- X.Y.Z` when needed. Before packaging, rewrite [`releases/release-notes.md`](releases/release-notes.md) with short, clear notes for that version (used as the GitHub Release body via `--notes-file`). That script packages a zip locally and prints tag / `gh release create` commands. Do **not** commit files under `releases/release-*/` — zips are gitignored and uploaded as Release assets only.
 
 ## Code of conduct
 

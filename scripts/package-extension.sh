@@ -49,6 +49,13 @@ fi
 mkdir -p "$OUT_DIR"
 rm -f "$ZIP_PATH"
 
+if [[ ! -f releases/release-notes.md ]]; then
+  echo "error: releases/release-notes.md missing — write short release notes before packaging" >&2
+  exit 1
+fi
+
+cp releases/release-notes.md "${OUT_DIR}/release-notes.md"
+
 # Zip contents of dist/ so unzipping yields manifest.json at the root.
 (
   cd dist
@@ -57,5 +64,6 @@ rm -f "$ZIP_PATH"
 
 echo ""
 echo "Created ${ZIP_PATH}"
+echo "Notes:  ${OUT_DIR}/release-notes.md"
 echo "Verify: unzip -l ${ZIP_PATH} | head  (expect manifest.json at the archive root)"
 echo "Next: upload this zip as a GitHub Release asset (see scripts/release.sh)"

@@ -66,7 +66,7 @@ Markdup runs on the pull request **Files changed** page. It targets `.md` and `.
 
 ## Getting started
 
-No Node.js required. Download a prebuilt zip from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases) and load it in Chrome. Full steps: [releases/README.md](releases/README.md).
+Download a prebuilt zip from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases) and load it in Chrome. Full steps: [releases/README.md](releases/README.md).
 
 To build or contribute instead, see [Develop from source](#develop-from-source).
 
@@ -170,7 +170,7 @@ This command type-checks and writes an optimized bundle to `dist/`. Load that fo
 | `pnpm type-check` | TypeScript check only |
 | `pnpm test` | Run unit tests |
 | `pnpm test:coverage` | Unit tests with a coverage summary |
-| `pnpm package` | Type-check, test, build, and zip into `releases/release-X.Y.Z/` |
+| `pnpm package` | Type-check, test, build, and zip into `releases/release-X.Y.Z/` (requires `releases/release-notes.md`) |
 | `pnpm release` | Patch-bump version, package, and print publish steps |
 
 ### Project layout
@@ -188,7 +188,7 @@ This command type-checks and writes an optimized bundle to `dist/`. Load that fo
 | `docs/demo.mp4` | Local copy of the product demo (README embeds the GitHub-hosted upload) |
 | `public/icons/` | Extension icons |
 | `brand/` | Logo and brand assets |
-| `releases/` | Install-from-zip docs (downloadable zips live on GitHub Releases) |
+| `releases/` | Install-from-zip docs and `release-notes.md` (downloadable zips live on GitHub Releases) |
 | `scripts/` | Package and release helpers |
 | `dist/` | Built extension (load this in Chrome) |
 
