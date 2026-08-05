@@ -20,7 +20,9 @@
     "type-check": "tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "package": "bash scripts/package-extension.sh",
+    "release": "bash scripts/release.sh"
   },
   "dependencies": {
     "prosemirror-commands": "^1.7.1",

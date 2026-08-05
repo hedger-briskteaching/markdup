@@ -63,7 +63,11 @@ Markdup has **no backend**. Your GitHub token (OAuth or personal access token) s
 
 ## Getting started
 
-### Prerequisites
+### Install from a release zip (no Node.js)
+
+Download a prebuilt zip from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases) and load it in Chrome. Full steps: [releases/README.md](releases/README.md).
+
+### Prerequisites (develop from source)
 
 - [Node.js](https://nodejs.org/) 20+
 - [pnpm](https://pnpm.io/) 10+
@@ -86,7 +90,7 @@ pnpm dev
 1. Open Chrome and go to `chrome://extensions`.
 2. Turn on **Developer mode** (toggle in the top-right).
 3. Click **Load unpacked**.
-4. Select the `dist` folder of this project.
+4. Select the `dist` folder of this project (or an unzipped release folder — see [releases/README.md](releases/README.md)).
 5. Make sure that **Markdup** appears in the extensions list and is enabled.
 
 The manifest includes a fixed public `key`, so the extension ID is always:
@@ -154,6 +158,8 @@ This command type-checks and writes an optimized bundle to `dist/`. Load that fo
 | `pnpm type-check` | TypeScript check only |
 | `pnpm test` | Run unit tests |
 | `pnpm test:coverage` | Unit tests with a coverage summary |
+| `pnpm package` | Type-check, test, build, and zip into `releases/release-X.Y.Z/` |
+| `pnpm release` | Patch-bump version, package, and print publish steps |
 
 ## Contributing
 
@@ -173,6 +179,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Please follow the [Code of Conduct](CODE
 | `docs/rich-markdown-view.md` | Rich Before/After view notes |
 | `public/icons/` | Extension icons |
 | `brand/` | Logo and brand assets |
+| `releases/` | Install-from-zip docs (downloadable zips live on GitHub Releases) |
+| `scripts/` | Package and release helpers |
 | `dist/` | Built extension (load this in Chrome) |
 
 ---
