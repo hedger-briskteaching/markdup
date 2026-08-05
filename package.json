@@ -1,7 +1,7 @@
 {
   "name": "markdup",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Rich Markdown review for GitHub pull requests — markdown source, markup preview.",
   "license": "MIT",
   "type": "module",

@@ -13,7 +13,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-BUMP_ARG="${1:-patch}"
+# pnpm may forward a literal "--" before the bump arg (pnpm release -- 0.1.1).
+ARGS=()
+for arg in "$@"; do
+  if [[ "$arg" != "--" ]]; then
+    ARGS+=("$arg")
+  fi
+done
+BUMP_ARG="${ARGS[0]:-patch}"
 
 CURRENT="$(node -p "require('./package.json').version")"
 
