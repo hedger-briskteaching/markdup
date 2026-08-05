@@ -21,12 +21,24 @@
 </p>
 
 <p align="center">
+  <a href="#demo">Demo</a> ·
   <a href="#why-markdup">Why Markdup</a> ·
   <a href="#what-you-get">What you get</a> ·
   <a href="#getting-started">Getting started</a> ·
   <a href="#use-the-extension">Use the extension</a> ·
   <a href="#privacy">Privacy</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+---
+
+## Demo
+
+<p align="center">
+  <video src="docs/demo.mp4" controls width="800" playsinline>
+    Your browser does not support the video tag.
+    <a href="docs/demo.mp4">Watch the Markdup demo</a>
+  </video>
 </p>
 
 ---
@@ -180,6 +192,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Please follow the [Code of Conduct](CODE
 | `src/markdown/` | Markdown → ProseMirror schema, align, and transform |
 | `docs/markdown-schema.md` | Schema and transform notes |
 | `docs/rich-markdown-view.md` | Rich Before/After view notes |
+| `docs/demo.mp4` | Short product demo for the README |
 | `public/icons/` | Extension icons |
 | `brand/` | Logo and brand assets |
 | `releases/` | Install-from-zip docs (downloadable zips live on GitHub Releases) |
