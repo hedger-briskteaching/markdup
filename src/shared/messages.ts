@@ -71,6 +71,7 @@ export type UpdateReviewCommentRequest = {
   type: 'UPDATE_REVIEW_COMMENT'
   owner: string
   repo: string
+  pullNumber: number
   commentId: number
   body: string
 }
@@ -79,6 +80,7 @@ export type DeleteReviewCommentRequest = {
   type: 'DELETE_REVIEW_COMMENT'
   owner: string
   repo: string
+  pullNumber: number
   commentId: number
 }
 

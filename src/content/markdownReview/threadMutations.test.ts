@@ -244,6 +244,8 @@ describe('thread reply / edit / delete', () => {
       expect.objectContaining({
         type: 'UPDATE_REVIEW_COMMENT',
         commentId: 10,
+        // Needed so the background can find pending drafts via GraphQL.
+        pullNumber: 1,
         body: 'Updated body',
       }),
     )
@@ -277,7 +279,11 @@ describe('thread reply / edit / delete', () => {
       expect(host.querySelector('[data-rgm-thread-card]')).toBeNull()
     })
     expect(sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'DELETE_REVIEW_COMMENT', commentId: 10 }),
+      expect.objectContaining({
+        type: 'DELETE_REVIEW_COMMENT',
+        commentId: 10,
+        pullNumber: 1,
+      }),
     )
   })
 })

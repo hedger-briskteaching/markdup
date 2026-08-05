@@ -338,6 +338,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     void updateReviewComment({
       owner: request.owner,
       repo: request.repo,
+      pullNumber: request.pullNumber,
       commentId: request.commentId,
       body: request.body,
     })
@@ -356,6 +357,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     void deleteReviewComment({
       owner: request.owner,
       repo: request.repo,
+      pullNumber: request.pullNumber,
       commentId: request.commentId,
     })
       .then(() => sendResponse({ ok: true as const }))

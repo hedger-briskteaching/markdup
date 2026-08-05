@@ -1021,6 +1021,20 @@ async function addReplyViaThreadGraphql(args: {
 }
 
 /**
+ * GraphQL node IDs for a review comment, plus the anchor of the thread that
+ * holds it. Anchor fields live on the thread, not on the comment.
+ */
+type ReviewCommentRef = {
+  commentNodeId: string
+  threadNodeId: string
+  path: string
+  line: number | null
+  startLine: number | null
+  originalLine: number | null
+  diffSide: 'LEFT' | 'RIGHT' | null
+}
+
+/**
  * Paginate through review threads to find the GraphQL node ID of the thread
  * that contains a specific comment (by database ID).
  * @param owner - Repository owner login.
@@ -1037,6 +1051,34 @@ async function findReviewThreadNodeIdForComment(
   commentDatabaseId: number,
   token: string,
 ): Promise<string | null> {
+  const ref = await findReviewCommentRef(
+    owner,
+    repo,
+    pullNumber,
+    commentDatabaseId,
+    token,
+  )
+  return ref?.threadNodeId ?? null
+}
+
+/**
+ * Paginate through review threads to find the GraphQL node IDs for a comment.
+ * Pending draft comments are only reachable this way, because REST hides them
+ * until the review is submitted.
+ * @param owner - Repository owner login.
+ * @param repo - Repository name.
+ * @param pullNumber - Pull request number.
+ * @param commentDatabaseId - The numeric database ID of the target comment.
+ * @param token - GitHub access token.
+ * @returns The comment and thread node IDs, or null if not found.
+ */
+async function findReviewCommentRef(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  commentDatabaseId: number,
+  token: string,
+): Promise<ReviewCommentRef | null> {
   type ThreadLookup = {
     repository: {
       pullRequest: {
@@ -1044,7 +1086,14 @@ async function findReviewThreadNodeIdForComment(
           pageInfo: { hasNextPage: boolean; endCursor: string | null }
           nodes: Array<{
             id: string
-            comments: { nodes: Array<{ databaseId: number | null }> }
+            path: string
+            line: number | null
+            startLine: number | null
+            originalLine: number | null
+            diffSide: 'LEFT' | 'RIGHT' | null
+            comments: {
+              nodes: Array<{ id: string; databaseId: number | null }>
+            }
           }>
         }
       } | null
@@ -1062,8 +1111,13 @@ async function findReviewThreadNodeIdForComment(
               pageInfo { hasNextPage endCursor }
               nodes {
                 id
+                path
+                line
+                startLine
+                originalLine
+                diffSide
                 comments(first: 50) {
-                  nodes { databaseId }
+                  nodes { id databaseId }
                 }
               }
             }
@@ -1077,13 +1131,19 @@ async function findReviewThreadNodeIdForComment(
     if (!connection) return null
 
     for (const thread of connection.nodes) {
-      if (
-        thread.comments.nodes.some(
-          (c: { databaseId: number | null }) =>
-            c.databaseId === commentDatabaseId,
-        )
-      ) {
-        return thread.id
+      const match = thread.comments.nodes.find(
+        (c) => c.databaseId === commentDatabaseId,
+      )
+      if (match) {
+        return {
+          commentNodeId: match.id,
+          threadNodeId: thread.id,
+          path: thread.path,
+          line: thread.line,
+          startLine: thread.startLine,
+          originalLine: thread.originalLine,
+          diffSide: thread.diffSide,
+        }
       }
     }
 
@@ -1098,13 +1158,16 @@ async function findReviewThreadNodeIdForComment(
 export type UpdateReviewCommentInput = {
   owner: string
   repo: string
+  /** Needed to look the comment up in GraphQL when REST cannot see it. */
+  pullNumber: number
   commentId: number
   body: string
 }
 
 /**
  * Update the body of an existing review comment.
- * @param input - Owner, repo, comment ID, and the new body text.
+ * Falls back to GraphQL for pending drafts, which REST answers with 404.
+ * @param input - Owner, repo, pull number, comment ID, and the new body text.
  * @returns The updated PullReviewComment.
  */
 export async function updateReviewComment(
@@ -1114,26 +1177,108 @@ export async function updateReviewComment(
   if (!token) {
     throw new Error('Connect to GitHub before editing a comment.')
   }
-  const raw = await githubFetch<ApiComment>(
-    `/repos/${input.owner}/${input.repo}/pulls/comments/${input.commentId}`,
+  try {
+    const raw = await githubFetch<ApiComment>(
+      `/repos/${input.owner}/${input.repo}/pulls/comments/${input.commentId}`,
+      {
+        token,
+        method: 'PATCH',
+        body: { body: input.body },
+      },
+    )
+    return normalizeComment(raw)
+  } catch (error) {
+    if (!isNotFound(error)) throw error
+    return updateViaGraphql(input, token)
+  }
+}
+
+/**
+ * Update a review comment through GraphQL, which can see pending drafts.
+ * @param input - Owner, repo, pull number, comment ID, and the new body text.
+ * @param token - GitHub access token.
+ * @returns The updated PullReviewComment.
+ */
+async function updateViaGraphql(
+  input: UpdateReviewCommentInput,
+  token: string,
+): Promise<PullReviewComment> {
+  const ref = await findReviewCommentRef(
+    input.owner,
+    input.repo,
+    input.pullNumber,
+    input.commentId,
+    token,
+  )
+  if (!ref) {
+    throw new GitHubApiError('Could not find this review comment.', 404)
+  }
+
+  // Anchor fields (path, line, side) belong to the thread, not the comment.
+  const data = await githubGraphql<{
+    updatePullRequestReviewComment: {
+      pullRequestReviewComment:
+        | (GraphqlReviewComment & { replyTo: { databaseId: number } | null })
+        | null
+    }
+  }>(
+    token,
+    `mutation($pullRequestReviewCommentId: ID!, $body: String!) {
+      updatePullRequestReviewComment(input: {
+        pullRequestReviewCommentId: $pullRequestReviewCommentId
+        body: $body
+      }) {
+        pullRequestReviewComment {
+          databaseId
+          body
+          url
+          createdAt
+          commit { oid }
+          author { login }
+          pullRequestReview { databaseId }
+          replyTo { databaseId }
+        }
+      }
+    }`,
     {
-      token,
-      method: 'PATCH',
-      body: { body: input.body },
+      pullRequestReviewCommentId: ref.commentNodeId,
+      body: input.body,
     },
   )
-  return normalizeComment(raw)
+
+  const node = data.updatePullRequestReviewComment.pullRequestReviewComment
+  if (!node) {
+    throw new Error('GitHub did not return the updated comment.')
+  }
+  return {
+    id: node.databaseId,
+    body: node.body,
+    path: ref.path,
+    side: ref.diffSide,
+    line: ref.line,
+    startLine: ref.startLine,
+    originalLine: ref.originalLine,
+    inReplyToId: node.replyTo?.databaseId ?? null,
+    userLogin: node.author?.login ?? '',
+    createdAt: node.createdAt,
+    commitId: node.commit?.oid ?? '',
+    htmlUrl: node.url,
+    pullRequestReviewId: node.pullRequestReview?.databaseId ?? null,
+  }
 }
 
 export type DeleteReviewCommentInput = {
   owner: string
   repo: string
+  /** Needed to look the comment up in GraphQL when REST cannot see it. */
+  pullNumber: number
   commentId: number
 }
 
 /**
  * Delete a review comment by its ID.
- * @param input - Owner, repo, and comment ID to delete.
+ * Falls back to GraphQL for pending drafts, which REST answers with 404.
+ * @param input - Owner, repo, pull number, and comment ID to delete.
  */
 export async function deleteReviewComment(
   input: DeleteReviewCommentInput,
@@ -1142,11 +1287,58 @@ export async function deleteReviewComment(
   if (!token) {
     throw new Error('Connect to GitHub before deleting a comment.')
   }
-  await githubFetch(
-    `/repos/${input.owner}/${input.repo}/pulls/comments/${input.commentId}`,
-    {
-      token,
-      method: 'DELETE',
-    },
+  try {
+    await githubFetch(
+      `/repos/${input.owner}/${input.repo}/pulls/comments/${input.commentId}`,
+      {
+        token,
+        method: 'DELETE',
+      },
+    )
+  } catch (error) {
+    if (!isNotFound(error)) throw error
+    await deleteViaGraphql(input, token)
+  }
+}
+
+/**
+ * Delete a review comment through GraphQL, which can see pending drafts.
+ * @param input - Owner, repo, pull number, and comment ID to delete.
+ * @param token - GitHub access token.
+ * @returns Nothing.
+ */
+async function deleteViaGraphql(
+  input: DeleteReviewCommentInput,
+  token: string,
+): Promise<void> {
+  const ref = await findReviewCommentRef(
+    input.owner,
+    input.repo,
+    input.pullNumber,
+    input.commentId,
+    token,
   )
+  if (!ref) {
+    throw new GitHubApiError('Could not find this review comment.', 404)
+  }
+
+  await githubGraphql(
+    token,
+    `mutation($id: ID!) {
+      deletePullRequestReviewComment(input: { id: $id }) {
+        clientMutationId
+      }
+    }`,
+    { id: ref.commentNodeId },
+  )
+}
+
+/**
+ * Make sure the error is a GitHub 404, which is how REST reports a comment
+ * it cannot see, including every comment in an unsubmitted review.
+ * @param error - The caught error value.
+ * @returns True when GitHub answered with 404.
+ */
+function isNotFound(error: unknown): boolean {
+  return error instanceof GitHubApiError && error.status === 404
 }

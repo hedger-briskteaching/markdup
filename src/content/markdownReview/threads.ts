@@ -801,7 +801,7 @@ async function submitEdit(args: {
     status.classList.add('rgm-composer-status-error')
     return
   }
-  if (!ctx.owner || !ctx.repo) return
+  if (!ctx.owner || !ctx.repo || !ctx.pullNumber) return
 
   save.disabled = true
   status.hidden = false
@@ -812,6 +812,7 @@ async function submitEdit(args: {
     type: 'UPDATE_REVIEW_COMMENT',
     owner: ctx.owner,
     repo: ctx.repo,
+    pullNumber: ctx.pullNumber,
     commentId: comment.id,
     body,
   })) as ReviewCommentDto | { error: string }
@@ -850,7 +851,7 @@ async function deleteComment(
   ctx: RichViewContext,
   button: HTMLButtonElement,
 ): Promise<void> {
-  if (!ctx.owner || !ctx.repo) return
+  if (!ctx.owner || !ctx.repo || !ctx.pullNumber) return
   if (!window.confirm('Delete this comment?')) return
 
   button.disabled = true
@@ -858,6 +859,7 @@ async function deleteComment(
     type: 'DELETE_REVIEW_COMMENT',
     owner: ctx.owner,
     repo: ctx.repo,
+    pullNumber: ctx.pullNumber,
     commentId: comment.id,
   })) as { ok: true } | { error: string }
 
