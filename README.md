@@ -63,34 +63,37 @@ Markdup has **no backend**. Your GitHub token (OAuth or personal access token) s
 
 ## Getting started
 
-### Install from a release zip (no Node.js)
+Pick **one** path below. You do not need both.
 
-Download a prebuilt zip from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases) and load it in Chrome. Full steps: [releases/README.md](releases/README.md).
+### Option A — Install from a release zip
 
-### Prerequisites (develop from source)
+No Node.js required. Download a prebuilt zip from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases) and load it in Chrome. Full steps: [releases/README.md](releases/README.md).
+
+Then continue with [Settings and GitHub access](#settings-and-github-access).
+
+### Option B — Build from source
+
+Use this path when you want to develop Markdup or build it yourself.
+
+**Requirements**
 
 - [Node.js](https://nodejs.org/) 20+
 - [pnpm](https://pnpm.io/) 10+
 
 ```bash
 npm install -g pnpm
-```
-
-### Install and run
-
-```bash
 pnpm install
-pnpm dev
+pnpm build
 ```
 
-`pnpm dev` starts Vite with hot reload and writes the extension into the `dist/` folder. Keep this process open while you develop.
+For day-to-day development with hot reload, use `pnpm dev` instead of `pnpm build`. Keep that process open while you work; it writes the extension into `dist/`.
 
-### Load the extension in Google Chrome
+**Load the extension in Chrome**
 
 1. Open Chrome and go to `chrome://extensions`.
 2. Turn on **Developer mode** (toggle in the top-right).
 3. Click **Load unpacked**.
-4. Select the `dist` folder of this project (or an unzipped release folder — see [releases/README.md](releases/README.md)).
+4. Select the `dist` folder of this project.
 5. Make sure that **Markdup** appears in the extensions list and is enabled.
 
 The manifest includes a fixed public `key`, so the extension ID is always:
@@ -129,8 +132,8 @@ If the switch does not appear:
 
 - Make sure that you are on the PR Files / Changes URL (not Conversation or Commits).
 - Make sure that the file is Markdown (`.md` / `.markdown`).
-- Make sure that `pnpm dev` (or a completed `pnpm build`) has produced a `dist/` folder.
-- On `chrome://extensions`, click the refresh icon on the extension card after you rebuild.
+- If you built from source, make sure that `pnpm build` (or `pnpm dev`) has produced a `dist/` folder.
+- On `chrome://extensions`, click the refresh icon on the extension card after you rebuild or reload a new unzipped release.
 
 ### Development with hot reload
 
