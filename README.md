@@ -34,15 +34,7 @@
 
 ## Demo
 
-<p align="center">
-  <a href="https://github.com/hedger-briskteaching/markdup/blob/main/docs/demo.mp4">
-    <img src="docs/demo-poster.jpg" alt="Markdup demo — click to play" width="800" />
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/hedger-briskteaching/markdup/blob/main/docs/demo.mp4"><strong>Watch the demo</strong></a>
-</p>
+https://github.com/user-attachments/assets/00826144-6cc4-4e03-87db-6a7929987911
 
 ---
 
@@ -195,8 +187,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Please follow the [Code of Conduct](CODE
 | `src/markdown/` | Markdown → ProseMirror schema, align, and transform |
 | `docs/markdown-schema.md` | Schema and transform notes |
 | `docs/rich-markdown-view.md` | Rich Before/After view notes |
-| `docs/demo.mp4` | Product demo video |
-| `docs/demo-poster.jpg` | Demo thumbnail used in the README |
+| `docs/demo.mp4` | Local copy of the product demo (README embeds the GitHub-hosted upload) |
 | `public/icons/` | Extension icons |
 | `brand/` | Logo and brand assets |
 | `releases/` | Install-from-zip docs (downloadable zips live on GitHub Releases) |
