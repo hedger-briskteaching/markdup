@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/hedger-briskteaching/markdup/actions/workflows/ci.yml"><img src="https://github.com/hedger-briskteaching/markdup/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg" alt="Node.js 20+" />
   <img src="https://img.shields.io/badge/typescript-5.8-blue.svg" alt="TypeScript" />
