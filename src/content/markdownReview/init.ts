@@ -1,9 +1,11 @@
-import { getFilePath, isMarkdownPath, isPrFilesPage } from './detect'
-import { hasRichPathIntent } from './richIntent'
-import { ensureRichMounted } from './richStub'
-import { FILE_REGION, PROGRESSIVE_DIFFS_LIST } from './selectors'
+/**
+ * Navigation half of the markdown review UI.
+ * Runs on every GitHub page, so it stays light: the scan module and its
+ * markdown dependencies load on demand once a Files or Changes URL is active.
+ */
+import { isPrFilesPage } from './detect'
+import { PROGRESSIVE_DIFFS_LIST } from './selectors'
 import { injectStyles, removeStyles } from './styles'
-import { injectToggle } from './toggle'
 
 /** Milliseconds to wait after a DOM mutation before scanning again. */
 const DEBOUNCE_MS = 75
@@ -19,28 +21,16 @@ let pageActive = false
 let lastPathname: string | null = null
 
 /**
- * Scan the page and inject toggle controls on markdown file regions.
- * @returns Nothing.
+ * Load the scan module on demand and enhance markdown regions.
+ * @returns A promise that resolves after the scan, or after a skipped scan.
  */
-export function enhanceMarkdownRegions(): void {
-  if (!isPrFilesPage()) {
+async function runScan(): Promise<void> {
+  const { enhanceMarkdownRegions } = await import('./enhance')
+  // The page can navigate away while the module is still loading.
+  if (!pageActive) {
     return
   }
-
-  const regions = document.querySelectorAll(FILE_REGION)
-  for (const region of regions) {
-    const path = getFilePath(region)
-    if (!path || !isMarkdownPath(path)) {
-      continue
-    }
-
-    injectToggle(region, path)
-
-    // Collapse/expand can destroy [data-rgm-rich] while intent stays on.
-    if (hasRichPathIntent(path)) {
-      ensureRichMounted(region)
-    }
-  }
+  enhanceMarkdownRegions()
 }
 
 /**
@@ -53,7 +43,7 @@ function scheduleScan(): void {
   }
   debounceTimer = setTimeout(() => {
     debounceTimer = null
-    enhanceMarkdownRegions()
+    void runScan()
   }, DEBOUNCE_MS)
 }
 
@@ -94,10 +84,10 @@ function deactivatePage(): void {
  * @returns Nothing.
  */
 function activatePage(): void {
+  pageActive = true
   injectStyles()
   observeRoot()
   scheduleScan()
-  pageActive = true
 }
 
 /**
@@ -184,6 +174,12 @@ export function initMarkdownReview(): void {
   handleLocationChange()
   observePathname()
 
+  // GitHub soft-nav events (not standard DOM events). GitHub is an SPA: many
+  // clicks swap page content without a full reload, so content scripts must
+  // re-check the URL when those navigations finish.
+  // - turbo:load — Hotwire Turbo: visit finished and the new page is in the DOM
+  // - turbo:render — Hotwire Turbo: body was re-rendered (incl. cache restore)
+  // - pjax:end — legacy jQuery pjax; still used on some older GitHub flows
   document.addEventListener('turbo:load', handleLocationChange)
   document.addEventListener('turbo:render', handleLocationChange)
   document.addEventListener('pjax:end', handleLocationChange)

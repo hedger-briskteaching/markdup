@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { enhanceMarkdownRegions } from './init'
 import { createFileRegion, setPathname } from './test/fixtures'
 import { resetAuthListenerForTests } from './toggle'
 
@@ -15,73 +14,11 @@ function stubChrome() {
   })
 }
 
-describe('enhanceMarkdownRegions', () => {
-  beforeEach(() => {
-    document.body.innerHTML = ''
-    document.head.innerHTML = ''
-    setPathname('/owner/repo/pull/1/changes')
-    resetAuthListenerForTests()
-    stubChrome()
-  })
-
-  it('injects toggles only for markdown file regions', () => {
-    const md = createFileRegion({ path: 'docs/PLAN.md' })
-    const ts = createFileRegion({ path: 'src/main.ts' })
-    document.body.append(md, ts)
-
-    enhanceMarkdownRegions()
-
-    expect(md.querySelector('[data-rgm-toggle]')).not.toBeNull()
-    expect(ts.querySelector('[data-rgm-toggle]')).toBeNull()
-  })
-
-  it('injects toggles when header paths are wrapped in GitHub bidi marks', () => {
-    const a = createFileRegion({
-      path: 'docs/A.md',
-      pathViaLinkOnly: true,
-    })
-    const b = createFileRegion({
-      path: 'docs/B.md',
-      pathViaLinkOnly: true,
-    })
-    for (const region of [a, b]) {
-      const link = region.querySelector('h3 a')!
-      link.textContent = `\u200e${link.textContent}\u200e`
-    }
-    document.body.append(a, b)
-
-    enhanceMarkdownRegions()
-
-    expect(a.querySelector('[data-rgm-toggle]')).not.toBeNull()
-    expect(b.querySelector('[data-rgm-toggle]')).not.toBeNull()
-  })
-
-  it('does nothing off the PR files page', () => {
-    setPathname('/owner/repo/pull/1')
-    const md = createFileRegion({ path: 'docs/PLAN.md' })
-    document.body.appendChild(md)
-
-    enhanceMarkdownRegions()
-
-    expect(md.querySelector('[data-rgm-toggle]')).toBeNull()
-  })
-
-  it('skips regions that already have a toggle', () => {
-    const md = createFileRegion({ path: 'docs/PLAN.md' })
-    document.body.appendChild(md)
-
-    enhanceMarkdownRegions()
-    enhanceMarkdownRegions()
-
-    expect(md.querySelectorAll('[data-rgm-toggle]')).toHaveLength(1)
-  })
-})
-
 describe('initMarkdownReview', () => {
   const originalPushState = history.pushState.bind(history)
   const originalReplaceState = history.replaceState.bind(history)
 
-  beforeEach(() => {
+  beforeEach(async () => {
     document.body.innerHTML = ''
     document.head.innerHTML = ''
     setPathname('/owner/repo/pull/1/changes')
@@ -91,6 +28,9 @@ describe('initMarkdownReview', () => {
     vi.resetModules()
     stubChrome()
     resetAuthListenerForTests()
+    // init loads the scan module lazily. Warm the cache so a scan can finish
+    // inside advanceTimersByTimeAsync instead of on a later real-time tick.
+    await import('./enhance')
   })
 
   afterEach(async () => {
@@ -175,6 +115,31 @@ describe('initMarkdownReview', () => {
     expect(md.querySelector('[data-rgm-toggle]')).toBeNull()
 
     setPathname('/owner/repo/pull/1/changes')
+    document.dispatchEvent(new Event('turbo:load'))
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).not.toBeNull()
+    expect(md.querySelector('[data-rgm-toggle]')).not.toBeNull()
+  })
+
+  it('activates after starting on a page outside the PR routes', async () => {
+    setPathname('/owner/repo/pulls')
+
+    const { initMarkdownReview } = await import('./init')
+    initMarkdownReview()
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).toBeNull()
+
+    setPathname('/owner/repo/pull/1')
+    document.dispatchEvent(new Event('turbo:load'))
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(document.getElementById('rgm-markdown-review-styles')).toBeNull()
+
+    setPathname('/owner/repo/pull/1/changes')
+    const md = createFileRegion({ path: 'docs/README.md' })
+    document.body.appendChild(md)
     document.dispatchEvent(new Event('turbo:load'))
     await vi.advanceTimersByTimeAsync(100)
 

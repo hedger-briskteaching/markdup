@@ -34,9 +34,12 @@ export default defineManifest({
   permissions: ['storage'],
   content_scripts: [
     {
-      // Inject on all PR pages so soft navigation from Conversation to Files still works.
-      // UI stays gated to /files and /changes in init (isPrFilesPage).
-      matches: ['https://github.com/*/pull/*'],
+      // Inject on every GitHub page. Chrome injects content scripts only on a
+      // document load, so a narrower pattern misses soft navigations that start
+      // elsewhere (for example the PR list, then into a PR, then into Changes).
+      // UI stays gated to /files and /changes in init (isPrFilesPage), and the
+      // review bundle loads on demand only for those URLs.
+      matches: ['https://github.com/*'],
       js: ['src/content/main.tsx'],
       run_at: 'document_idle',
     },
