@@ -17,6 +17,8 @@ import {
   GITHUB_APPLICATIONS_URL,
   GITHUB_PAT_CREATE_URL,
   GITHUB_PAT_LIST_URL,
+  MARKDUP_ISSUES_URL,
+  MARKDUP_REPO_URL,
   REVOKE_STEPS,
   TOKEN_STORAGE_FACTS,
 } from '../shared/authCopy'
@@ -519,7 +521,7 @@ export default function App() {
         </ul>
       </section>
 
-      <section className="flex flex-col gap-3">
+      <section className="mb-10 flex flex-col gap-3 border-b border-neutral-200 pb-10">
         <h2 className="text-lg font-semibold tracking-tight">
           How to revoke access
         </h2>
@@ -528,6 +530,32 @@ export default function App() {
             <li key={line}>{line}</li>
           ))}
         </ol>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold tracking-tight">Support</h2>
+        <p className="text-sm leading-snug text-neutral-600">
+          Docs, releases, and help live on the Markdup GitHub repository. Open
+          an issue if something does not work.
+        </p>
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <a
+            className="rgm-settings-link"
+            href={MARKDUP_REPO_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            github.com/hedger-briskteaching/markdup
+          </a>
+          <a
+            className="rgm-settings-link"
+            href={MARKDUP_ISSUES_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open an issue
+          </a>
+        </div>
       </section>
     </div>
   )

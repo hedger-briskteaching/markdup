@@ -16,6 +16,13 @@ export const REVOKE_STEPS = [
 export const GITHUB_APPLICATIONS_URL =
   'https://github.com/settings/applications'
 
+/** Markdup source repo — docs, issues, and releases. */
+export const MARKDUP_REPO_URL =
+  'https://github.com/hedger-briskteaching/markdup'
+
+export const MARKDUP_ISSUES_URL =
+  'https://github.com/hedger-briskteaching/markdup/issues'
+
 /** Classic PAT create page with repo scope preselected when possible. */
 export const GITHUB_PAT_CREATE_URL =
   'https://github.com/settings/tokens/new?description=Markdup&scopes=repo'

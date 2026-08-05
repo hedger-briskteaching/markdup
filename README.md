@@ -27,6 +27,7 @@
   <a href="#getting-started">Getting started</a> ·
   <a href="#use-the-extension">Use the extension</a> ·
   <a href="#privacy">Privacy</a> ·
+  <a href="#develop-from-source">Develop</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -56,31 +57,58 @@ Markdup loads the file at the pull request base and head. Then it aligns blocks 
 | **Aligned blocks** | Top-level sections stay matched, so moves and edits stay clear. |
 | **Collapsed unchanged text** | Stable sections start folded. When you need context, expand them. |
 | **Comments on rendered text** | You can select text in the rich view and leave a review comment. |
-| **Local GitHub access** | OAuth or a personal access token. The token stays in this browser. |
+| **Local GitHub access** | OAuth or a personal access token. The token stays in the extension’s private storage (`chrome.storage.local`) on this browser. |
 
 Markdup runs on the pull request **Files changed** page. It targets `.md` and `.markdown` files.
 
 ---
 
-## Privacy
-
-Markdup has **no backend**. Your GitHub token (OAuth or personal access token) stays in this browser via Chrome extension storage. The OAuth Client ID is public; the extension does not ship a client secret. See [SECURITY.md](SECURITY.md) for how to report vulnerabilities.
-
----
-
 ## Getting started
-
-Pick **one** path below. You do not need both.
-
-### Option A — Install from a release zip
 
 No Node.js required. Download a prebuilt zip from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases) and load it in Chrome. Full steps: [releases/README.md](releases/README.md).
 
-Then continue with [Settings and GitHub access](#settings-and-github-access).
+To build or contribute instead, see [Develop from source](#develop-from-source).
 
-### Option B — Build from source
+### Settings and GitHub access
 
-Use this path when you want to develop Markdup or build it yourself.
+1. Pin Markdup to the Chrome toolbar so the icon stays visible: open the Extensions puzzle-piece menu, find **Markdup**, and click the pin.
+2. Click the Markdup toolbar icon <img src="public/icons/icon-32.png" alt="Markdup" width="20" height="20" />.
+3. Click **Open Settings**.
+4. Choose one path:
+   - **Option 1:** Connect with GitHub (OAuth Device Flow)
+   - **Option 2:** Paste a personal access token (classic `repo`, or fine-grained with contents and pull request write)
+
+Both paths store one access token in the extension’s private storage on this browser only. Markdup has no server that keeps your token. If your organization blocks the Markdup OAuth App, use a personal access token.
+
+---
+
+## Use the extension
+
+1. Open a pull request **Files changed** page on GitHub
+   (`…/pull/<n>/changes` or classic `…/pull/<n>/files`).
+2. On a changed `.md` file, turn on the **Markdup** switch in the file header.
+3. Click the extension icon in the Chrome toolbar to open the popup (or Settings).
+
+If the switch does not appear:
+
+- Make sure that you are on the PR Files / Changes URL (not Conversation or Commits).
+- Make sure that the file is Markdown (`.md` / `.markdown`).
+- On `chrome://extensions`, click the refresh icon on the extension card after you reload a new unzipped release.
+
+---
+
+## Privacy
+
+Markdup has **no backend**. Your GitHub token (OAuth or personal access token) is stored only in this extension’s private Chrome storage (`chrome.storage.local`) — not in cookies, not in the page’s `localStorage`, and not on any Markdup server. Web pages cannot read it. The OAuth Client ID is public; the extension does not ship a client secret. See [SECURITY.md](SECURITY.md) for how to report vulnerabilities.
+
+---
+
+## Develop from source
+
+<details>
+<summary>Build from source, scripts, project layout, and contributing</summary>
+
+Use this section when you want to develop Markdup or build it yourself. End users can skip it and [install from a release](#getting-started).
 
 **Requirements**
 
@@ -103,6 +131,8 @@ For day-to-day development with hot reload, use `pnpm dev` instead of `pnpm buil
 4. Select the `dist` folder of this project.
 5. Make sure that **Markdup** appears in the extensions list and is enabled.
 
+Then continue with [Settings and GitHub access](#settings-and-github-access).
+
 The manifest includes a fixed public `key`, so the extension ID is always:
 
 `knlaahnhnocjejneaobpbbnfibfnoiei`
@@ -114,33 +144,6 @@ GitHub OAuth callback URL (Device Flow / identity):
 OAuth **Client ID** (public) lives in [`src/shared/githubAuth.ts`](src/shared/githubAuth.ts). Device Flow is enabled on the Markdup OAuth App. The extension does not hold a client secret.
 
 If you rebuild the extension, remove any old unpacked Markdup install. Then load `dist/` again so Chrome uses the new ID.
-
-### Settings and GitHub access
-
-1. Click the Markdup icon in Chrome.
-2. Click **Open Settings**.
-3. Choose one path:
-   - **Option 1:** Connect with GitHub (OAuth Device Flow)
-   - **Option 2:** Paste a personal access token (classic `repo`, or fine-grained with contents and pull request write)
-4. Click **Remove from this browser** to delete the local token.
-
-Both paths store one access token in this browser only. Markdup has no server that keeps your token. If your organization blocks the Markdup OAuth App, use a personal access token.
-
----
-
-## Use the extension
-
-1. Open a pull request **Files changed** page on GitHub
-   (`…/pull/<n>/changes` or classic `…/pull/<n>/files`).
-2. On a changed `.md` file, turn on the **Markdup** switch in the file header.
-3. Click the extension icon in the Chrome toolbar to open the popup (or Settings).
-
-If the switch does not appear:
-
-- Make sure that you are on the PR Files / Changes URL (not Conversation or Commits).
-- Make sure that the file is Markdown (`.md` / `.markdown`).
-- If you built from source, make sure that `pnpm build` (or `pnpm dev`) has produced a `dist/` folder.
-- On `chrome://extensions`, click the refresh icon on the extension card after you rebuild or reload a new unzipped release.
 
 ### Development with hot reload
 
@@ -157,9 +160,7 @@ pnpm build
 
 This command type-checks and writes an optimized bundle to `dist/`. Load that folder with **Load unpacked** the same way as in development. You can also refresh the existing unpacked extension.
 
----
-
-## Scripts
+### Scripts
 
 | Command | Description |
 | --- | --- |
@@ -171,11 +172,7 @@ This command type-checks and writes an optimized bundle to `dist/`. Load that fo
 | `pnpm package` | Type-check, test, build, and zip into `releases/release-X.Y.Z/` |
 | `pnpm release` | Patch-bump version, package, and print publish steps |
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
-
-## Project layout
+### Project layout
 
 | Path | Purpose |
 | --- | --- |
@@ -193,6 +190,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Please follow the [Code of Conduct](CODE
 | `releases/` | Install-from-zip docs (downloadable zips live on GitHub Releases) |
 | `scripts/` | Package and release helpers |
 | `dist/` | Built extension (load this in Chrome) |
+
+### Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+</details>
 
 ---
 

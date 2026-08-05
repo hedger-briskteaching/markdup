@@ -7,7 +7,7 @@ Use this path when you want the extension **without** Node.js or pnpm.
 1. Open [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases).
 2. Download `markdup-X.Y.Z.zip` from the latest release (for example `markdup-0.1.0.zip`).
 
-If no release exists yet, build from source instead: see [Getting started](../README.md#getting-started) in the root README (`pnpm install`, `pnpm build`, then load `dist/`).
+If no release exists yet, build from source instead: see [Develop from source](../README.md#develop-from-source) in the root README (`pnpm install`, `pnpm build`, then load `dist/`).
 
 ## Load in Chrome
 
