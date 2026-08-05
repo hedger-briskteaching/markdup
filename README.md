@@ -28,6 +28,7 @@
   <a href="#use-the-extension">Use the extension</a> ·
   <a href="#privacy">Privacy</a> ·
   <a href="#develop-from-source">Develop</a> ·
+  <a href="#forking-markdup">Forking</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -194,6 +195,69 @@ This command type-checks and writes an optimized bundle to `dist/`. Load that fo
 ### Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+</details>
+
+---
+
+## Forking Markdup
+
+<details>
+<summary>New extension ID, OAuth App, and branding for your fork</summary>
+
+If you fork this repo to ship your own extension (or a long-lived private build), do **not** keep Markdup’s extension ID, OAuth Client ID, or branding. Unpacked installs share the ID from the manifest `key`. Reusing Markdup’s key collides with the official extension and its GitHub OAuth App.
+
+### 1. Generate a new stable extension ID
+
+Chrome derives the extension ID from an RSA public key. Put that public key in the manifest `key` field so every unpacked load gets the same ID.
+
+```bash
+# Private key — keep local; do not commit
+openssl genrsa 2048 | openssl pkcs8 -topk8 -nocrypt -out brand/extension-private.pem
+
+# Base64 public key for manifest.config.ts → key
+openssl rsa -in brand/extension-private.pem -pubout -outform DER | openssl base64 -A
+
+# Extension ID (32 chars, a–p alphabet)
+openssl rsa -in brand/extension-private.pem -pubout -outform DER \
+  | shasum -a 256 \
+  | head -c32 \
+  | tr '0-9a-f' 'a-p'
+```
+
+Then:
+
+1. Paste the base64 public key into `manifest.config.ts` as `key` (replace the existing value).
+2. Update `EXTENSION_ID` in [`src/shared/githubAuth.ts`](src/shared/githubAuth.ts) to the ID from the last command.
+3. Optionally save the public key string in `brand/extension-public-key.txt` for your own notes (see [brand/README.md](brand/README.md)).
+4. Rebuild, remove any old unpacked install, and load `dist/` again. Confirm the ID on `chrome://extensions`.
+
+Keep `brand/extension-private.pem` out of git. You only need it if you pack or resign a `.crx` yourself.
+
+### 2. Register a GitHub OAuth App (if you want Connect with GitHub)
+
+Markdup’s Client ID only works for the official extension ID. For your fork, create your own [GitHub OAuth App](https://github.com/settings/developers):
+
+1. **Homepage URL** — your fork or product page.
+2. **Authorization callback URL** —  
+   `https://<your-extension-id>.chromiumapp.org/`  
+   (same host Chrome uses for extension identity / Device Flow).
+3. Enable **Device Flow** on the OAuth App (Markdup does not use a client secret).
+4. Put the new **Client ID** in `GITHUB_OAUTH_CLIENT_ID` in [`src/shared/githubAuth.ts`](src/shared/githubAuth.ts). Never add a client secret to the repo.
+
+Personal access tokens in Settings still work without your own OAuth App.
+
+### 3. Change the logo and icons
+
+Replace Markdup’s brand so users do not confuse your build with the original:
+
+| Path | Use |
+| --- | --- |
+| `brand/markdup-logo.png`, `brand/markdup-logo-512.png` | Product / OAuth App logo |
+| `public/icons/logo.svg` | README and in-product mark |
+| `public/icons/icon-*.png` | Chrome toolbar and `chrome://extensions` icons |
+
+Update the extension `name` / `description` in `manifest.config.ts` if you rename the product. Then rebuild so `dist/` picks up the new assets.
 
 </details>
 
