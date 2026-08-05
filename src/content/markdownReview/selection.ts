@@ -41,6 +41,36 @@ const HIGHLIGHT_ATTR = 'data-rgm-sel-highlight'
 const THREAD_HOVER_ATTR = 'data-rgm-thread-hover'
 const COMMENTED_ATTR = 'data-rgm-commented-layer'
 
+export type CommentedMark = { threadId: number; range: SourceRange }
+
+/**
+ * What each overlay layer currently shows, so a layer can be painted again
+ * after the rich view reflows. Box positions are measured from layout, so
+ * anything that moves the text (a reply editor opening, a card collapsing,
+ * the window resizing) leaves the old boxes behind.
+ */
+type OverlayState = {
+  selection?: SourceRange
+  hover?: SourceRange
+  commented?: CommentedMark[]
+}
+
+const overlays = new WeakMap<Element, OverlayState>()
+
+/**
+ * Get the mutable overlay state for a rich root, creating it on first use.
+ * @param richRoot - The rich view root element.
+ * @returns The overlay state record.
+ */
+function overlayState(richRoot: Element): OverlayState {
+  let state = overlays.get(richRoot)
+  if (!state) {
+    state = {}
+    overlays.set(richRoot, state)
+  }
+  return state
+}
+
 /**
  * Attach snapshot text and rows to the rich root for selection mapping.
  * @param richRoot - The rich view root element.
@@ -285,6 +315,7 @@ export function applySelectionHighlight(
     cellClass: 'rgm-sel-highlight-cell',
   })
   richRoot.appendChild(layer)
+  overlayState(richRoot).selection = sourceRange
 }
 
 /**
@@ -297,6 +328,7 @@ export function clearSelectionHighlight(richRoot: Element): void {
   for (const cell of richRoot.querySelectorAll('.rgm-sel-highlight-cell')) {
     cell.classList.remove('rgm-sel-highlight-cell')
   }
+  delete overlayState(richRoot).selection
 }
 
 /**
@@ -319,6 +351,7 @@ export function applyThreadHoverHighlight(
     cellClass: 'rgm-thread-hover-cell',
   })
   richRoot.appendChild(layer)
+  overlayState(richRoot).hover = sourceRange
 }
 
 /**
@@ -331,6 +364,7 @@ export function clearThreadHoverHighlight(richRoot: Element): void {
   for (const cell of richRoot.querySelectorAll('.rgm-thread-hover-cell')) {
     cell.classList.remove('rgm-thread-hover-cell')
   }
+  delete overlayState(richRoot).hover
 }
 
 /**
@@ -343,7 +377,7 @@ export function clearThreadHoverHighlight(richRoot: Element): void {
  */
 export function paintCommentedMarks(
   richRoot: HTMLElement,
-  marks: { threadId: number; range: SourceRange }[],
+  marks: CommentedMark[],
 ): void {
   clearCommentedMarks(richRoot)
   if (marks.length === 0) return
@@ -357,6 +391,7 @@ export function paintCommentedMarks(
     })
   }
   richRoot.appendChild(layer)
+  overlayState(richRoot).commented = marks
 }
 
 /**
@@ -369,6 +404,50 @@ export function clearCommentedMarks(richRoot: Element): void {
   for (const cell of richRoot.querySelectorAll('.rgm-commented-cell')) {
     cell.classList.remove('rgm-commented-cell')
     cell.removeAttribute('data-rgm-commented-thread')
+  }
+  delete overlayState(richRoot).commented
+}
+
+/**
+ * Paint every active overlay layer again against the current layout.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
+export function repaintOverlays(richRoot: HTMLElement): void {
+  const state = overlays.get(richRoot)
+  if (!state) return
+  // Each paint clears its own state first, so read it all up front.
+  const { commented, selection, hover } = state
+  if (commented) paintCommentedMarks(richRoot, commented)
+  if (selection) applySelectionHighlight(richRoot, selection)
+  if (hover) applyThreadHoverHighlight(richRoot, hover)
+}
+
+/**
+ * Keep overlay layers aligned with the text as the rich view reflows.
+ * Opening a reply editor, collapsing a card, or resizing the window moves
+ * the text out from under boxes that were positioned when they were painted.
+ * @param richRoot - The rich view root element.
+ * @returns A cleanup function that stops observing.
+ */
+export function bindOverlayRepaint(richRoot: HTMLElement): () => void {
+  if (typeof ResizeObserver !== 'function') return () => {}
+
+  let frame = 0
+  const observer = new ResizeObserver(() => {
+    if (frame) return
+    frame = requestAnimationFrame(() => {
+      frame = 0
+      repaintOverlays(richRoot)
+    })
+  })
+  // The layers are absolutely positioned, so repainting cannot resize the
+  // root and retrigger the observer.
+  observer.observe(richRoot)
+
+  return () => {
+    if (frame) cancelAnimationFrame(frame)
+    observer.disconnect()
   }
 }
 
@@ -405,10 +484,7 @@ function appendRangeBoxes(
   if (!domRange) return
 
   const rootRect = richRoot.getBoundingClientRect()
-  const rects =
-    typeof domRange.getClientRects === 'function'
-      ? [...domRange.getClientRects()]
-      : []
+  const rects = sourceTextRects(domRange)
 
   let painted = 0
   for (const rect of rects) {
@@ -434,6 +510,54 @@ function appendRangeBoxes(
       }
     }
   }
+}
+
+/**
+ * Collect the client rects a range covers, limited to rendered source text.
+ * A range spanning several blocks also spans the gutters and thread cards
+ * that sit between them, so the raw range rects would paint over that UI.
+ * @param domRange - The DOM range covering the source text.
+ * @returns Rects to paint, in document order.
+ */
+function sourceTextRects(domRange: Range): DOMRect[] {
+  if (typeof domRange.getClientRects !== 'function') return []
+  const rects: DOMRect[] = []
+  for (const part of sourceTextSubRanges(domRange)) {
+    if (typeof part.getClientRects !== 'function') continue
+    rects.push(...part.getClientRects())
+  }
+  return rects
+}
+
+/**
+ * Split a range into the pieces that fall inside block content elements.
+ * @param domRange - The DOM range covering the source text.
+ * @returns One clamped range per overlapping content element.
+ */
+function sourceTextSubRanges(domRange: Range): Range[] {
+  const container = domRange.commonAncestorContainer
+  const scope =
+    container instanceof Element ? container : container.parentElement
+  if (!scope || typeof domRange.intersectsNode !== 'function') {
+    return [domRange]
+  }
+  // Wholly inside one block: no foreign UI can be in the way.
+  if (scope.closest('.rgm-rich-content')) return [domRange]
+
+  const parts: Range[] = []
+  for (const content of scope.querySelectorAll('.rgm-rich-content')) {
+    if (!domRange.intersectsNode(content)) continue
+    const part = document.createRange()
+    part.selectNodeContents(content)
+    if (part.compareBoundaryPoints(Range.START_TO_START, domRange) < 0) {
+      part.setStart(domRange.startContainer, domRange.startOffset)
+    }
+    if (part.compareBoundaryPoints(Range.END_TO_END, domRange) > 0) {
+      part.setEnd(domRange.endContainer, domRange.endOffset)
+    }
+    if (!part.collapsed) parts.push(part)
+  }
+  return parts
 }
 
 /**

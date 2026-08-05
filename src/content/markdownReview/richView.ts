@@ -3,6 +3,7 @@ import type { RowModel } from '../../markdown/align'
 import { buildViewSections } from '../../markdown/viewSections'
 import { DIFF_BODY, RGM_STUB } from './selectors'
 import {
+  bindOverlayRepaint,
   clearRichViewContext,
   setRichViewContext,
 } from './selection'
@@ -20,6 +21,7 @@ import type { CommentableLines } from '../../shared/commentableLines'
 const HIDDEN_ATTR = 'data-rgm-diff-hidden'
 
 const composerCleanups = new WeakMap<Element, () => void>()
+const overlayCleanups = new WeakMap<Element, () => void>()
 
 export type ShowRichViewOptions = {
   baseText?: string
@@ -104,6 +106,8 @@ export function showRichView(
   root.replaceChildren(buildRichRoot(rows, expanded))
   composerCleanups.get(root)?.()
   composerCleanups.set(root, bindComposer(root))
+  overlayCleanups.get(root)?.()
+  overlayCleanups.set(root, bindOverlayRepaint(root))
   bindHeaderControlSuppress(region)
   bindFileCollapseSync(region)
 }
@@ -182,6 +186,8 @@ export function hideRichView(region: Element): void {
   if (rich) {
     composerCleanups.get(rich)?.()
     composerCleanups.delete(rich)
+    overlayCleanups.get(rich)?.()
+    overlayCleanups.delete(rich)
     clearRichViewContext(rich)
     rich.remove()
   }

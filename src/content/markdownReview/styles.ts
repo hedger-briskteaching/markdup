@@ -1102,6 +1102,19 @@ const CSS = `
   box-shadow: inset 0 0 0 1px rgba(56, 139, 253, 0.35);
 }
 
+/*
+ * A selection snapped to whole source lines runs through any thread card
+ * between the first and last block, so the native selection paints over the
+ * card too. Hide it there. :focus-within keeps an open reply or edit editor
+ * selectable while the source highlight is up.
+ */
+[data-rgm-rich]:has([data-rgm-sel-highlight])
+  [data-rgm-thread-card]:not(:focus-within)::selection,
+[data-rgm-rich]:has([data-rgm-sel-highlight])
+  [data-rgm-thread-card]:not(:focus-within) *::selection {
+  background: transparent;
+}
+
 [data-rgm-rich] .rgm-commented-layer {
   position: absolute;
   inset: 0;

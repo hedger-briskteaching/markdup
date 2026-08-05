@@ -1,11 +1,17 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { alignMarkdown } from '../../markdown/align'
+import type { ReviewThreadDto } from '../../shared/messages'
+import type { SourceRange } from '../../markdown/sourceRange'
 import { renderRowsForTest } from './richView'
 import {
   applySelectionHighlight,
+  bindOverlayRepaint,
+  repaintOverlays,
   selectionToSourceRange,
+  setRichViewContext,
   snapDomSelectionToSourceRange,
 } from './selection'
+import { renderThreadCards } from './threads'
 
 function selectTextIn(
   root: Element,
@@ -66,6 +72,47 @@ function selectTextIn(
   }
 
   throw new Error(`Needle not found in ${side}: ${needle}`)
+}
+
+/**
+ * Stand in for layout, which jsdom does not do, by reporting one rect per
+ * range. Returns a function that restores the original implementation.
+ */
+function stubRangeRects(rectFor: (range: Range) => DOMRect): () => void {
+  const proto = Range.prototype as unknown as {
+    getClientRects?: () => DOMRectList
+  }
+  const original = proto.getClientRects
+  proto.getClientRects = function (this: Range) {
+    return [rectFor(this)] as unknown as DOMRectList
+  }
+  return () => {
+    if (original) {
+      proto.getClientRects = original
+    } else {
+      delete proto.getClientRects
+    }
+  }
+}
+
+/** Build a rect at a given vertical offset. */
+function rectAt(top: number): DOMRect {
+  return { top, left: 0, width: 10, height: 10 } as unknown as DOMRect
+}
+
+/** Run a highlight pass and report the text each painted box covers. */
+function textCoveredByHighlight(run: () => void): string {
+  const covered: string[] = []
+  const restore = stubRangeRects((range) => {
+    covered.push(range.toString())
+    return rectAt(0)
+  })
+  try {
+    run()
+  } finally {
+    restore()
+  }
+  return covered.join('\n')
 }
 
 describe('selectionToSourceRange', () => {
@@ -244,5 +291,165 @@ describe('selectionToSourceRange', () => {
       startLine: 2,
       endLine: 2,
     })
+  })
+})
+
+/** Three-block file with one thread on the middle block, cards rendered. */
+function hostWithThread(): HTMLElement {
+  const baseText = 'Alpha.\n\nBravo.\n\nCharlie.\n'
+  const headText = 'Alpha one.\n\nBravo two.\n\nCharlie three.\n'
+  const rows = alignMarkdown(baseText, headText)
+  const host = renderRowsForTest(rows, {
+    baseText,
+    headText,
+    path: 'docs/PLAN.md',
+  })
+  document.body.appendChild(host)
+
+  const comment: ReviewThreadDto = {
+    path: 'docs/PLAN.md',
+    rootId: 7,
+    side: 'RIGHT',
+    startLine: 3,
+    line: 3,
+    pending: false,
+    comments: [
+      {
+        id: 7,
+        body: 'Needs a rewrite.',
+        path: 'docs/PLAN.md',
+        side: 'RIGHT',
+        line: 3,
+        startLine: 3,
+        originalLine: null,
+        inReplyToId: null,
+        userLogin: 'jgable',
+        createdAt: new Date().toISOString(),
+        commitId: 'abc',
+        htmlUrl: 'https://github.com/o/r/pull/1#discussion_r7',
+        pullRequestReviewId: null,
+      },
+    ],
+  }
+  setRichViewContext(host, {
+    baseText,
+    headText,
+    rows,
+    path: 'docs/PLAN.md',
+    threads: [comment],
+  })
+  renderThreadCards(host)
+  return host
+}
+
+/** Source range spanning all three blocks of the hostWithThread fixture. */
+const WHOLE_FILE: SourceRange = {
+  side: 'RIGHT',
+  startLine: 1,
+  startCol: 1,
+  endLine: 5,
+  endCol: 15,
+  quotedText: 'Alpha one.',
+}
+
+describe('applySelectionHighlight', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('skips thread cards sitting between the selected blocks', () => {
+    const host = hostWithThread()
+    expect(host.querySelector('[data-rgm-thread-card]')?.textContent).toContain(
+      'Needs a rewrite.',
+    )
+
+    const covered = textCoveredByHighlight(() => {
+      applySelectionHighlight(host, WHOLE_FILE)
+    })
+
+    expect(covered).toContain('Alpha one.')
+    expect(covered).toContain('Charlie three.')
+    expect(covered).not.toContain('Needs a rewrite.')
+  })
+})
+
+describe('repaintOverlays', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('moves painted boxes to where the text is now', () => {
+    let top = 10
+    const restore = stubRangeRects(() => rectAt(top))
+    try {
+      const host = hostWithThread()
+      applySelectionHighlight(host, WHOLE_FILE)
+
+      const boxTops = () =>
+        [
+          ...host.querySelectorAll<HTMLElement>(
+            '.rgm-commented-box, .rgm-sel-highlight',
+          ),
+        ].map((box) => box.style.top)
+      expect(boxTops().length).toBeGreaterThan(1)
+      expect(new Set(boxTops())).toEqual(new Set(['10px']))
+
+      // A reply editor opening pushes every block below it down.
+      top = 210
+      repaintOverlays(host)
+      expect(new Set(boxTops())).toEqual(new Set(['210px']))
+    } finally {
+      restore()
+    }
+  })
+
+  it('does nothing when no layer is painted', () => {
+    const host = hostWithThread()
+    host.querySelector('[data-rgm-commented-layer]')?.remove()
+    repaintOverlays(host)
+    expect(host.querySelector('[data-rgm-sel-highlight]')).toBeNull()
+  })
+
+  it('repaints when a resize observer reports a reflow', async () => {
+    let top = 10
+    const restore = stubRangeRects(() => rectAt(top))
+    const disconnect = vi.fn()
+    let notify: (() => void) | null = null
+
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          notify = callback
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {
+          disconnect()
+        }
+      },
+    )
+
+    try {
+      const host = hostWithThread()
+      const cleanup = bindOverlayRepaint(host)
+      const box = () =>
+        host.querySelector<HTMLElement>('.rgm-commented-box')!
+      expect(box().style.top).toBe('10px')
+
+      top = 210
+      notify?.()
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      expect(box().style.top).toBe('210px')
+
+      cleanup()
+      expect(disconnect).toHaveBeenCalled()
+    } finally {
+      restore()
+    }
   })
 })
