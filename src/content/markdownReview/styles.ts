@@ -484,6 +484,7 @@ const CSS = `
 .rgm-thread-comment-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin: 8px 0 0;
 }

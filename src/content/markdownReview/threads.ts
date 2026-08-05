@@ -556,7 +556,12 @@ function buildCommentBlock(
       void deleteComment(comment, richRoot, ctx, deleteBtn)
     })
 
-    actions.append(editBtn, deleteBtn)
+    const sep = document.createElement('span')
+    sep.className = 'rgm-thread-footer-sep'
+    sep.setAttribute('aria-hidden', 'true')
+    sep.textContent = '|'
+
+    actions.append(editBtn, sep, deleteBtn)
     block.appendChild(actions)
   }
 
