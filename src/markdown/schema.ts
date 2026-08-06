@@ -1,5 +1,5 @@
 import { Schema, type MarkSpec, type NodeSpec } from 'prosemirror-model'
-import { SRC_RANGE_ATTRS } from './positions'
+import { SRC_RANGE_ATTRS, srcDataAttrs } from './positions'
 
 /**
  * Add source-range attributes to a block node spec.
@@ -184,12 +184,14 @@ export const markdownSchema = new Schema({
       ],
       toDOM(node) {
         const checked = node.attrs.checked as boolean | null
+        const src = srcDataAttrs(node.attrs)
         if (checked === null) {
-          return ['li', 0]
+          return ['li', src, 0]
         }
         return [
           'li',
           {
+            ...src,
             'data-task': 'true',
             'data-checked': checked ? 'true' : 'false',
           },
@@ -212,8 +214,8 @@ export const markdownSchema = new Schema({
       content: '(table_header | table_cell)+',
       attrs: { ...SRC_RANGE_ATTRS },
       parseDOM: [{ tag: 'tr' }],
-      toDOM() {
-        return ['tr', 0]
+      toDOM(node) {
+        return ['tr', srcDataAttrs(node.attrs), 0]
       },
     },
 

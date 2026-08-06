@@ -13,6 +13,30 @@ export const SRC_RANGE_ATTRS = {
 } as const
 
 /**
+ * Build `data-src-from` / `data-src-to` DOM attributes from a node's own
+ * source-range attrs.
+ *
+ * Sub-block nodes (table rows, list items) carry exact per-line ranges. Putting
+ * them on the serialized DOM lets a selection resolve to the row or item the
+ * user actually clicked instead of the whole top-level block.
+ * @param attrs - A ProseMirror node's `attrs` object.
+ * @returns An attribute record, empty when the node has no source range.
+ */
+export function srcDataAttrs(attrs: {
+  srcFrom?: unknown
+  srcTo?: unknown
+}): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (typeof attrs.srcFrom === 'number') {
+    out['data-src-from'] = String(attrs.srcFrom)
+  }
+  if (typeof attrs.srcTo === 'number') {
+    out['data-src-to'] = String(attrs.srcTo)
+  }
+  return out
+}
+
+/**
  * Extract the source line range from a unist node's position.
  * @param node - Any unist/mdast node.
  * @returns The 1-based inclusive line range, or `null` when position data is absent.

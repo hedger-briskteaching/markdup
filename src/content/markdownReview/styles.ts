@@ -1228,6 +1228,16 @@ const CSS = `
   opacity: 0.9;
 }
 
+[data-rgm-rich] .rgm-rich-comment-row > td {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+[data-rgm-rich] .rgm-rich-comment-row [data-rgm-thread-card] {
+  margin: 8px 0;
+}
+
 [data-rgm-thread-card] {
   grid-column: 1 / -1;
   margin: 10px 12px 0;

@@ -216,53 +216,41 @@ export function selectionToSourceRange(
     return null
   }
 
+  const start = anchorForPoint(
+    startCell,
+    range.startContainer,
+    range.startOffset,
+    ctx,
+  )
+  const end = anchorForPoint(endCell, range.endContainer, range.endOffset, ctx)
+  if (!start || !end) return null
+
   let mapped: SourceRange | null = null
 
-  if (startCell === endCell) {
-    const anchor = anchorFromCell(startCell, ctx)
-    if (!anchor) return null
-    const startOffset = srcOffsetInCell(
-      startCell,
-      range.startContainer,
-      range.startOffset,
-    )
-    const endOffset = srcOffsetInCell(
-      startCell,
-      range.endContainer,
-      range.endOffset,
-    )
+  if (start.host === end.host) {
+    const startOffset = start.offsetAt(range.startContainer, range.startOffset)
+    const endOffset = start.offsetAt(range.endContainer, range.endOffset)
     if (startOffset == null || endOffset == null) return null
-    mapped = offsetsToSourceRange(anchor, startOffset, endOffset, quotedText)
-  } else {
-    // Multi-cell on the same side: span from first block start through last block end.
-    const startAnchor = anchorFromCell(startCell, ctx)
-    const endAnchor = anchorFromCell(endCell, ctx)
-    if (!startAnchor || !endAnchor) return null
-
-    const startOffset = srcOffsetInCell(
-      startCell,
-      range.startContainer,
-      range.startOffset,
-    )
-    const endOffset = srcOffsetInCell(
-      endCell,
-      range.endContainer,
-      range.endOffset,
-    )
-    if (startOffset == null || endOffset == null) return null
-
-    const startRange = offsetsToSourceRange(
-      startAnchor,
+    mapped = offsetsToSourceRange(
+      start.anchor,
       startOffset,
-      startAnchor.plainText.length,
-      quotedText,
-    )
-    const endRange = offsetsToSourceRange(
-      endAnchor,
-      0,
       endOffset,
       quotedText,
     )
+  } else {
+    // Two anchors on the same side (adjacent blocks, or two rows of one table):
+    // span from the first anchor's start through the last anchor's end.
+    const startOffset = start.offsetAt(range.startContainer, range.startOffset)
+    const endOffset = end.offsetAt(range.endContainer, range.endOffset)
+    if (startOffset == null || endOffset == null) return null
+
+    const startRange = offsetsToSourceRange(
+      start.anchor,
+      startOffset,
+      start.anchor.plainText.length,
+      quotedText,
+    )
+    const endRange = offsetsToSourceRange(end.anchor, 0, endOffset, quotedText)
     mapped = mergeSourceRanges(startRange, endRange)
   }
 
@@ -530,9 +518,11 @@ function sourceTextRects(domRange: Range): DOMRect[] {
 }
 
 /**
- * Split a range into the pieces that fall inside block content elements.
+ * Split a range into the pieces that fall inside rendered source text.
+ * Splits per block, and per sub-anchor within a block, so thread cards mounted
+ * between table rows are stepped over rather than painted on.
  * @param domRange - The DOM range covering the source text.
- * @returns One clamped range per overlapping content element.
+ * @returns One clamped range per overlapping text region.
  */
 function sourceTextSubRanges(domRange: Range): Range[] {
   const container = domRange.commonAncestorContainer
@@ -541,23 +531,58 @@ function sourceTextSubRanges(domRange: Range): Range[] {
   if (!scope || typeof domRange.intersectsNode !== 'function') {
     return [domRange]
   }
-  // Wholly inside one block: no foreign UI can be in the way.
-  if (scope.closest('.rgm-rich-content')) return [domRange]
+
+  const inner = scope.closest('.rgm-rich-content')
+  const contents = inner ? [inner] : [...scope.querySelectorAll('.rgm-rich-content')]
 
   const parts: Range[] = []
-  for (const content of scope.querySelectorAll('.rgm-rich-content')) {
-    if (!domRange.intersectsNode(content)) continue
-    const part = document.createRange()
-    part.selectNodeContents(content)
-    if (part.compareBoundaryPoints(Range.START_TO_START, domRange) < 0) {
-      part.setStart(domRange.startContainer, domRange.startOffset)
+  for (const content of contents) {
+    if (content !== scope && !domRange.intersectsNode(content)) continue
+    for (const target of paintTargetsIn(content, domRange)) {
+      const part = clampRangeTo(target, domRange)
+      if (part) parts.push(part)
     }
-    if (part.compareBoundaryPoints(Range.END_TO_END, domRange) > 0) {
-      part.setEnd(domRange.endContainer, domRange.endOffset)
-    }
-    if (!part.collapsed) parts.push(part)
   }
-  return parts
+  // A range that resolves to nothing (no content element in scope) still paints
+  // as one piece, matching the pre-split behaviour.
+  return parts.length > 0 ? parts : [domRange]
+}
+
+/**
+ * List the elements a range should paint inside one block.
+ * Prefers the sub-anchors the range touches, so only real rows or items are
+ * covered. Falls back to the whole block when it has none.
+ * @param content - The block content element.
+ * @param domRange - The DOM range covering the source text.
+ * @returns Elements to paint, in document order.
+ */
+function paintTargetsIn(content: Element, domRange: Range): Element[] {
+  const subs = [
+    ...content.querySelectorAll<HTMLElement>(SUB_ANCHOR_SELECTOR),
+  ].filter((el) => domRange.intersectsNode(el))
+  // Nested items (a list inside a list item) would paint twice over.
+  const outermost = subs.filter(
+    (el) => !subs.some((other) => other !== el && other.contains(el)),
+  )
+  return outermost.length > 0 ? outermost : [content]
+}
+
+/**
+ * Clamp a range to the contents of an element.
+ * @param target - The element to clamp to.
+ * @param domRange - The range providing the outer bounds.
+ * @returns The clamped range, or null when the overlap is empty.
+ */
+function clampRangeTo(target: Element, domRange: Range): Range | null {
+  const part = document.createRange()
+  part.selectNodeContents(target)
+  if (part.compareBoundaryPoints(Range.START_TO_START, domRange) < 0) {
+    part.setStart(domRange.startContainer, domRange.startOffset)
+  }
+  if (part.compareBoundaryPoints(Range.END_TO_END, domRange) > 0) {
+    part.setEnd(domRange.endContainer, domRange.endOffset)
+  }
+  return part.collapsed ? null : part
 }
 
 /**
@@ -583,6 +608,24 @@ export function findCellForSourceRange(
 }
 
 /**
+ * Find the last sub-anchor (table row, list item) a source range covers.
+ * Comment UI mounts after this element so it lands with the text it targets
+ * instead of below the whole block.
+ * @param cell - The cell element to search within.
+ * @param range - The source range to resolve.
+ * @returns The sub-anchor element, or null when the block has none.
+ */
+export function findSubAnchorForSourceRange(
+  cell: HTMLElement,
+  range: SourceRange,
+): HTMLElement | null {
+  const overlapping = subAnchorsIn(cell).filter((el) =>
+    elementOverlapsRange(el, range),
+  )
+  return overlapping[overlapping.length - 1] ?? null
+}
+
+/**
  * Create a DOM Range that covers the given source range.
  * @param richRoot - The rich view root element.
  * @param sourceRange - The source range to resolve.
@@ -598,26 +641,24 @@ function domRangeForSourceRange(
   const cells = cellsOverlappingRange(richRoot, sourceRange)
   if (cells.length === 0) return null
 
-  const first = cells[0]!
-  const last = cells[cells.length - 1]!
-  const startAnchor = anchorFromCell(first, ctx)
-  const endAnchor = anchorFromCell(last, ctx)
-  if (!startAnchor || !endAnchor) return null
+  const start = rangeHostInCell(cells[0]!, sourceRange, ctx, 'first')
+  const end = rangeHostInCell(cells[cells.length - 1]!, sourceRange, ctx, 'last')
+  if (!start || !end) return null
 
   const startOffsets = plainOffsetsForLineSpan(
-    startAnchor,
+    start.anchor,
     sourceRange.startLine,
     sourceRange.endLine,
   )
   const endOffsets = plainOffsetsForLineSpan(
-    endAnchor,
+    end.anchor,
     sourceRange.startLine,
     sourceRange.endLine,
   )
   if (!startOffsets || !endOffsets) return null
 
-  const startPoint = domPointAtSrcOffset(first, startOffsets.from)
-  const endPoint = domPointAtSrcOffset(last, endOffsets.to)
+  const startPoint = domPointAtSrcOffset(start.host, startOffsets.from)
+  const endPoint = domPointAtSrcOffset(end.host, endOffsets.to)
   if (!startPoint || !endPoint) return null
 
   try {
@@ -628,6 +669,52 @@ function domRangeForSourceRange(
   } catch {
     return null
   }
+}
+
+/**
+ * Pick the narrowest element in a cell that a source range should resolve to.
+ * Prefers the first (or last) overlapping sub-anchor so highlights cover only
+ * the table rows or list items the range names, not the whole block.
+ * @param cell - The cell element.
+ * @param range - The source range to resolve.
+ * @param ctx - The rich view context.
+ * @param which - Take the first or the last overlapping sub-anchor.
+ * @returns The host element and its anchor, or null when the cell lacks data.
+ */
+function rangeHostInCell(
+  cell: HTMLElement,
+  range: SourceRange,
+  ctx: RichViewContext,
+  which: 'first' | 'last',
+): { host: HTMLElement; anchor: BlockSourceAnchor } | null {
+  const side = sideFromCell(cell)
+  if (side) {
+    const overlapping = subAnchorsIn(cell).filter((el) =>
+      elementOverlapsRange(el, range),
+    )
+    const pick =
+      which === 'first' ? overlapping[0] : overlapping[overlapping.length - 1]
+    const subAnchor = pick ? anchorFromElement(pick, side, ctx) : null
+    if (pick && subAnchor) {
+      return { host: pick, anchor: subAnchor }
+    }
+  }
+
+  const anchor = anchorFromCell(cell, ctx)
+  return anchor ? { host: cell, anchor } : null
+}
+
+/**
+ * Determine whether a sub-anchor's line span overlaps a source range.
+ * @param el - The sub-anchor element.
+ * @param range - The source range to test.
+ * @returns True when the spans intersect.
+ */
+function elementOverlapsRange(el: HTMLElement, range: SourceRange): boolean {
+  const from = Number(el.getAttribute('data-src-from'))
+  const to = Number(el.getAttribute('data-src-to'))
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return false
+  return from <= range.endLine && to >= range.startLine
 }
 
 /**
@@ -654,16 +741,18 @@ function cellsOverlappingRange(
 }
 
 /**
- * Resolve a plain-text offset inside a cell to a DOM text point.
- * @param cell - The cell element to search within.
+ * Resolve a plain-text offset inside a cell or sub-anchor to a DOM text point.
+ * @param host - The cell or sub-anchor element to search within.
  * @param srcOffset - The zero-based plain-text offset.
  * @returns A text node and local offset, or null if not resolved.
  */
 export function domPointAtSrcOffset(
-  cell: HTMLElement,
+  host: HTMLElement,
   srcOffset: number,
 ): { node: Text; offset: number } | null {
-  const content = cell.querySelector('.rgm-rich-content')
+  // A sub-anchor (table row, list item) sits inside the content wrapper and
+  // is already the narrowest scope, so it stands in for itself.
+  const content = host.querySelector('.rgm-rich-content') ?? host
   if (!content) return null
 
   const target = Math.max(0, srcOffset)
@@ -722,6 +811,162 @@ function sideFromCell(cell: HTMLElement): ReviewSide | null {
     return side
   }
   return null
+}
+
+/**
+ * Elements inside a block that carry their own exact source line range.
+ * Table rows and list items are one source line (or a known span) each, so a
+ * selection inside one can target that line instead of the whole block.
+ */
+const SUB_ANCHOR_SELECTOR = '[data-src-from][data-src-to]'
+
+/**
+ * A resolved selection endpoint: the element whose source range it maps to,
+ * plus how to turn a DOM point into an offset in that element's plain text.
+ */
+type SelectionAnchor = {
+  /** Identity for comparing two endpoints. A cell or a sub-anchor element. */
+  host: Element
+  anchor: BlockSourceAnchor
+  offsetAt: (node: Node, offset: number) => number | null
+}
+
+/**
+ * List the sub-anchor elements inside a cell, in document order.
+ * @param cell - The cell element.
+ * @returns Sub-anchor elements, empty when the block has none.
+ */
+function subAnchorsIn(cell: HTMLElement): HTMLElement[] {
+  const content = cell.querySelector('.rgm-rich-content')
+  if (!content) return []
+  return [...content.querySelectorAll<HTMLElement>(SUB_ANCHOR_SELECTOR)]
+}
+
+/**
+ * Pick the sub-anchor a DOM point belongs to.
+ * A point outside every sub-anchor (a boundary landing on the table or list
+ * element itself) snaps to the nearest one in document order.
+ * @param subs - Sub-anchor elements for the cell, in document order.
+ * @param node - The DOM node the selection starts or ends in.
+ * @param offset - The offset within that DOM node.
+ * @returns The owning sub-anchor, or null when there are none.
+ */
+function subAnchorForPoint(
+  subs: HTMLElement[],
+  node: Node,
+  offset: number,
+): HTMLElement | null {
+  if (subs.length === 0) return null
+
+  const point =
+    node instanceof Element
+      ? (node.childNodes[offset] ?? node.lastChild ?? node)
+      : node
+
+  for (const sub of subs) {
+    if (sub === point || sub.contains(point)) return sub
+    if (nodePrecedesElement(point, sub)) return sub
+  }
+  return subs[subs.length - 1]!
+}
+
+/**
+ * Determine whether a node sits before an element in document order.
+ * @param node - The node to test.
+ * @param el - The reference element.
+ * @returns True when `node` precedes `el`.
+ */
+function nodePrecedesElement(node: Node, el: Element): boolean {
+  if (typeof el.compareDocumentPosition !== 'function') return false
+  const pos = el.compareDocumentPosition(node)
+  return Boolean(pos & Node.DOCUMENT_POSITION_PRECEDING)
+}
+
+/**
+ * Resolve a selection endpoint to the narrowest source anchor available.
+ * Prefers the sub-anchor (table row, list item) that owns the point, and falls
+ * back to the whole block when the block has none.
+ * @param cell - The cell element the point is in.
+ * @param node - The DOM node the selection starts or ends in.
+ * @param offset - The offset within that DOM node.
+ * @param ctx - The rich view context.
+ * @returns The resolved anchor, or null when the cell lacks source data.
+ */
+function anchorForPoint(
+  cell: HTMLElement,
+  node: Node,
+  offset: number,
+  ctx: RichViewContext,
+): SelectionAnchor | null {
+  const side = sideFromCell(cell)
+  const sub = side ? subAnchorForPoint(subAnchorsIn(cell), node, offset) : null
+  const subAnchor = sub && side ? anchorFromElement(sub, side, ctx) : null
+
+  if (sub && subAnchor) {
+    const length = subAnchor.plainText.length
+    return {
+      host: sub,
+      anchor: subAnchor,
+      // A snapped point lives outside the sub-anchor, so clamp to whichever
+      // end of it the point sits on.
+      offsetAt: (n, o) =>
+        walkTextOffset(sub, n, o) ?? (nodePrecedesElement(n, sub) ? 0 : length),
+    }
+  }
+
+  const anchor = anchorFromCell(cell, ctx)
+  if (!anchor) return null
+  return {
+    host: cell,
+    anchor,
+    offsetAt: (n, o) => srcOffsetInCell(cell, n, o),
+  }
+}
+
+/**
+ * Build a source anchor from an element that carries its own line range.
+ * @param el - A sub-anchor element (table row or list item).
+ * @param side - The review side the element belongs to.
+ * @param ctx - The rich view context.
+ * @returns The anchor object, or null when the line range is unusable.
+ */
+function anchorFromElement(
+  el: HTMLElement,
+  side: ReviewSide,
+  ctx: RichViewContext,
+): BlockSourceAnchor | null {
+  const srcFrom = Number(el.getAttribute('data-src-from'))
+  const srcTo = Number(el.getAttribute('data-src-to'))
+  if (!Number.isFinite(srcFrom) || !Number.isFinite(srcTo)) {
+    return null
+  }
+
+  const fileText = side === 'LEFT' ? ctx.baseText : ctx.headText
+  return {
+    side,
+    srcFrom,
+    srcTo,
+    plainText: plainTextIn(el),
+    sourceLines: linesForRange(fileText, srcFrom, srcTo),
+  }
+}
+
+/**
+ * Collect the selectable text under an element, skipping chrome nodes.
+ * @param root - The element to read.
+ * @returns The concatenated text.
+ */
+function plainTextIn(root: Element): string {
+  let text = ''
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let current = walker.nextNode()
+  while (current) {
+    if (!isChromeText(current)) {
+      text += current.textContent ?? ''
+    }
+    current = walker.nextNode()
+  }
+  return text
 }
 
 /**

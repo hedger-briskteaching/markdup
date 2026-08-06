@@ -16,6 +16,7 @@ import { renderMarkdownBody } from './markdownBody'
 import {
   applyThreadHoverHighlight,
   clearThreadHoverHighlight,
+  findSubAnchorForSourceRange,
   getRichViewContext,
   isUnchangedSectionExpanded,
   paintCommentedMarks,
@@ -106,7 +107,7 @@ export function renderThreadCards(richRoot: Element): void {
         `.rgm-rich-cell[data-side="${thread.side}"]`,
       )
       if (cell) {
-        cell.appendChild(card)
+        placeThreadCard(cell, card, rangeForThread(thread))
         continue
       }
       rowEl.appendChild(card)
@@ -124,6 +125,69 @@ export function renderThreadCards(richRoot: Element): void {
     })),
   )
   bindThreadTextInteractions(root)
+}
+
+/** Marks the table row a thread card is mounted in, so it can be cleaned up. */
+const COMMENT_ROW_CLASS = 'rgm-rich-comment-row'
+
+/**
+ * Mount a thread card with the text it targets.
+ * Inside a table the card goes in its own row directly under the last row the
+ * thread covers. Every other block keeps the card at the end of the cell.
+ * @param cell - The cell element for the thread's side.
+ * @param card - The thread card element.
+ * @param range - The source range the thread targets.
+ * @returns Nothing.
+ */
+function placeThreadCard(
+  cell: HTMLElement,
+  card: HTMLElement,
+  range: SourceRange,
+): void {
+  const anchor = findSubAnchorForSourceRange(cell, range)
+  const row = anchor?.closest('tr')
+  if (row?.parentElement) {
+    row.parentElement.insertBefore(buildCommentRow(row, card), row.nextSibling)
+    return
+  }
+  cell.appendChild(card)
+}
+
+/**
+ * Wrap a thread card in a full-width table row.
+ * The row is chrome so selection offsets step over it, the way GitHub's own
+ * inline comment rows sit inside a diff table.
+ * @param row - The table row the card follows.
+ * @param card - The thread card element.
+ * @returns The comment row element.
+ */
+function buildCommentRow(row: Element, card: HTMLElement): HTMLElement {
+  const commentRow = document.createElement('tr')
+  commentRow.className = COMMENT_ROW_CLASS
+  commentRow.setAttribute('data-rgm-chrome', '')
+
+  const holder = document.createElement('td')
+  holder.colSpan = tableColumnCount(row)
+  holder.appendChild(card)
+  commentRow.appendChild(holder)
+  return commentRow
+}
+
+/**
+ * Count the widest row in the table that owns a row.
+ * A short row would otherwise leave the card narrower than the table.
+ * @param row - Any row in the table.
+ * @returns The column count, at least 1.
+ */
+function tableColumnCount(row: Element): number {
+  const table = row.closest('table')
+  if (!table) return 1
+  let widest = 1
+  for (const other of table.querySelectorAll('tr')) {
+    const cells = other.querySelectorAll('th, td').length
+    if (cells > widest) widest = cells
+  }
+  return widest
 }
 
 /**
@@ -282,6 +346,8 @@ export function scrollToThreadCard(
  */
 export function clearThreadCards(richRoot: Element): void {
   richRoot.querySelectorAll('[data-rgm-thread-card]').forEach((el) => el.remove())
+  // Drop the table rows the cards were mounted in, or empty rows pile up.
+  richRoot.querySelectorAll(`.${COMMENT_ROW_CLASS}`).forEach((el) => el.remove())
 }
 
 /**

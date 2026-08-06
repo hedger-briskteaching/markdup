@@ -85,6 +85,43 @@ describe('isReanchored', () => {
   })
 })
 
+/**
+ * Table on lines 3-7. The delimiter is line 4, so the body rows are on
+ * lines 5, 6, and 7.
+ */
+const TABLE_MD = [
+  '# When cleanup runs',
+  '',
+  '| Trigger | Client steps | API |',
+  '| --- | --- | --- |',
+  '| Modal close | abort in-flight upload | cleanup all ids |',
+  '| Remove one row | drop row from UI | subset of ids |',
+  '| Abort mid-flight | dequeue and abort | ids already known |',
+  '',
+].join('\n')
+
+/** Render the table with one RIGHT thread on the given lines, cards drawn. */
+function tableThreadHost(lines: {
+  startLine: number
+  line: number
+}): HTMLElement {
+  const rows = alignMarkdown(TABLE_MD, TABLE_MD)
+  const host = renderRowsForTest(rows, {
+    baseText: TABLE_MD,
+    headText: TABLE_MD,
+    path: 'docs/PLAN.md',
+  })
+  setRichViewContext(host, {
+    baseText: TABLE_MD,
+    headText: TABLE_MD,
+    rows,
+    path: 'docs/PLAN.md',
+    threads: [thread({ rootId: 9, side: 'RIGHT', ...lines })],
+  })
+  renderThreadCards(host)
+  return host
+}
+
 describe('renderThreadCards', () => {
   it('renders an Open chip under the matching row', () => {
     const baseText = '# Title\n\nBody here.\n'
@@ -112,6 +149,81 @@ describe('renderThreadCards', () => {
     expect(card?.textContent).toContain('jgable')
     expect(card?.textContent).toContain('Open')
     expect(card?.textContent).toContain('PLAN.md L3')
+  })
+
+  it('mounts a table thread in its own row under the row it targets', () => {
+    const host = tableThreadHost({ startLine: 6, line: 6 })
+
+    const rows = [
+      ...host.querySelectorAll('.rgm-rich-cell[data-side="RIGHT"] tr'),
+    ]
+    const cardRow = host.querySelector(
+      '.rgm-rich-cell[data-side="RIGHT"] .rgm-rich-comment-row',
+    )
+    expect(cardRow).not.toBeNull()
+    expect(cardRow?.querySelector('[data-rgm-thread-card]')).not.toBeNull()
+
+    // Directly after the row on line 6, and before the row on line 7.
+    const index = rows.indexOf(cardRow as Element)
+    expect(rows[index - 1]?.getAttribute('data-src-from')).toBe('6')
+    expect(rows[index + 1]?.getAttribute('data-src-from')).toBe('7')
+  })
+
+  it('spans the comment row across every table column', () => {
+    const host = tableThreadHost({ startLine: 6, line: 6 })
+    const holder = host.querySelector<HTMLTableCellElement>(
+      '.rgm-rich-comment-row > td',
+    )
+    expect(holder?.colSpan).toBe(3)
+  })
+
+  it('marks the comment row as chrome so it stays out of source text', () => {
+    const host = tableThreadHost({ startLine: 6, line: 6 })
+    const cardRow = host.querySelector('.rgm-rich-comment-row')
+    expect(cardRow?.hasAttribute('data-rgm-chrome')).toBe(true)
+  })
+
+  it('mounts under the last row a multi-row thread covers', () => {
+    const host = tableThreadHost({ startLine: 5, line: 6 })
+    const rows = [
+      ...host.querySelectorAll('.rgm-rich-cell[data-side="RIGHT"] tr'),
+    ]
+    const cardRow = host.querySelector('.rgm-rich-comment-row')
+    const index = rows.indexOf(cardRow as Element)
+    expect(rows[index - 1]?.getAttribute('data-src-from')).toBe('6')
+  })
+
+  it('leaves no empty comment rows behind on a re-render', () => {
+    const host = tableThreadHost({ startLine: 6, line: 6 })
+    renderThreadCards(host)
+    renderThreadCards(host)
+
+    expect(host.querySelectorAll('.rgm-rich-comment-row')).toHaveLength(1)
+    expect(host.querySelectorAll('[data-rgm-thread-card]')).toHaveLength(1)
+  })
+
+  it('keeps cards at the end of the cell for blocks without rows', () => {
+    const baseText = '# Title\n\nBody here.\n'
+    const rows = alignMarkdown(baseText, baseText)
+    const host = renderRowsForTest(rows, {
+      baseText,
+      headText: baseText,
+      path: 'docs/PLAN.md',
+    })
+    setRichViewContext(host, {
+      baseText,
+      headText: baseText,
+      rows,
+      path: 'docs/PLAN.md',
+      threads: [thread({ rootId: 9, side: 'RIGHT', startLine: 3, line: 3 })],
+    })
+
+    renderThreadCards(host)
+
+    expect(host.querySelector('.rgm-rich-comment-row')).toBeNull()
+    const card = host.querySelector('[data-rgm-thread-card]')
+    expect(card?.parentElement?.classList.contains('rgm-rich-cell')).toBe(true)
+    expect(card?.parentElement?.lastElementChild).toBe(card)
   })
 
   it('renders a Re-anchored chip with old → new lines', () => {

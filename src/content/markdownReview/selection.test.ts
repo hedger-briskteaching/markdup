@@ -294,6 +294,160 @@ describe('selectionToSourceRange', () => {
   })
 })
 
+/**
+ * Table on lines 3-7. The delimiter is line 4, so the body rows are on
+ * lines 5, 6, and 7.
+ */
+const TABLE_MD = [
+  '# When cleanup runs',
+  '',
+  '| Trigger | Client steps | API |',
+  '| --- | --- | --- |',
+  '| Modal close | abort in-flight upload | cleanup with full id list |',
+  '| Remove one row | drop row from UI | subset of ids |',
+  '| Abort mid-flight | dequeue and abort | any ids already known |',
+  '',
+].join('\n')
+
+/** Render a host whose Before and After both hold the same table. */
+function tableHost(): HTMLElement {
+  const rows = alignMarkdown(TABLE_MD, TABLE_MD)
+  const host = renderRowsForTest(rows, {
+    baseText: TABLE_MD,
+    headText: TABLE_MD,
+  })
+  document.body.appendChild(host)
+  return host
+}
+
+describe('selectionToSourceRange in tables', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('renders each table row with its own source line', () => {
+    const host = tableHost()
+    const trs = [
+      ...host.querySelectorAll('.rgm-rich-cell-after tr[data-src-from]'),
+    ]
+    expect(
+      trs.map((tr) => tr.getAttribute('data-src-from')),
+    ).toEqual(['3', '5', '6', '7'])
+  })
+
+  it('targets one row, not the whole table', () => {
+    const host = tableHost()
+    const selection = selectTextIn(host, 'after', 'drop row from UI')
+    const range = selectionToSourceRange(selection, host)
+
+    expect(range).toMatchObject({
+      side: 'RIGHT',
+      startLine: 6,
+      endLine: 6,
+      quotedText: '| Remove one row | drop row from UI | subset of ids |',
+    })
+  })
+
+  it('targets the header row on its own', () => {
+    const host = tableHost()
+    const selection = selectTextIn(host, 'after', 'Client steps')
+    const range = selectionToSourceRange(selection, host)
+
+    expect(range).toMatchObject({ startLine: 3, endLine: 3 })
+  })
+
+  it('spans the rows a multi-row selection covers', () => {
+    const host = tableHost()
+    // Starts in the row on line 5, ends in the row on line 7.
+    const selection = selectTextIn(host, 'after', 'cleanup with full id list')
+    const startRange = selection.getRangeAt(0)
+    const endSelection = selectTextIn(host, 'after', 'dequeue and abort')
+    const endRange = endSelection.getRangeAt(0)
+
+    const combined = document.createRange()
+    combined.setStart(startRange.startContainer, startRange.startOffset)
+    combined.setEnd(endRange.endContainer, endRange.endOffset)
+    endSelection.removeAllRanges()
+    endSelection.addRange(combined)
+
+    expect(selectionToSourceRange(endSelection, host)).toMatchObject({
+      side: 'RIGHT',
+      startLine: 5,
+      endLine: 7,
+    })
+  })
+
+  it('includes the delimiter line when spanning header into body', () => {
+    const host = tableHost()
+    const headerRange = selectTextIn(host, 'after', 'Trigger').getRangeAt(0)
+    const bodySelection = selectTextIn(host, 'after', 'abort in-flight upload')
+    const bodyRange = bodySelection.getRangeAt(0)
+
+    const combined = document.createRange()
+    combined.setStart(headerRange.startContainer, headerRange.startOffset)
+    combined.setEnd(bodyRange.endContainer, bodyRange.endOffset)
+    bodySelection.removeAllRanges()
+    bodySelection.addRange(combined)
+
+    // Lines 3-5 is the real Markdown span: header, delimiter, first body row.
+    expect(selectionToSourceRange(bodySelection, host)).toMatchObject({
+      startLine: 3,
+      endLine: 5,
+    })
+  })
+
+  it('maps a Before table selection to the LEFT side', () => {
+    const host = tableHost()
+    const selection = selectTextIn(host, 'before', 'subset of ids')
+
+    expect(selectionToSourceRange(selection, host)).toMatchObject({
+      side: 'LEFT',
+      startLine: 6,
+      endLine: 6,
+    })
+  })
+
+  it('highlights only the rows a range names', () => {
+    const host = tableHost()
+    const covered = textCoveredByHighlight(() => {
+      applySelectionHighlight(host, {
+        side: 'RIGHT',
+        startLine: 6,
+        startCol: 1,
+        endLine: 6,
+        endCol: 1,
+        quotedText: '',
+      })
+    })
+
+    expect(covered).toContain('drop row from UI')
+    expect(covered).not.toContain('abort in-flight upload')
+    expect(covered).not.toContain('dequeue and abort')
+  })
+})
+
+describe('selectionToSourceRange in lists', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('targets one list item, not the whole list', () => {
+    const text = '- alpha\n- beta\n- gamma\n'
+    const rows = alignMarkdown(text, text)
+    const host = renderRowsForTest(rows, { baseText: text, headText: text })
+    document.body.appendChild(host)
+
+    const selection = selectTextIn(host, 'after', 'beta')
+
+    expect(selectionToSourceRange(selection, host)).toMatchObject({
+      side: 'RIGHT',
+      startLine: 2,
+      endLine: 2,
+      quotedText: '- beta',
+    })
+  })
+})
+
 /** Three-block file with one thread on the middle block, cards rendered. */
 function hostWithThread(): HTMLElement {
   const baseText = 'Alpha.\n\nBravo.\n\nCharlie.\n'
@@ -451,5 +605,95 @@ describe('repaintOverlays', () => {
     } finally {
       restore()
     }
+  })
+})
+
+describe('sub-anchor scoping', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('ignores list items rendered inside a thread card body', () => {
+    const host = tableHost()
+    const cell = host.querySelector('.rgm-rich-cell-after')!
+    // Comment bodies are rendered with the same schema, so they carry their
+    // own (unrelated) line numbers. They must never anchor a selection.
+    const card = document.createElement('div')
+    card.setAttribute('data-rgm-thread-card', '')
+    card.innerHTML = '<ul><li data-src-from="1" data-src-to="1">note</li></ul>'
+    cell.appendChild(card)
+
+    const selection = selectTextIn(host, 'after', 'subset of ids')
+    expect(selectionToSourceRange(selection, host)).toMatchObject({
+      startLine: 6,
+      endLine: 6,
+    })
+  })
+})
+
+describe('highlighting around inline table comments', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('steps over a thread card mounted between table rows', () => {
+    const rows = alignMarkdown(TABLE_MD, TABLE_MD)
+    const host = renderRowsForTest(rows, {
+      baseText: TABLE_MD,
+      headText: TABLE_MD,
+      path: 'docs/PLAN.md',
+    })
+    document.body.appendChild(host)
+    setRichViewContext(host, {
+      baseText: TABLE_MD,
+      headText: TABLE_MD,
+      rows,
+      path: 'docs/PLAN.md',
+      threads: [
+        {
+          path: 'docs/PLAN.md',
+          rootId: 4,
+          side: 'RIGHT',
+          startLine: 6,
+          line: 6,
+          pending: false,
+          comments: [
+            {
+              id: 4,
+              body: 'Card text here.',
+              path: 'docs/PLAN.md',
+              side: 'RIGHT',
+              line: 6,
+              startLine: 6,
+              originalLine: null,
+              inReplyToId: null,
+              userLogin: 'jgable',
+              createdAt: new Date().toISOString(),
+              commitId: 'abc',
+              htmlUrl: 'https://github.com/o/r/pull/1#discussion_r4',
+              pullRequestReviewId: null,
+            },
+          ],
+        },
+      ],
+    })
+    renderThreadCards(host)
+    expect(host.querySelector('.rgm-rich-comment-row')).not.toBeNull()
+
+    // Rows 5 through 7 span the card sitting after row 6.
+    const covered = textCoveredByHighlight(() => {
+      applySelectionHighlight(host, {
+        side: 'RIGHT',
+        startLine: 5,
+        startCol: 1,
+        endLine: 7,
+        endCol: 1,
+        quotedText: '',
+      })
+    })
+
+    expect(covered).toContain('abort in-flight upload')
+    expect(covered).toContain('dequeue and abort')
+    expect(covered).not.toContain('Card text here.')
   })
 })
