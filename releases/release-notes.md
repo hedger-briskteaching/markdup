@@ -1,11 +1,14 @@
 # Markdup 0.1.1
 
-First public release.
+Updated 0.1.1 build with table-row comment anchoring.
 
 ## What's new
 
-- Rendered Before / After review for Markdown files on GitHub pull requests
-- Connect with GitHub (OAuth Device Flow) or a personal access token
+- Comments anchor to individual table rows instead of whole tables
+- GitHub's Files toolbar counters update in place after a comment change
+- GitHub comment links open into the rich view
+- Rich view renders for large diffs held behind Load Diff
+- File snapshots are cached so a rich view remounts without network
 
 ## Install
 
