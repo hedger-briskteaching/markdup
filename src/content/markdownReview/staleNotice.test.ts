@@ -4,11 +4,7 @@ import { markCommentsDirty, showStaleNoticeIfDirty } from './composer'
 import { renderRichBody } from './renderBody'
 import { renderRowsForTest } from './richView'
 import { selectionToSourceRange } from './selection'
-import {
-  clearStaleNotice,
-  nudgeGitHubRefetch,
-  showStaleNotice,
-} from './staleNotice'
+import { clearStaleNotice, showStaleNotice } from './staleNotice'
 
 const NOTICE = '[data-rgm-stale-notice]'
 
@@ -152,38 +148,3 @@ describe('markCommentsDirty', () => {
   })
 })
 
-describe('nudgeGitHubRefetch', () => {
-  it('fires the events data layers refetch on', () => {
-    const seen: string[] = []
-    const onVisibility = () => seen.push('visibilitychange')
-    const onFocus = () => seen.push('focus')
-    const onOnline = () => seen.push('online')
-    document.addEventListener('visibilitychange', onVisibility)
-    window.addEventListener('focus', onFocus)
-    window.addEventListener('online', onOnline)
-
-    try {
-      nudgeGitHubRefetch()
-    } finally {
-      document.removeEventListener('visibilitychange', onVisibility)
-      window.removeEventListener('focus', onFocus)
-      window.removeEventListener('online', onOnline)
-    }
-
-    expect(seen).toEqual(['visibilitychange', 'focus', 'online'])
-  })
-
-  it('runs as part of marking the page stale', () => {
-    const seen: string[] = []
-    const onFocus = () => seen.push('focus')
-    window.addEventListener('focus', onFocus)
-
-    try {
-      markCommentsDirty(richHost())
-    } finally {
-      window.removeEventListener('focus', onFocus)
-    }
-
-    expect(seen).toContain('focus')
-  })
-})

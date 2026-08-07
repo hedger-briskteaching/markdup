@@ -15,7 +15,8 @@ import {
   type RichViewContext,
 } from './selection'
 import { FILE_REGION } from './selectors'
-import { nudgeGitHubRefetch, showStaleNotice } from './staleNotice'
+import { clearStaleNotice, showStaleNotice } from './staleNotice'
+import { syncFilesToolbarSoon } from './toolbarSync'
 import { syncThreadsFromServer } from './syncThreads'
 
 const BUBBLE_ATTR = 'data-rgm-comment-bubble'
@@ -529,16 +530,21 @@ export function markCommentsDirty(richRoot: Element): void {
   region?.setAttribute(COMMENTS_DIRTY_ATTR, '')
   document.documentElement.setAttribute(COMMENTS_DIRTY_ATTR, '')
 
-  // Best effort first: get GitHub's own code to refetch its review state,
-  // which keeps scroll, focus, and the rich view intact.
-  nudgeGitHubRefetch()
-
   // One stale review state serves the whole page, so every open rich view
   // says so, not only the file that was edited.
   showStaleNotice(richRoot)
   for (const root of document.querySelectorAll('[data-rgm-rich]')) {
     showStaleNotice(root)
   }
+
+  // Then correct GitHub's toolbar counters in place. When that lands there is
+  // nothing left for the reviewer to act on, so retire the notice.
+  void syncFilesToolbarSoon().then((patched) => {
+    if (!patched) return
+    for (const root of document.querySelectorAll('[data-rgm-rich]')) {
+      clearStaleNotice(root)
+    }
+  })
 }
 
 /**
