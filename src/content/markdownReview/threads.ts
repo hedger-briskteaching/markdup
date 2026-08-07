@@ -316,6 +316,9 @@ export function clearThreadCards(richRoot: Element): void {
   richRoot.querySelectorAll('[data-rgm-thread-card]').forEach((el) => el.remove())
   // Drop the table rows the cards were mounted in, or empty rows pile up.
   richRoot.querySelectorAll(`.${COMMENT_ROW_CLASS}`).forEach((el) => el.remove())
+  // A removed card never fires mouseleave, so its hover highlight would
+  // otherwise stay painted forever (for example after deleting a comment).
+  clearThreadHoverHighlight(richRoot)
 }
 
 /**

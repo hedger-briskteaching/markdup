@@ -100,6 +100,29 @@ describe('thread card hover highlight', () => {
     expect(host.querySelector('.rgm-thread-hover-cell')).toBeNull()
   })
 
+  it('clears a stale hover highlight when the hovered card is removed', () => {
+    const host = mountWithThread()
+    const card = host.querySelector<HTMLElement>('[data-rgm-thread-card]')!
+
+    card.dispatchEvent(new Event('mouseenter'))
+    expect(host.querySelector('.rgm-thread-hover-cell')).not.toBeNull()
+
+    // Deleting the comment re-syncs and re-renders with the thread gone.
+    // The removed card never fires mouseleave, so the highlight must be
+    // cleared by the re-render itself.
+    setRichViewContext(host, {
+      baseText: text,
+      headText: text,
+      rows: alignMarkdown(text, text),
+      path: 'README.md',
+      threads: [],
+    })
+    renderThreadCards(host)
+
+    expect(host.querySelector('.rgm-thread-hover-cell')).toBeNull()
+    expect(host.querySelector('.rgm-thread-hover-layer')).toBeNull()
+  })
+
   it('highlights on focusin and clears on focusout', () => {
     const host = mountWithThread()
     const card = host.querySelector<HTMLElement>('[data-rgm-thread-card]')!
