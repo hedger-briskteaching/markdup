@@ -755,6 +755,10 @@ async function submitReply(args: {
     return
   }
 
+  // The reply is on the server now, so GitHub's page is already stale.
+  // Flag it before the sync, which may fail for its own reasons.
+  markCommentsDirty(richRoot)
+
   status.textContent = 'Syncing…'
   const synced = await syncThreadsFromServer(richRoot, ctx, {
     expectCommentId: response.id,
@@ -765,7 +769,6 @@ async function submitReply(args: {
     status.classList.add('rgm-composer-status-error')
     return
   }
-  markCommentsDirty(richRoot)
   onDone()
 }
 
@@ -895,16 +898,15 @@ async function submitEdit(args: {
     return
   }
 
+  // The edit is on the server now, so GitHub's page is already stale.
+  markCommentsDirty(richRoot)
+
   status.textContent = 'Syncing…'
   const synced = await syncThreadsFromServer(richRoot, ctx)
   if (!synced.ok) {
     // Still update local body so the user is not stuck. Next sync will reconcile.
     bodyHost.replaceChildren(renderMarkdownBody(body))
-    markCommentsDirty(richRoot)
-    onDone()
-    return
   }
-  markCommentsDirty(richRoot)
   onDone()
 }
 
@@ -940,13 +942,15 @@ async function deleteComment(
     return
   }
 
+  // The comment is gone from the server now, so GitHub's page is already
+  // stale even if the sync below cannot confirm it.
+  markCommentsDirty(richRoot)
+
   const synced = await syncThreadsFromServer(richRoot, ctx)
   if (!synced.ok) {
     button.disabled = false
     window.alert(synced.error)
-    return
   }
-  markCommentsDirty(richRoot)
 }
 
 /**

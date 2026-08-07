@@ -62,6 +62,7 @@ function mountThread(viewerLogin = 'hedger'): HTMLElement {
 
 afterEach(() => {
   document.body.innerHTML = ''
+  document.documentElement.removeAttribute('data-rgm-comments-dirty')
   vi.restoreAllMocks()
 })
 
@@ -285,5 +286,54 @@ describe('thread reply / edit / delete', () => {
         pullNumber: 1,
       }),
     )
+  })
+})
+
+describe('stale page state after a mutation', () => {
+  /** Mount a thread, answer confirm, and click its Delete button. */
+  function deleteWith(
+    fetchIndex: () => unknown,
+  ): { host: HTMLElement; sendMessage: ReturnType<typeof vi.fn> } {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'alert').mockImplementation(() => {})
+    const sendMessage = vi
+      .fn()
+      .mockImplementation(async (message: { type: string }) => {
+        if (message.type === 'DELETE_REVIEW_COMMENT') return { ok: true }
+        if (message.type === 'FETCH_THREAD_INDEX') return fetchIndex()
+        return { error: `unexpected ${message.type}` }
+      })
+    vi.stubGlobal('chrome', { runtime: { sendMessage } })
+
+    const host = mountThread()
+    host.querySelectorAll('.rgm-thread-action').forEach((btn) => {
+      if (btn.textContent === 'Delete') (btn as HTMLButtonElement).click()
+    })
+    return { host, sendMessage }
+  }
+
+  it('offers a refresh once the delete lands', async () => {
+    const { host } = deleteWith(() => ({ threads: [] }))
+
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-rgm-thread-card]')).toBeNull()
+    })
+    expect(host.querySelector('[data-rgm-stale-notice]')).not.toBeNull()
+  })
+
+  it('offers a refresh even when the follow-up sync fails', async () => {
+    // The comment is already gone from GitHub. A sync that cannot confirm it
+    // must not leave the page silently stale.
+    const { host, sendMessage } = deleteWith(() => ({ error: 'network down' }))
+
+    await vi.waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'FETCH_THREAD_INDEX' }),
+      )
+    })
+    expect(host.querySelector('[data-rgm-stale-notice]')).not.toBeNull()
+    expect(
+      document.documentElement.hasAttribute('data-rgm-comments-dirty'),
+    ).toBe(true)
   })
 })

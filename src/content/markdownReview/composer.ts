@@ -489,6 +489,12 @@ async function submitComment(args: {
   }
 
   const richRoot = richRootFrom(panel)
+  // The comment is on the server now, so GitHub's page is already stale.
+  // Flag it before the sync, which may fail for its own reasons.
+  if (richRoot) {
+    markCommentsDirty(richRoot)
+  }
+
   status.textContent = 'Syncing with GitHub…'
 
   const synced = richRoot
@@ -505,9 +511,6 @@ async function submitComment(args: {
   }
 
   status.textContent = 'Added to your pending review.'
-  if (richRoot) {
-    markCommentsDirty(richRoot)
-  }
   window.setTimeout(() => {
     editor?.destroy()
     if (richRoot) clearSelectionHighlight(richRoot)
