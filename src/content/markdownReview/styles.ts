@@ -1228,38 +1228,6 @@ const CSS = `
   opacity: 0.9;
 }
 
-[data-rgm-rich] .rgm-stale-notice {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--rgm-bp-200);
-  background: var(--bgColor-attention-muted, #fff8c5);
-  font-size: 12px;
-  color: var(--fgColor-attention, #9a6700);
-}
-
-[data-rgm-rich] .rgm-stale-notice-text {
-  flex: 1;
-  min-width: 200px;
-}
-
-[data-rgm-rich] .rgm-stale-notice-btn {
-  padding: 3px 10px;
-  border: 1px solid var(--rgm-bp-300);
-  border-radius: 6px;
-  background: var(--bgColor-default, #ffffff);
-  color: inherit;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-[data-rgm-rich] .rgm-stale-notice-btn:hover {
-  background: var(--rgm-bp-25);
-}
-
 [data-rgm-rich] .rgm-rich-comment-row > td {
   padding: 0;
   border: 0;

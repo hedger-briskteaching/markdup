@@ -15,7 +15,6 @@ import {
   type RichViewContext,
 } from './selection'
 import { FILE_REGION } from './selectors'
-import { clearStaleNotice, showStaleNotice } from './staleNotice'
 import { syncFilesToolbarSoon } from './toolbarSync'
 import { syncThreadsFromServer } from './syncThreads'
 
@@ -520,8 +519,12 @@ async function submitComment(args: {
 }
 
 /**
- * Mark that GitHub's own page state is stale due to API comment changes.
- * Offers a refresh now, and forces one when leaving rich mode.
+ * Mark that GitHub's own page state is stale due to API comment changes,
+ * and correct the counters it shows.
+ *
+ * The dirty flag stays set regardless: the toolbar is only part of what
+ * GitHub renders from stale state, and leaving rich mode still reloads so
+ * the rest of its UI catches up.
  * @param richRoot - The rich view root element.
  * @returns Nothing.
  */
@@ -530,32 +533,7 @@ export function markCommentsDirty(richRoot: Element): void {
   region?.setAttribute(COMMENTS_DIRTY_ATTR, '')
   document.documentElement.setAttribute(COMMENTS_DIRTY_ATTR, '')
 
-  // One stale review state serves the whole page, so every open rich view
-  // says so, not only the file that was edited.
-  showStaleNotice(richRoot)
-  for (const root of document.querySelectorAll('[data-rgm-rich]')) {
-    showStaleNotice(root)
-  }
-
-  // Then correct GitHub's toolbar counters in place. When that lands there is
-  // nothing left for the reviewer to act on, so retire the notice.
-  void syncFilesToolbarSoon().then((patched) => {
-    if (!patched) return
-    for (const root of document.querySelectorAll('[data-rgm-rich]')) {
-      clearStaleNotice(root)
-    }
-  })
-}
-
-/**
- * Show the stale-state notice on a rich view mounted after a comment change.
- * @param richRoot - The rich view root element.
- * @returns Nothing.
- */
-export function showStaleNoticeIfDirty(richRoot: Element): void {
-  if (document.documentElement.hasAttribute(COMMENTS_DIRTY_ATTR)) {
-    showStaleNotice(richRoot)
-  }
+  void syncFilesToolbarSoon()
 }
 
 /**

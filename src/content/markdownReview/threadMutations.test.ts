@@ -312,26 +312,28 @@ describe('stale page state after a mutation', () => {
     return { host, sendMessage }
   }
 
-  it('offers a refresh once the delete lands', async () => {
+  it('flags the page once the delete lands', async () => {
     const { host } = deleteWith(() => ({ threads: [] }))
 
     await vi.waitFor(() => {
       expect(host.querySelector('[data-rgm-thread-card]')).toBeNull()
     })
-    expect(host.querySelector('[data-rgm-stale-notice]')).not.toBeNull()
+    expect(
+      document.documentElement.hasAttribute('data-rgm-comments-dirty'),
+    ).toBe(true)
   })
 
-  it('offers a refresh even when the follow-up sync fails', async () => {
+  it('flags the page even when the follow-up sync fails', async () => {
     // The comment is already gone from GitHub. A sync that cannot confirm it
-    // must not leave the page silently stale.
-    const { host, sendMessage } = deleteWith(() => ({ error: 'network down' }))
+    // must not leave the page silently stale, or leaving rich mode will not
+    // reload and GitHub's UI keeps the old state for good.
+    const { sendMessage } = deleteWith(() => ({ error: 'network down' }))
 
     await vi.waitFor(() => {
       expect(sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'FETCH_THREAD_INDEX' }),
       )
     })
-    expect(host.querySelector('[data-rgm-stale-notice]')).not.toBeNull()
     expect(
       document.documentElement.hasAttribute('data-rgm-comments-dirty'),
     ).toBe(true)

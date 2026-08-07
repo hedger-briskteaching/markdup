@@ -341,10 +341,6 @@ describe('bindComposer', () => {
     expect(document.documentElement.hasAttribute('data-rgm-comments-dirty')).toBe(
       true,
     )
-    // GitHub's own page state cannot be refreshed from here, so offer a reload.
-    const notice = host.querySelector('[data-rgm-stale-notice]')
-    expect(notice).not.toBeNull()
-    expect(notice?.textContent).toContain('Refresh page')
     expect(
       sendMessage.mock.calls.some(
         (call) => call[0]?.type === 'FETCH_THREAD_INDEX',
