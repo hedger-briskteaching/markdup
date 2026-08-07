@@ -15,6 +15,7 @@ import {
   type RichViewContext,
 } from './selection'
 import { FILE_REGION } from './selectors'
+import { showStaleNotice } from './staleNotice'
 import { syncThreadsFromServer } from './syncThreads'
 
 const BUBBLE_ATTR = 'data-rgm-comment-bubble'
@@ -515,8 +516,8 @@ async function submitComment(args: {
 }
 
 /**
- * Mark that the native Files view is stale due to API-created comments.
- * A page reload will be needed when leaving rich mode.
+ * Mark that GitHub's own page state is stale due to API comment changes.
+ * Offers a refresh now, and forces one when leaving rich mode.
  * @param richRoot - The rich view root element.
  * @returns Nothing.
  */
@@ -524,6 +525,24 @@ export function markCommentsDirty(richRoot: Element): void {
   const region = richRoot.closest(FILE_REGION) ?? richRoot.parentElement
   region?.setAttribute(COMMENTS_DIRTY_ATTR, '')
   document.documentElement.setAttribute(COMMENTS_DIRTY_ATTR, '')
+
+  // One stale review state serves the whole page, so every open rich view
+  // says so, not only the file that was edited.
+  showStaleNotice(richRoot)
+  for (const root of document.querySelectorAll('[data-rgm-rich]')) {
+    showStaleNotice(root)
+  }
+}
+
+/**
+ * Show the stale-state notice on a rich view mounted after a comment change.
+ * @param richRoot - The rich view root element.
+ * @returns Nothing.
+ */
+export function showStaleNoticeIfDirty(richRoot: Element): void {
+  if (document.documentElement.hasAttribute(COMMENTS_DIRTY_ATTR)) {
+    showStaleNotice(richRoot)
+  }
 }
 
 /**

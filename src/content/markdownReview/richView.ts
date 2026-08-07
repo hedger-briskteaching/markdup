@@ -7,7 +7,7 @@ import {
   clearRichViewContext,
   setRichViewContext,
 } from './selection'
-import { bindComposer } from './composer'
+import { bindComposer, showStaleNoticeIfDirty } from './composer'
 import {
   bindFileCollapseSync,
   bindHeaderControlSuppress,
@@ -104,6 +104,7 @@ export function showRichView(
     expandedUnchangedIds: expanded,
   })
   root.replaceChildren(buildRichRoot(rows, expanded))
+  showStaleNoticeIfDirty(root)
   composerCleanups.get(root)?.()
   composerCleanups.set(root, bindComposer(root))
   overlayCleanups.get(root)?.()
