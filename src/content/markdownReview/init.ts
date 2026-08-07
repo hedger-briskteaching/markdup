@@ -3,6 +3,7 @@
  * Runs on every GitHub page, so it stays light: the scan module and its
  * markdown dependencies load on demand once a Files or Changes URL is active.
  */
+import { bindCommentAnchor, followCommentHash } from './commentAnchor'
 import { isPrFilesPage } from './detect'
 import { PROGRESSIVE_DIFFS_LIST } from './selectors'
 import { injectStyles, removeStyles } from './styles'
@@ -108,6 +109,17 @@ function onNavigation(): void {
  * Run navigation logic only when location.pathname has changed.
  * @returns Nothing.
  */
+function handleNavigation(): void {
+  handleLocationChange()
+  // A soft navigation can carry a comment anchor without changing the
+  // pathname, which handleLocationChange ignores.
+  followCommentHash()
+}
+
+/**
+ * React to a pathname change, ignoring navigations that keep the same path.
+ * @returns Nothing.
+ */
 function handleLocationChange(): void {
   let pathname: string
   try {
@@ -173,6 +185,7 @@ export function initMarkdownReview(): void {
 
   handleLocationChange()
   observePathname()
+  bindCommentAnchor()
 
   // GitHub soft-nav events (not standard DOM events). GitHub is an SPA: many
   // clicks swap page content without a full reload, so content scripts must
@@ -180,20 +193,20 @@ export function initMarkdownReview(): void {
   // - turbo:load — Hotwire Turbo: visit finished and the new page is in the DOM
   // - turbo:render — Hotwire Turbo: body was re-rendered (incl. cache restore)
   // - pjax:end — legacy jQuery pjax; still used on some older GitHub flows
-  document.addEventListener('turbo:load', handleLocationChange)
-  document.addEventListener('turbo:render', handleLocationChange)
-  document.addEventListener('pjax:end', handleLocationChange)
+  document.addEventListener('turbo:load', handleNavigation)
+  document.addEventListener('turbo:render', handleNavigation)
+  document.addEventListener('pjax:end', handleNavigation)
 
   // Soft SPA navigations that do not fire turbo/pjax events (same JS world).
   const pushState = history.pushState.bind(history)
   history.pushState = (...args) => {
     pushState(...args)
-    handleLocationChange()
+    handleNavigation()
   }
   const replaceState = history.replaceState.bind(history)
   history.replaceState = (...args) => {
     replaceState(...args)
-    handleLocationChange()
+    handleNavigation()
   }
-  window.addEventListener('popstate', handleLocationChange)
+  window.addEventListener('popstate', handleNavigation)
 }
