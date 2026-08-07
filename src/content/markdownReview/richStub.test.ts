@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   hideRichView,
   isRichMode,
@@ -94,5 +94,67 @@ describe('richView', () => {
     })
     showRichView(empty, [])
     expect(empty.querySelector('[data-rgm-rich]')).toBeNull()
+  })
+})
+
+describe('deferred (large) diffs', () => {
+  beforeEach(() => {
+    clearSnapshotCache()
+    document.body.innerHTML = ''
+  })
+
+  /** A region showing GitHub's "Load Diff" placeholder, not a diff table. */
+  function deferredRegion(): HTMLElement {
+    const el = createFileRegion({ path: 'docs/BIG.md', deferredDiff: true })
+    document.body.appendChild(el)
+    return el
+  }
+
+  it('renders the rich view without loading the diff first', () => {
+    const region = deferredRegion()
+    setRichModeFromTexts(region, '# Big\n\nOld.\n', '# Big\n\nNew.\n')
+
+    const rich = region.querySelector('[data-rgm-rich]')
+    expect(rich).not.toBeNull()
+    expect(rich?.textContent).toContain('Before')
+    expect(rich?.textContent).toContain('After')
+    expect(isRichMode(region)).toBe(true)
+  })
+
+  it('hides the placeholder while rich mode is on', () => {
+    const region = deferredRegion()
+    setRichModeFromTexts(region, '# Big\n', '# Big\n')
+
+    const body = region.querySelector(
+      'div.border.position-relative.rounded-bottom-2',
+    )
+    expect(body?.hasAttribute('data-rgm-diff-hidden')).toBe(true)
+    // GitHub's own control is untouched, just hidden with its container.
+    expect(body?.textContent).toContain('Load Diff')
+  })
+
+  it('never asks GitHub to render the diff it is about to hide', () => {
+    const region = deferredRegion()
+    const load = [...region.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Load Diff',
+    )!
+    const clicked = vi.fn()
+    load.addEventListener('click', clicked)
+
+    setRichModeFromTexts(region, '# Big\n', '# Big\n')
+
+    expect(clicked).not.toHaveBeenCalled()
+  })
+
+  it('still prefers the real diff body once the diff is loaded', () => {
+    const region = createFileRegion({ path: 'docs/BIG.md' })
+    document.body.appendChild(region)
+    setRichModeFromTexts(region, '# Big\n', '# Big\n')
+
+    const body = region.querySelector(
+      'div.border.position-relative.rounded-bottom-2',
+    )
+    expect(body?.querySelector('table[aria-label^="Diff for:"]')).not.toBeNull()
+    expect(body?.hasAttribute('data-rgm-diff-hidden')).toBe(true)
   })
 })

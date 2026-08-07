@@ -15,6 +15,12 @@ export type FileRegionOptions = {
   fileExpanded?: boolean
   /** Include the "Expand all lines" header control. */
   includeExpandAllLines?: boolean
+  /**
+   * Render GitHub's deferred-diff placeholder instead of the diff table.
+   * Large diffs load behind a "Load Diff" button, so the body exists but
+   * holds no `table[aria-label^="Diff for:"]`.
+   */
+  deferredDiff?: boolean
 }
 
 export function createFileRegion(options: FileRegionOptions): HTMLElement {
@@ -27,6 +33,7 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
     pathViaLinkOnly = false,
     fileExpanded,
     includeExpandAllLines = false,
+    deferredDiff = false,
   } = options
 
   const region = document.createElement('div')
@@ -147,9 +154,19 @@ export function createFileRegion(options: FileRegionOptions): HTMLElement {
   if (includeDiffBody) {
     const body = document.createElement('div')
     body.className = 'border position-relative rounded-bottom-2'
-    const table = document.createElement('table')
-    table.setAttribute('aria-label', `Diff for: ${path}`)
-    body.appendChild(table)
+    if (deferredDiff) {
+      const load = document.createElement('button')
+      load.type = 'button'
+      load.textContent = 'Load Diff'
+      body.appendChild(load)
+      const note = document.createElement('p')
+      note.textContent = 'Large diffs are not rendered by default.'
+      body.appendChild(note)
+    } else {
+      const table = document.createElement('table')
+      table.setAttribute('aria-label', `Diff for: ${path}`)
+      body.appendChild(table)
+    }
     region.appendChild(body)
   }
 

@@ -36,23 +36,39 @@ export type ShowRichViewOptions = {
   viewerLogin?: string
 }
 
+/** Elements this extension injects into a file region. */
+const OWN_NODES = '[data-rgm-rich], [data-rgm-stub], [data-rgm-auth-panel]'
+
 /**
  * Find the native diff body element within a file region.
+ *
+ * The rich view is built from the file at base and head, not from GitHub's
+ * rendered diff, so the body is only needed as something to hide and to
+ * insert after. GitHub defers large diffs behind a "Load Diff" placeholder,
+ * and matching on the diff table alone would leave those files stuck: the
+ * toggle would flip and nothing would mount. Fall back to whatever sits
+ * after the header instead, so a deferred file works without ever making
+ * GitHub render the diff we are about to hide.
  * @param region - The file region element.
  * @returns The diff body element, or null if not found.
  */
 function findDiffBody(region: Element): HTMLElement | null {
   const header = region.querySelector('[data-diff-header-wrapper]')
   if (header?.parentElement === region) {
+    let fallback: HTMLElement | null = null
     let sibling = header.nextElementSibling
     while (sibling) {
-      if (
-        sibling instanceof HTMLElement &&
-        sibling.querySelector('table[aria-label^="Diff for:"]')
-      ) {
-        return sibling
+      if (sibling instanceof HTMLElement && !sibling.matches(OWN_NODES)) {
+        // The rendered diff is the surest match, so keep looking for it.
+        if (sibling.querySelector('table[aria-label^="Diff for:"]')) {
+          return sibling
+        }
+        fallback ??= sibling
       }
       sibling = sibling.nextElementSibling
+    }
+    if (fallback) {
+      return fallback
     }
   }
 
