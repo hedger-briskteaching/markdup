@@ -15,6 +15,12 @@ import {
   showRichView,
 } from './richView'
 import { syncFileCollapsedState } from './headerControls'
+import {
+  getCachedSnapshot,
+  getCachedViewerLogin,
+  setCachedSnapshot,
+  setCachedViewerLogin,
+} from './snapshotCache'
 import { RGM_TOGGLE } from './selectors'
 import { syncThreadsFromServer } from './syncThreads'
 
@@ -156,15 +162,17 @@ async function mountRichView(region: Element): Promise<void> {
     return
   }
 
-  showRichLoading(region)
+  const cached = getCachedSnapshot(pull.owner, pull.repo, pull.pullNumber, path)
+  const cachedLogin = getCachedViewerLogin()
+  // A cache hit can mount without a single round trip, so skip the spinner.
+  if (!cached) {
+    showRichLoading(region)
+  }
 
   try {
-    const snapshot = await loadSnapshot(
-      pull.owner,
-      pull.repo,
-      pull.pullNumber,
-      path,
-    )
+    const snapshot =
+      cached?.snapshot ??
+      (await loadSnapshot(pull.owner, pull.repo, pull.pullNumber, path))
 
     if (region.getAttribute('data-rgm-mode') !== 'rich') {
       return
@@ -178,11 +186,22 @@ async function mountRichView(region: Element): Promise<void> {
       return
     }
 
-    const rows = alignMarkdown(
-      snapshot.baseText ?? '',
-      snapshot.headText ?? '',
-    )
-    const viewerLogin = await fetchViewerLogin()
+    const rows =
+      cached?.rows ??
+      alignMarkdown(snapshot.baseText ?? '', snapshot.headText ?? '')
+    if (!cached) {
+      setCachedSnapshot(pull.owner, pull.repo, pull.pullNumber, path, {
+        snapshot,
+        rows,
+      })
+    }
+
+    const viewerLogin = cachedLogin
+      ? cachedLogin.value
+      : await fetchViewerLogin()
+    if (!cachedLogin) {
+      setCachedViewerLogin(viewerLogin)
+    }
     if (region.getAttribute('data-rgm-mode') !== 'rich') {
       return
     }

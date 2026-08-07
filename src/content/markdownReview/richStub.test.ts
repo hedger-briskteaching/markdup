@@ -8,11 +8,13 @@ import {
 import { setRichModeFromTexts } from './richStub'
 import { createFileRegion } from './test/fixtures'
 import { alignMarkdown } from '../../markdown/align'
+import { clearSnapshotCache } from './snapshotCache'
 
 describe('richView', () => {
   let region: HTMLElement
 
   beforeEach(() => {
+    clearSnapshotCache()
     document.body.innerHTML = ''
     region = createFileRegion({ path: 'docs/PLAN.md' })
     document.body.appendChild(region)

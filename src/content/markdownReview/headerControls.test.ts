@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import { alignMarkdown } from '../../markdown/align'
 import {
   bindFileCollapseSync,
@@ -18,6 +18,7 @@ import { hideRichView, showRichView } from './richView'
 import { createFileRegion, setFileCollapsed } from './test/fixtures'
 import { setRichPathIntent, clearRichPathIntents } from './richIntent'
 import { injectStyles, removeStyles } from './styles'
+import { clearSnapshotCache } from './snapshotCache'
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -26,6 +27,10 @@ afterEach(() => {
 })
 
 describe('headerControls', () => {
+  beforeEach(() => {
+    clearSnapshotCache()
+  })
+
   it('finds collapse via chevron icon, not Expand all lines', () => {
     const region = createFileRegion({
       path: 'docs/PLAN.md',

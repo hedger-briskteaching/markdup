@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { alignMarkdown } from '../../markdown/align'
 import { getCommentEditorForTest } from './commentEditor'
 import { bindComposer } from './composer'
+import { clearSnapshotCache } from './snapshotCache'
 import { renderRowsForTest } from './richView'
 import { setRichMode } from './richStub'
 import { createFileRegion } from './test/fixtures'
@@ -56,6 +57,7 @@ function selectNeedle(root: Element, needle: string): void {
 
 describe('bindComposer', () => {
   beforeEach(() => {
+    clearSnapshotCache()
     document.body.innerHTML = ''
     vi.unstubAllGlobals()
   })
