@@ -15,7 +15,7 @@ import {
   type RichViewContext,
 } from './selection'
 import { FILE_REGION } from './selectors'
-import { showStaleNotice } from './staleNotice'
+import { nudgeGitHubRefetch, showStaleNotice } from './staleNotice'
 import { syncThreadsFromServer } from './syncThreads'
 
 const BUBBLE_ATTR = 'data-rgm-comment-bubble'
@@ -528,6 +528,10 @@ export function markCommentsDirty(richRoot: Element): void {
   const region = richRoot.closest(FILE_REGION) ?? richRoot.parentElement
   region?.setAttribute(COMMENTS_DIRTY_ATTR, '')
   document.documentElement.setAttribute(COMMENTS_DIRTY_ATTR, '')
+
+  // Best effort first: get GitHub's own code to refetch its review state,
+  // which keeps scroll, focus, and the rich view intact.
+  nudgeGitHubRefetch()
 
   // One stale review state serves the whole page, so every open rich view
   // says so, not only the file that was edited.
