@@ -9,6 +9,7 @@ Updated 0.1.1 build with table-row comment anchoring.
 - GitHub comment links open into the rich view
 - Rich view renders for large diffs held behind Load Diff
 - File snapshots are cached so a rich view remounts without network
+- Stale hover highlight clears when a thread card is removed
 
 ## Install
 
