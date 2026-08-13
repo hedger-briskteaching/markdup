@@ -122,6 +122,58 @@ function tableThreadHost(lines: {
   return host
 }
 
+/** Bullet list on lines 3-5, one item per line. */
+const LIST_MD = [
+  '# Plan',
+  '',
+  '- item 1',
+  '- item 2',
+  '- item 3',
+  '',
+].join('\n')
+
+/**
+ * Nested list. Outer items on lines 3 and 6, nested items on lines 4 and 5.
+ */
+const NESTED_LIST_MD = [
+  '# Plan',
+  '',
+  '- item 1',
+  '  - sub a',
+  '  - sub b',
+  '- item 2',
+  '',
+].join('\n')
+
+/** Render a list with one RIGHT thread on the given lines, cards drawn. */
+function listThreadHost(
+  lines: { startLine: number; line: number },
+  markdown: string = LIST_MD,
+): HTMLElement {
+  const rows = alignMarkdown(markdown, markdown)
+  const host = renderRowsForTest(rows, {
+    baseText: markdown,
+    headText: markdown,
+    path: 'docs/PLAN.md',
+  })
+  setRichViewContext(host, {
+    baseText: markdown,
+    headText: markdown,
+    rows,
+    path: 'docs/PLAN.md',
+    threads: [thread({ rootId: 9, side: 'RIGHT', ...lines })],
+  })
+  renderThreadCards(host)
+  return host
+}
+
+/** The list items and comment slots of the After cell, in document order. */
+function listChildren(host: HTMLElement): Element[] {
+  return [
+    ...host.querySelectorAll('.rgm-rich-cell[data-side="RIGHT"] ul > *'),
+  ]
+}
+
 describe('renderThreadCards', () => {
   it('renders an Open chip under the matching row', () => {
     const baseText = '# Title\n\nBody here.\n'
@@ -199,6 +251,57 @@ describe('renderThreadCards', () => {
     renderThreadCards(host)
 
     expect(host.querySelectorAll('.rgm-rich-comment-row')).toHaveLength(1)
+    expect(host.querySelectorAll('[data-rgm-thread-card]')).toHaveLength(1)
+  })
+
+  it('mounts a list thread in its own item under the item it targets', () => {
+    const host = listThreadHost({ startLine: 3, line: 3 })
+
+    const slot = host.querySelector('.rgm-rich-comment-item')
+    expect(slot).not.toBeNull()
+    expect(slot?.querySelector('[data-rgm-thread-card]')).not.toBeNull()
+
+    // Directly after the item on line 3, and before the item on line 4.
+    const children = listChildren(host)
+    const index = children.indexOf(slot as Element)
+    expect(children[index - 1]?.getAttribute('data-src-from')).toBe('3')
+    expect(children[index + 1]?.getAttribute('data-src-from')).toBe('4')
+  })
+
+  it('marks the comment item as chrome so it stays out of source text', () => {
+    const host = listThreadHost({ startLine: 3, line: 3 })
+    const slot = host.querySelector('.rgm-rich-comment-item')
+    expect(slot?.hasAttribute('data-rgm-chrome')).toBe(true)
+  })
+
+  it('mounts under the last item a multi-item thread covers', () => {
+    const host = listThreadHost({ startLine: 3, line: 4 })
+    const children = listChildren(host)
+    const slot = host.querySelector('.rgm-rich-comment-item')
+    const index = children.indexOf(slot as Element)
+    expect(children[index - 1]?.getAttribute('data-src-from')).toBe('4')
+  })
+
+  it('mounts inside the nested list for a thread on a nested item', () => {
+    const host = listThreadHost({ startLine: 4, line: 4 }, NESTED_LIST_MD)
+    const slot = host.querySelector('.rgm-rich-comment-item')
+    const nested = [
+      ...host.querySelectorAll(
+        '.rgm-rich-cell[data-side="RIGHT"] ul ul > *',
+      ),
+    ]
+    const index = nested.indexOf(slot as Element)
+    expect(index).toBeGreaterThan(-1)
+    expect(nested[index - 1]?.getAttribute('data-src-from')).toBe('4')
+    expect(nested[index + 1]?.getAttribute('data-src-from')).toBe('5')
+  })
+
+  it('leaves no empty comment items behind on a re-render', () => {
+    const host = listThreadHost({ startLine: 3, line: 3 })
+    renderThreadCards(host)
+    renderThreadCards(host)
+
+    expect(host.querySelectorAll('.rgm-rich-comment-item')).toHaveLength(1)
     expect(host.querySelectorAll('[data-rgm-thread-card]')).toHaveLength(1)
   })
 

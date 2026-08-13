@@ -1238,6 +1238,18 @@ const CSS = `
   margin: 8px 0;
 }
 
+/* display: block keeps the slot out of the marker and the ol numbering. */
+[data-rgm-rich] .rgm-rich-comment-item {
+  display: block;
+  list-style: none;
+}
+
+[data-rgm-rich] .rgm-rich-comment-item [data-rgm-thread-card] {
+  margin: 8px 0;
+  /* Pull back out of the list's padding so cards line up across blocks. */
+  margin-left: -1.25em;
+}
+
 [data-rgm-thread-card] {
   grid-column: 1 / -1;
   margin: 10px 12px 0;

@@ -131,10 +131,17 @@ export function renderThreadCards(richRoot: Element): void {
 /** Marks the table row a thread card is mounted in, so it can be cleaned up. */
 const COMMENT_ROW_CLASS = 'rgm-rich-comment-row'
 
+/** Marks the list item a thread card is mounted in, so it can be cleaned up. */
+const COMMENT_ITEM_CLASS = 'rgm-rich-comment-item'
+
+/** Every wrapper a thread card can be mounted in. */
+const COMMENT_SLOT_SELECTOR = `.${COMMENT_ROW_CLASS}, .${COMMENT_ITEM_CLASS}`
+
 /**
  * Mount a thread card with the text it targets.
- * Inside a table the card goes in its own row directly under the last row the
- * thread covers. Every other block keeps the card at the end of the cell.
+ * Inside a table or a list the card goes in its own row or item directly under
+ * the last one the thread covers. Every other block keeps the card at the end
+ * of the cell, since it has nothing finer to attach to.
  * @param cell - The cell element for the thread's side.
  * @param card - The thread card element.
  * @param range - The source range the thread targets.
@@ -146,12 +153,28 @@ function placeThreadCard(
   range: SourceRange,
 ): void {
   const anchor = findSubAnchorForSourceRange(cell, range)
-  const row = anchor?.closest('tr')
-  if (row?.parentElement) {
-    row.parentElement.insertBefore(buildCommentRow(row, card), row.nextSibling)
+  const host = anchor?.closest('tr, li')
+  if (host?.parentElement) {
+    host.parentElement.insertBefore(
+      buildCommentSlot(host, card),
+      host.nextSibling,
+    )
     return
   }
   cell.appendChild(card)
+}
+
+/**
+ * Wrap a thread card in whatever the element it follows accepts as a sibling.
+ * @param host - The table row or list item the card follows.
+ * @param card - The thread card element.
+ * @returns The wrapper element holding the card.
+ */
+function buildCommentSlot(host: Element, card: HTMLElement): HTMLElement {
+  if (host.tagName === 'TR') {
+    return buildCommentRow(host, card)
+  }
+  return buildCommentItem(card)
 }
 
 /**
@@ -172,6 +195,21 @@ function buildCommentRow(row: Element, card: HTMLElement): HTMLElement {
   holder.appendChild(card)
   commentRow.appendChild(holder)
   return commentRow
+}
+
+/**
+ * Wrap a thread card in a list item.
+ * The item is chrome so selection offsets step over it, and CSS keeps it out of
+ * the list's markers and numbering, the way the comment row sits inside a table.
+ * @param card - The thread card element.
+ * @returns The comment item element.
+ */
+function buildCommentItem(card: HTMLElement): HTMLElement {
+  const item = document.createElement('li')
+  item.className = COMMENT_ITEM_CLASS
+  item.setAttribute('data-rgm-chrome', '')
+  item.appendChild(card)
+  return item
 }
 
 /**
@@ -314,8 +352,8 @@ function threadIdFromFallbackCell(target: Element): string | null {
  */
 export function clearThreadCards(richRoot: Element): void {
   richRoot.querySelectorAll('[data-rgm-thread-card]').forEach((el) => el.remove())
-  // Drop the table rows the cards were mounted in, or empty rows pile up.
-  richRoot.querySelectorAll(`.${COMMENT_ROW_CLASS}`).forEach((el) => el.remove())
+  // Drop the rows and items the cards were mounted in, or empty ones pile up.
+  richRoot.querySelectorAll(COMMENT_SLOT_SELECTOR).forEach((el) => el.remove())
   // A removed card never fires mouseleave, so its hover highlight would
   // otherwise stay painted forever (for example after deleting a comment).
   clearThreadHoverHighlight(richRoot)
