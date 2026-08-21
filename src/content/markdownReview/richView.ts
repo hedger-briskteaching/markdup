@@ -15,6 +15,7 @@ import {
   unbindFileCollapseSync,
 } from './headerControls'
 import { buildRichRoot } from './renderBody'
+import { disposeMermaidDiagrams } from './mermaid'
 import type { CommentableLines } from '../../shared/commentableLines'
 
 /** Attribute used to hide the native diff body. */
@@ -119,6 +120,7 @@ export function showRichView(
     viewerLogin: options.viewerLogin,
     expandedUnchangedIds: expanded,
   })
+  disposeMermaidDiagrams(root)
   root.replaceChildren(buildRichRoot(rows, expanded))
   composerCleanups.get(root)?.()
   composerCleanups.set(root, bindComposer(root))
@@ -149,6 +151,7 @@ export function showRichLoading(region: Element): void {
     diffBody.after(root)
   }
 
+  disposeMermaidDiagrams(root)
   root.replaceChildren()
   const status = document.createElement('p')
   status.className = 'rgm-rich-status'
@@ -179,6 +182,7 @@ export function showRichError(region: Element, message: string): void {
     diffBody.after(root)
   }
 
+  disposeMermaidDiagrams(root)
   root.replaceChildren()
   const status = document.createElement('p')
   status.className = 'rgm-rich-status rgm-rich-status-error'
@@ -200,6 +204,7 @@ export function hideRichView(region: Element): void {
   diffBody?.removeAttribute(HIDDEN_ATTR)
   const rich = region.querySelector('[data-rgm-rich]')
   if (rich) {
+    disposeMermaidDiagrams(rich)
     composerCleanups.get(rich)?.()
     composerCleanups.delete(rich)
     overlayCleanups.get(rich)?.()

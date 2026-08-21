@@ -36,7 +36,7 @@ You can also call `parseMarkdown` or `mdastToProseMirror` alone when you need on
 | `heading` | `#` … `######` | `level` is 1–6 |
 | `blockquote` | `>` | |
 | `horizontal_rule` | `---` / `***` | |
-| `code_block` | fenced or indented | `params` holds the language tag |
+| `code_block` | fenced or indented | `params` holds the language tag; Mermaid fences get an interactive renderer in the rich diff |
 | `bullet_list` / `ordered_list` | `-` / `1.` | |
 | `list_item` | list entry | `checked` is `null`, `true`, or `false` for tasks |
 | `table` / `table_row` / `table_header` / `table_cell` | GFM table | |
@@ -92,5 +92,4 @@ This module does not build:
 - Side-by-side diff alignment UI chrome (see `docs/rich-markdown-view.md`)
 - Diff insert or delete decorations in the editor view
 - Comment UI and GitHub API writes
-- Mermaid diagram render
 - MDX or JSX

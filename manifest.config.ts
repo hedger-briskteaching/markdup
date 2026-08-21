@@ -40,6 +40,17 @@ export default defineManifest((env) => {
       service_worker: 'src/background/index.ts',
       type: 'module',
     },
+    // Mermaid source is repository content. Render it in a separate, opaque
+    // extension frame so the renderer has no extension API access.
+    sandbox: {
+      pages: ['mermaidFrame.html'],
+    },
+    web_accessible_resources: [
+      {
+        resources: ['mermaidFrame.html'],
+        matches: ['https://github.com/*'],
+      },
+    ],
     permissions: ['storage'],
     content_scripts: [
       {

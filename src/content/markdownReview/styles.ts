@@ -747,6 +747,57 @@ const CSS = `
   white-space: pre;
 }
 
+[data-rgm-rich] .rgm-mermaid {
+  position: relative;
+  margin: 0;
+  border: 1px solid var(--rgm-bp-200);
+  border-radius: 6px;
+  background: var(--rgm-bp-25);
+  overflow: hidden;
+}
+
+[data-rgm-rich] .rgm-mermaid-frame {
+  display: block;
+  width: 100%;
+  min-height: 180px;
+  border: 0;
+  background: var(--bgColor-default, #ffffff);
+}
+
+[data-rgm-rich] .rgm-mermaid-status {
+  position: absolute;
+  left: 12px;
+  bottom: 8px;
+  margin: 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bgColor-default, #ffffff);
+  color: var(--rgm-bp-500);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+[data-rgm-rich] .rgm-mermaid-status-error {
+  color: var(--fgColor-danger, #cf222e);
+}
+
+[data-rgm-rich] .rgm-mermaid-source {
+  border-top: 1px solid var(--rgm-bp-200);
+}
+
+[data-rgm-rich] .rgm-mermaid-source summary {
+  padding: 6px 10px;
+  color: var(--rgm-ocean-700);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+[data-rgm-rich] .rgm-mermaid-source pre {
+  margin: 0;
+  border-radius: 0;
+}
+
 [data-rgm-rich] .rgm-rich-code-lang {
   display: inline-block;
   margin-bottom: 6px;

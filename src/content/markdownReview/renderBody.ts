@@ -9,6 +9,11 @@ import {
 } from '../../markdown/viewSections'
 import { wordDiff, type DiffSegment } from '../../markdown/wordDiff'
 import {
+  disposeMermaidDiagrams,
+  isMermaidBlock,
+  renderMermaidDiagram,
+} from './mermaid'
+import {
   expandUnchangedSection,
   getRichViewContext,
   toggleUnchangedSection,
@@ -97,6 +102,7 @@ export function renderRichBody(richRoot: Element): void {
   const fresh = buildRichBody(ctx.rows, expanded)
   const old = richRoot.querySelector('.rgm-rich-body')
   if (old) {
+    disposeMermaidDiagrams(old)
     old.replaceWith(fresh)
   } else {
     richRoot.appendChild(fresh)
@@ -320,6 +326,11 @@ function buildBlockContent(
 
   if (block.type === 'front_matter') {
     wrap.appendChild(renderFrontMatter(block))
+    return wrap
+  }
+
+  if (isMermaidBlock(block.node)) {
+    wrap.appendChild(renderMermaidDiagram(block.node.textContent))
     return wrap
   }
 

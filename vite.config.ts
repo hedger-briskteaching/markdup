@@ -12,6 +12,7 @@ export default defineConfig({
       input: {
         popup: 'index.html',
         options: 'options.html',
+        mermaidFrame: 'mermaidFrame.html',
       },
     },
   },

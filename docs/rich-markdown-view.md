@@ -11,6 +11,15 @@ The rich view shows a Before / After render of a Markdown file on a pull request
 
 The view is read-only. Selection maps to a source line range for comments.
 
+## Mermaid diagrams
+
+Fenced blocks marked `mermaid` render in a local, sandboxed extension iframe.
+The frame bundles Mermaid and supports drag-to-pan, zoom controls, and reset.
+After Mermaid reports its SVG dimensions, Markdup sets the frame height so the
+diagram starts at 90% of the available frame width while retaining its aspect
+ratio. The **Diagram source** disclosure keeps the original text selectable
+for line comments and provides a fallback when a diagram cannot render.
+
 ## Collapsed unchanged sections
 
 1. Rows are grouped into sections by `buildViewSections` (`src/markdown/viewSections.ts`):
