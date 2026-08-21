@@ -8,6 +8,7 @@ import {
 import {
   applySelectionHighlight,
   clearSelectionHighlight,
+  domRangeForSourceRange,
   findCellForSourceRange,
   getRichViewContext,
   selectionToSourceRange,
@@ -28,6 +29,13 @@ type PendingSelection = {
   /** Client rect of the live DOM selection for bubble placement. */
   clientRect: DOMRect
 }
+
+/** Live selection data used to keep floating controls aligned after reflow. */
+const bubbleStates = new WeakMap<HTMLElement, PendingSelection>()
+const composerStates = new WeakMap<
+  HTMLElement,
+  Pick<PendingSelection, 'range' | 'clientRect'>
+>()
 
 /**
  * Listen for text selections inside a rich root.
@@ -82,12 +90,18 @@ export function bindComposer(richRoot: HTMLElement): () => void {
     removeBubble(richRoot)
   }
 
+  const onLayoutChange = () => {
+    repositionCommentUi(richRoot)
+  }
+
   richRoot.addEventListener('mouseup', onMouseUp)
+  richRoot.addEventListener('rgm:layout-change', onLayoutChange)
   document.addEventListener('keydown', onKeyDown)
   document.addEventListener('pointerdown', onPointerDown, true)
 
   return () => {
     richRoot.removeEventListener('mouseup', onMouseUp)
+    richRoot.removeEventListener('rgm:layout-change', onLayoutChange)
     document.removeEventListener('keydown', onKeyDown)
     document.removeEventListener('pointerdown', onPointerDown, true)
     clearUi(richRoot)
@@ -126,6 +140,7 @@ function maybeShowBubble(richRoot: HTMLElement): void {
 
     // A new selection replaces any open composer (GitHub-style).
     richRoot.querySelector(`[${COMPOSER_ATTR}]`)?.remove()
+    composerStates.delete(richRoot)
 
     const ctx = getRichViewContext(richRoot)
     if (!ctx?.owner || !ctx.repo || !ctx.pullNumber || !ctx.path) {
@@ -207,6 +222,7 @@ function showBubble(richRoot: HTMLElement, pending: PendingSelection): void {
   const bubble = document.createElement('div')
   bubble.setAttribute(BUBBLE_ATTR, '')
   bubble.className = 'rgm-comment-bubble'
+  bubble.setAttribute('data-side', pending.range.side)
   bubble.setAttribute('role', 'toolbar')
   bubble.setAttribute('aria-label', 'Selection actions')
 
@@ -231,6 +247,7 @@ function showBubble(richRoot: HTMLElement, pending: PendingSelection): void {
 
   bubble.append(commentBtn, ref)
   richRoot.appendChild(bubble)
+  bubbleStates.set(richRoot, pending)
   positionBubble(bubble, richRoot, pending.clientRect)
 }
 
@@ -278,6 +295,7 @@ function showComposer(
   clientRect: DOMRect,
 ): void {
   richRoot.querySelector(`[${COMPOSER_ATTR}]`)?.remove()
+  composerStates.delete(richRoot)
 
   const panel = document.createElement('div')
   panel.setAttribute(COMPOSER_ATTR, '')
@@ -323,6 +341,7 @@ function showComposer(
   cancel.addEventListener('click', () => {
     editor?.destroy()
     clearSelectionHighlight(richRoot)
+    composerStates.delete(richRoot)
     panel.remove()
   })
 
@@ -342,6 +361,7 @@ function showComposer(
 
   applySelectionHighlight(richRoot, range)
   richRoot.appendChild(panel)
+  composerStates.set(richRoot, { range, clientRect })
   positionComposer(panel, richRoot, clientRect, range)
 
   editor = mountCommentEditor(editorHost, {
@@ -513,7 +533,10 @@ async function submitComment(args: {
   status.textContent = 'Added to your pending review.'
   window.setTimeout(() => {
     editor?.destroy()
-    if (richRoot) clearSelectionHighlight(richRoot)
+    if (richRoot) {
+      clearSelectionHighlight(richRoot)
+      composerStates.delete(richRoot)
+    }
     panel.remove()
   }, 400)
 }
@@ -588,6 +611,41 @@ function formatAnchorPill(path: string, range: SourceRange): string {
  */
 function removeBubble(richRoot: Element): void {
   richRoot.querySelector(`[${BUBBLE_ATTR}]`)?.remove()
+  if (richRoot instanceof HTMLElement) bubbleStates.delete(richRoot)
+}
+
+/** Reposition the current comment controls after the column layout changes. */
+export function repositionCommentUi(richRoot: HTMLElement): void {
+  const bubble = richRoot.querySelector<HTMLElement>(`[${BUBBLE_ATTR}]`)
+  const pending = bubbleStates.get(richRoot)
+  if (bubble && pending) {
+    positionBubble(
+      bubble,
+      richRoot,
+      rectForSourceRange(richRoot, pending.range, pending.clientRect),
+    )
+  }
+
+  const panel = richRoot.querySelector<HTMLElement>(`[${COMPOSER_ATTR}]`)
+  const composer = composerStates.get(richRoot)
+  if (panel && composer) {
+    positionComposer(
+      panel,
+      richRoot,
+      rectForSourceRange(richRoot, composer.range, composer.clientRect),
+      composer.range,
+    )
+  }
+}
+
+/** Resolve a current range rect after a reflow, preserving a safe fallback. */
+function rectForSourceRange(
+  richRoot: HTMLElement,
+  range: SourceRange,
+  fallback: DOMRect,
+): DOMRect {
+  const domRange = domRangeForSourceRange(richRoot, range)
+  return domRange ? rectForDomRange(domRange, richRoot) : fallback
 }
 
 /**
@@ -598,5 +656,6 @@ function removeBubble(richRoot: Element): void {
 function clearUi(richRoot: Element): void {
   removeBubble(richRoot)
   richRoot.querySelector(`[${COMPOSER_ATTR}]`)?.remove()
+  if (richRoot instanceof HTMLElement) composerStates.delete(richRoot)
   clearSelectionHighlight(richRoot)
 }

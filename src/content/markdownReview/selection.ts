@@ -1,6 +1,7 @@
 import type { BlockView, RowModel } from '../../markdown/align'
 import type { ReviewThreadDto } from '../../shared/messages'
 import type { CommentableLines } from '../../shared/commentableLines'
+import type { RichLayout } from './richIntent'
 import {
   expandSourceRangeToWholeLines,
   linesForRange,
@@ -34,6 +35,8 @@ export type RichViewContext = {
   expandedUnchangedIds?: Set<string>
   /** Signed-in GitHub login for own-comment edit/delete. */
   viewerLogin?: string
+  /** Current Before / After column arrangement. */
+  layout?: RichLayout
 }
 
 const contexts = new WeakMap<Element, RichViewContext>()
@@ -84,6 +87,7 @@ export function setRichViewContext(
   contexts.set(richRoot, {
     ...ctx,
     expandedUnchangedIds: ctx.expandedUnchangedIds ?? new Set(),
+    layout: ctx.layout ?? 'split',
   })
 }
 
@@ -479,6 +483,7 @@ function appendRangeBoxes(
     if (rect.width <= 0 && rect.height <= 0) continue
     const box = document.createElement('div')
     box.className = opts.boxClass
+    box.setAttribute('data-side', sourceRange.side)
     if (opts.threadId) {
       box.setAttribute('data-thread-id', opts.threadId)
     }
@@ -631,7 +636,7 @@ export function findSubAnchorForSourceRange(
  * @param sourceRange - The source range to resolve.
  * @returns The DOM Range, or null when it cannot be resolved.
  */
-function domRangeForSourceRange(
+export function domRangeForSourceRange(
   richRoot: Element,
   sourceRange: SourceRange,
 ): Range | null {

@@ -214,12 +214,16 @@ const CSS = `
      original light palette for non-GitHub contexts (jsdom tests). */
   --rgm-bp-800: var(--fgColor-default, #353c42);
   --rgm-bp-700: var(--fgColor-default, #5a656f);
+  --rgm-bp-600: var(--fgColor-muted, #667380);
   --rgm-bp-500: var(--fgColor-muted, #74818e);
   --rgm-bp-400: var(--fgColor-muted, #99a5b0);
   --rgm-bp-300: var(--borderColor-default, #c4cbd1);
   --rgm-bp-200: var(--borderColor-muted, #e0e7ed);
   --rgm-bp-25: var(--bgColor-muted, #f7f8f9);
+  --rgm-ocean-800: var(--fgColor-accent, #0d3b4a);
   --rgm-ocean-700: var(--fgColor-accent, #124c5f);
+  --rgm-ocean-600: var(--fgColor-accent, #1a6b84);
+  --rgm-ocean-100: var(--borderColor-accent-muted, #d4e6ee);
   --rgm-ocean-25: var(--bgColor-accent-muted, #f0f5fa);
   --rgm-diff-del-surface: var(
     --diffBlob-deletion-bgColor-line,
@@ -548,6 +552,7 @@ const CSS = `
 }
 
 [data-rgm-rich] .rgm-rich-header {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
   border-bottom: 1px solid var(--rgm-bp-200);
@@ -566,6 +571,56 @@ const CSS = `
 
 [data-rgm-rich] .rgm-rich-header-side + .rgm-rich-header-side {
   border-left: 1px solid var(--rgm-bp-200);
+  padding-right: 170px;
+}
+
+[data-rgm-rich] .rgm-rich-layout-toolbar {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  z-index: 1;
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--rgm-bp-300);
+  border-radius: 6px;
+  background: var(--bgColor-default, #ffffff);
+  box-shadow: 0 1px 2px rgba(14, 21, 28, 0.08);
+}
+
+[data-rgm-rich] .rgm-rich-layout-btn {
+  min-height: 24px;
+  margin: 0;
+  padding: 3px 7px;
+  border: 0;
+  border-left: 1px solid var(--rgm-bp-200);
+  background: transparent;
+  color: var(--rgm-bp-600);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+[data-rgm-rich] .rgm-rich-layout-btn:first-child {
+  border-left: 0;
+}
+
+[data-rgm-rich] .rgm-rich-layout-btn:hover {
+  background: var(--rgm-ocean-25);
+  color: var(--rgm-ocean-700);
+}
+
+[data-rgm-rich] .rgm-rich-layout-btn[aria-pressed="true"] {
+  background: var(--rgm-ocean-100);
+  color: var(--rgm-ocean-800);
+  box-shadow: inset 0 -2px 0 var(--rgm-ocean-600);
+}
+
+[data-rgm-rich] .rgm-rich-layout-btn:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--focus-outlineColor, #0969da);
+  outline-offset: -2px;
 }
 
 [data-rgm-rich] .rgm-rich-body {
@@ -581,6 +636,35 @@ const CSS = `
 
 [data-rgm-rich] .rgm-rich-row:last-child {
   border-bottom: none;
+}
+
+/* Keep both columns mounted so editors, selections, and Mermaid frames survive
+ * a layout switch. CSS alone exposes the requested column(s). */
+[data-rgm-rich][data-rgm-layout="before"] .rgm-rich-header,
+[data-rgm-rich][data-rgm-layout="before"] .rgm-rich-row,
+[data-rgm-rich][data-rgm-layout="after"] .rgm-rich-header,
+[data-rgm-rich][data-rgm-layout="after"] .rgm-rich-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+[data-rgm-rich][data-rgm-layout="before"] .rgm-rich-body,
+[data-rgm-rich][data-rgm-layout="after"] .rgm-rich-body {
+  max-width: 21cm;
+  margin: 0 auto;
+}
+
+[data-rgm-rich][data-rgm-layout="before"] [data-side="RIGHT"],
+[data-rgm-rich][data-rgm-layout="after"] [data-side="LEFT"] {
+  display: none;
+}
+
+[data-rgm-rich][data-rgm-layout="before"] .rgm-sel-highlight[data-side="RIGHT"],
+[data-rgm-rich][data-rgm-layout="before"] .rgm-commented-box[data-side="RIGHT"],
+[data-rgm-rich][data-rgm-layout="before"] .rgm-thread-hover-box[data-side="RIGHT"],
+[data-rgm-rich][data-rgm-layout="after"] .rgm-sel-highlight[data-side="LEFT"],
+[data-rgm-rich][data-rgm-layout="after"] .rgm-commented-box[data-side="LEFT"],
+[data-rgm-rich][data-rgm-layout="after"] .rgm-thread-hover-box[data-side="LEFT"] {
+  display: none;
 }
 
 [data-rgm-rich] .rgm-rich-fold {

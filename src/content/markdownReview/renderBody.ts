@@ -13,6 +13,7 @@ import {
   isMermaidBlock,
   renderMermaidDiagram,
 } from './mermaid'
+import { applyRichLayout, type RichLayout } from './layout'
 import {
   expandUnchangedSection,
   getRichViewContext,
@@ -38,18 +39,84 @@ const TEXT_DIFF_TYPES = new Set([
 export function buildRichRoot(
   rows: RowModel[],
   expandedIds: ReadonlySet<string>,
+  layout: RichLayout = 'split',
 ): DocumentFragment {
   const frag = document.createDocumentFragment()
 
   const header = document.createElement('div')
   header.className = 'rgm-rich-header'
-  header.innerHTML =
-    '<div class="rgm-rich-header-side" aria-label="Before">Before</div>' +
-    '<div class="rgm-rich-header-side" aria-label="After">After</div>'
+  header.append(
+    buildHeaderSide('before'),
+    buildHeaderSide('after'),
+    buildLayoutToolbar(layout),
+  )
   frag.appendChild(header)
 
   frag.appendChild(buildRichBody(rows, expandedIds))
   return frag
+}
+
+/** Build one Before or After header cell. */
+function buildHeaderSide(side: 'before' | 'after'): HTMLElement {
+  const cell = document.createElement('div')
+  cell.className = 'rgm-rich-header-side'
+  cell.setAttribute('data-side', side === 'before' ? 'LEFT' : 'RIGHT')
+  cell.setAttribute('aria-label', side === 'before' ? 'Before' : 'After')
+  cell.textContent = side === 'before' ? 'Before' : 'After'
+  return cell
+}
+
+/** Build the in-place column-layout selector shown above the diff columns. */
+function buildLayoutToolbar(layout: RichLayout): HTMLElement {
+  const toolbar = document.createElement('div')
+  toolbar.className = 'rgm-rich-layout-toolbar'
+  toolbar.setAttribute('role', 'group')
+  toolbar.setAttribute('aria-label', 'Diff layout')
+  toolbar.setAttribute('data-rgm-chrome', '')
+
+  const options: Array<{
+    layout: RichLayout
+    label: string
+    tooltip: string
+  }> = [
+      {
+        layout: 'before',
+        label: 'Before',
+        tooltip: 'Show only the original version',
+      },
+      {
+        layout: 'after',
+        label: 'After',
+        tooltip: 'Show only the updated version',
+      },
+      {
+        layout: 'split',
+        label: 'All',
+        tooltip: 'Show the original and updated versions side by side',
+      },
+    ]
+
+  for (const option of options) {
+    const selected = option.layout === layout
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'rgm-rich-layout-btn'
+    button.textContent = option.label
+    button.title = option.tooltip
+    button.setAttribute('aria-label', option.tooltip)
+    button.setAttribute('data-rgm-layout-option', option.layout)
+    button.setAttribute('aria-pressed', String(selected))
+
+    // A mouse switch should not collapse selected source text or an active
+    // editor selection. Keyboard activation keeps normal button focus.
+    button.addEventListener('mousedown', (event) => event.preventDefault())
+    button.addEventListener('click', () => {
+      const richRoot = button.closest<HTMLElement>('[data-rgm-rich]')
+      if (richRoot) applyRichLayout(richRoot, option.layout)
+    })
+    toolbar.appendChild(button)
+  }
+  return toolbar
 }
 
 /**
@@ -67,6 +134,7 @@ export function buildRichBody(
   const body = document.createElement('div')
   body.className = 'rgm-rich-body'
   body.setAttribute('role', 'table')
+
   body.setAttribute('aria-label', 'Rich markdown diff')
 
   for (const section of buildViewSections(rows)) {
@@ -109,6 +177,7 @@ export function renderRichBody(richRoot: Element): void {
   }
   renderThreadCards(richRoot)
 }
+
 
 /**
  * Expand every collapsed unchanged section that owns a thread row.

@@ -1,6 +1,10 @@
 # Rich Markdown view
 
 The rich view shows a Before / After render of a Markdown file on a pull request.
+Use the compact **Diff layout** control above the columns to show **Before**,
+**After**, or **Before | After**. Switching layout keeps both columns mounted,
+so rendered content, expanded sections, and in-progress comment drafts remain
+available when the hidden column is shown again.
 
 ## What it does
 

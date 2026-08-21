@@ -16,6 +16,7 @@ import {
 } from './headerControls'
 import { buildRichRoot } from './renderBody'
 import { disposeMermaidDiagrams } from './mermaid'
+import { initialRichLayout } from './layout'
 import type { CommentableLines } from '../../shared/commentableLines'
 
 /** Attribute used to hide the native diff body. */
@@ -105,6 +106,8 @@ export function showRichView(
     diffBody.after(root)
   }
 
+  const layout = initialRichLayout(options.path)
+  root.setAttribute('data-rgm-layout', layout)
   const expanded = new Set<string>()
   setRichViewContext(root, {
     baseText: options.baseText ?? '',
@@ -119,9 +122,10 @@ export function showRichView(
     commentable: options.commentable,
     viewerLogin: options.viewerLogin,
     expandedUnchangedIds: expanded,
+    layout,
   })
   disposeMermaidDiagrams(root)
-  root.replaceChildren(buildRichRoot(rows, expanded))
+  root.replaceChildren(buildRichRoot(rows, expanded, layout))
   composerCleanups.get(root)?.()
   composerCleanups.set(root, bindComposer(root))
   overlayCleanups.get(root)?.()

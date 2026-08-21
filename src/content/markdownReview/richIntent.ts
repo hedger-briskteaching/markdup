@@ -8,6 +8,10 @@
 
 const richPaths = new Set<string>()
 
+export type RichLayout = 'before' | 'after' | 'split'
+
+const layoutsByPath = new Map<string, RichLayout>()
+
 /**
  * Record or clear the rich-mode intent for a file path.
  * @param path - Relative file path inside the repository.
@@ -19,7 +23,18 @@ export function setRichPathIntent(path: string, rich: boolean): void {
     richPaths.add(path)
   } else {
     richPaths.delete(path)
+    layoutsByPath.delete(path)
   }
+}
+
+/** Store the preferred rich-diff layout for one file while rich mode is on. */
+export function setRichLayoutIntent(path: string, layout: RichLayout): void {
+  layoutsByPath.set(path, layout)
+}
+
+/** Return the file's selected layout, defaulting to the full Before/After view. */
+export function getRichLayoutIntent(path: string | undefined): RichLayout {
+  return path ? (layoutsByPath.get(path) ?? 'split') : 'split'
 }
 
 /**
@@ -38,4 +53,5 @@ export function hasRichPathIntent(path: string): boolean {
  */
 export function clearRichPathIntents(): void {
   richPaths.clear()
+  layoutsByPath.clear()
 }
