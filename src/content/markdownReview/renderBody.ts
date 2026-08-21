@@ -102,7 +102,7 @@ function buildLayoutToolbar(layout: RichLayout): HTMLElement {
     button.type = 'button'
     button.className = 'rgm-rich-layout-btn'
     button.textContent = option.label
-    button.title = option.tooltip
+    button.setAttribute('data-tooltip', option.tooltip)
     button.setAttribute('aria-label', option.tooltip)
     button.setAttribute('data-rgm-layout-option', option.layout)
     button.setAttribute('aria-pressed', String(selected))

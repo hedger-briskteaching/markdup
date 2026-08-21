@@ -58,6 +58,27 @@ describe('rich diff layout selector', () => {
     ).toBe('false')
   })
 
+  it('labels each option with data-tooltip rather than the slow title', () => {
+    const rows = alignMarkdown('Before text\n', 'After text\n')
+    showRichView(region, rows, {
+      baseText: 'Before text\n',
+      headText: 'After text\n',
+      path: 'docs/PLAN.md',
+    })
+
+    const buttons = [
+      ...region.querySelectorAll<HTMLButtonElement>('[data-rgm-layout-option]'),
+    ]
+    expect(buttons).toHaveLength(3)
+    for (const button of buttons) {
+      expect(button.getAttribute('title')).toBeNull()
+      expect(button.getAttribute('data-tooltip')?.length).toBeGreaterThan(0)
+      expect(button.getAttribute('data-tooltip')).toBe(
+        button.getAttribute('aria-label'),
+      )
+    }
+  })
+
   it('restores the selected layout when the rich view remounts', () => {
     const rows = alignMarkdown('Before text\n', 'After text\n')
     const options = {
