@@ -15,7 +15,7 @@ PKG_VERSION="$(node -p "require('./package.json').version")"
 MANIFEST_VERSION="$(node -e "
   const fs = require('fs');
   const text = fs.readFileSync('manifest.config.ts', 'utf8');
-  const match = text.match(/version:\\s*'([^']+)'/);
+  const match = text.match(/version:\\s*['\"]([^'\"]+)['\"]/);
   if (!match) {
     console.error('Could not find version in manifest.config.ts');
     process.exit(1);

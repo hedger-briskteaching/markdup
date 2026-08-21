@@ -1,17 +1,14 @@
-# Markdup 0.1.1
+# Markdup 0.1.2
 
-Updated 0.1.1 build with list-item comment anchoring.
+Rendered Markdown review with interactive diagrams and a Before / After / All layout switch.
 
 ## What's new
 
-- Comments anchor to individual list items instead of whole lists
-- Comments anchor to individual table rows instead of whole tables
-- GitHub's Files toolbar counters update in place after a comment change
-- GitHub comment links open into the rich view
-- Rich view renders for large diffs held behind Load Diff
-- File snapshots are cached so a rich view remounts without network
-- Stale hover highlight clears when a thread card is removed
+- Fenced Mermaid diagrams render in a sandboxed frame with pan, zoom, and reset
+- Diff layout tabs switch between Before, After, and Before | After without rebuilding the view
+- Layout buttons show instant tooltips instead of the delayed native title
+- Review styles live in a dedicated stylesheet
 
 ## Install
 
-Download `markdup-0.1.1.zip` and follow [releases/README.md](README.md).
+Download `markdup-0.1.2.zip` and follow [releases/README.md](README.md).

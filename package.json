@@ -1,6 +1,6 @@
 {
   "name": "markdup",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Rich Markdown review for GitHub pull requests — markdown source, markup preview.",
   "homepage": "https://github.com/hedger-briskteaching/markdup#readme",

@@ -69,7 +69,7 @@ node -e "
 
   const manifestPath = 'manifest.config.ts';
   let manifest = fs.readFileSync(manifestPath, 'utf8');
-  const next = manifest.replace(/version:\\s*'[^']+'/, \"version: '\" + version + \"'\");
+  const next = manifest.replace(/version:\\s*(['\"])[^'\"]+\\1/, (_m, q) => 'version: ' + q + version + q);
   if (next === manifest) {
     console.error('Could not update version in manifest.config.ts');
     process.exit(1);
