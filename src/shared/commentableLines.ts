@@ -1,15 +1,15 @@
-import type { ReviewSide } from '../markdown/sourceRange'
+import type { ReviewSide } from "../markdown/sourceRange";
 
 export type CommentableLines = {
-  left: Set<number>
-  right: Set<number>
-}
+  left: Set<number>;
+  right: Set<number>;
+};
 
 /** Serializable form for extension messages. */
 export type CommentableLinesDto = {
-  left: number[]
-  right: number[]
-}
+  left: number[];
+  right: number[];
+};
 
 /**
  * Convert commentable line sets to sorted arrays for messages.
@@ -20,7 +20,7 @@ export function commentableToDto(lines: CommentableLines): CommentableLinesDto {
   return {
     left: [...lines.left].sort((a, b) => a - b),
     right: [...lines.right].sort((a, b) => a - b),
-  }
+  };
 }
 
 /**
@@ -32,7 +32,7 @@ export function commentableFromDto(dto: CommentableLinesDto): CommentableLines {
   return {
     left: new Set(dto.left),
     right: new Set(dto.right),
-  }
+  };
 }
 
 /**
@@ -42,40 +42,40 @@ export function commentableFromDto(dto: CommentableLinesDto): CommentableLines {
  * @returns Commentable line sets for LEFT and RIGHT.
  */
 export function parseCommentableLines(patch: string): CommentableLines {
-  const left = new Set<number>()
-  const right = new Set<number>()
-  let leftLine = 0
-  let rightLine = 0
+  const left = new Set<number>();
+  const right = new Set<number>();
+  let leftLine = 0;
+  let rightLine = 0;
 
-  for (const raw of patch.split('\n')) {
-    const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw)
+  for (const raw of patch.split("\n")) {
+    const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw);
     if (hunk) {
-      leftLine = Number(hunk[1])
-      rightLine = Number(hunk[2])
-      continue
+      leftLine = Number(hunk[1]);
+      rightLine = Number(hunk[2]);
+      continue;
     }
-    if (raw.startsWith('\\')) {
-      continue
+    if (raw.startsWith("\\")) {
+      continue;
     }
-    if (raw.startsWith('+')) {
-      right.add(rightLine)
-      rightLine += 1
-      continue
+    if (raw.startsWith("+")) {
+      right.add(rightLine);
+      rightLine += 1;
+      continue;
     }
-    if (raw.startsWith('-')) {
-      left.add(leftLine)
-      leftLine += 1
-      continue
+    if (raw.startsWith("-")) {
+      left.add(leftLine);
+      leftLine += 1;
+      continue;
     }
-    if (raw.startsWith(' ') || raw === '') {
-      left.add(leftLine)
-      right.add(rightLine)
-      leftLine += 1
-      rightLine += 1
+    if (raw.startsWith(" ") || raw === "") {
+      left.add(leftLine);
+      right.add(rightLine);
+      leftLine += 1;
+      rightLine += 1;
     }
   }
 
-  return { left, right }
+  return { left, right };
 }
 
 /**
@@ -95,34 +95,34 @@ export function clampRangeToDiff(
   endLine: number,
   commentable: CommentableLines,
 ): { start: number; end: number } | null {
-  const from = Math.min(startLine, endLine)
-  const to = Math.max(startLine, endLine)
-  const set = side === 'LEFT' ? commentable.left : commentable.right
+  const from = Math.min(startLine, endLine);
+  const to = Math.max(startLine, endLine);
+  const set = side === "LEFT" ? commentable.left : commentable.right;
 
   if (set.size === 0) {
-    return { start: from, end: to }
+    return { start: from, end: to };
   }
 
-  let best: { start: number; end: number } | null = null
-  let runStart: number | null = null
-  let runEnd: number | null = null
+  let best: { start: number; end: number } | null = null;
+  let runStart: number | null = null;
+  let runEnd: number | null = null;
 
   for (let line = from; line <= to; line += 1) {
     if (set.has(line)) {
-      if (runStart === null) runStart = line
-      runEnd = line
-      continue
+      if (runStart === null) runStart = line;
+      runEnd = line;
+      continue;
     }
     if (runStart !== null && runEnd !== null) {
-      best = longerRange(best, { start: runStart, end: runEnd })
-      runStart = null
-      runEnd = null
+      best = longerRange(best, { start: runStart, end: runEnd });
+      runStart = null;
+      runEnd = null;
     }
   }
   if (runStart !== null && runEnd !== null) {
-    best = longerRange(best, { start: runStart, end: runEnd })
+    best = longerRange(best, { start: runStart, end: runEnd });
   }
-  return best
+  return best;
 }
 
 /**
@@ -144,15 +144,15 @@ export function snapToCommentableRange(
   commentable: CommentableLines,
   _block?: { srcFrom: number; srcTo: number } | null,
 ): { start: number; end: number } | null {
-  const from = Math.min(startLine, endLine)
-  const to = Math.max(startLine, endLine)
+  const from = Math.min(startLine, endLine);
+  const to = Math.max(startLine, endLine);
   if (!Number.isFinite(from) || !Number.isFinite(to)) {
-    return null
+    return null;
   }
 
-  const set = side === 'LEFT' ? commentable.left : commentable.right
+  const set = side === "LEFT" ? commentable.left : commentable.right;
   if (set.size === 0) {
-    return { start: from, end: to }
+    return { start: from, end: to };
   }
 
   return (
@@ -161,7 +161,7 @@ export function snapToCommentableRange(
       start: from,
       end: to,
     }
-  )
+  );
 }
 
 /**
@@ -178,28 +178,27 @@ export function nearestCommentableRange(
   endLine: number,
   commentable: CommentableLines,
 ): { start: number; end: number } | null {
-  const from = Math.min(startLine, endLine)
-  const to = Math.max(startLine, endLine)
-  const set = side === 'LEFT' ? commentable.left : commentable.right
-  if (set.size === 0) return null
+  const from = Math.min(startLine, endLine);
+  const to = Math.max(startLine, endLine);
+  const set = side === "LEFT" ? commentable.left : commentable.right;
+  if (set.size === 0) return null;
 
-  let bestLine: number | null = null
-  let bestDist = Number.POSITIVE_INFINITY
+  let bestLine: number | null = null;
+  let bestDist = Number.POSITIVE_INFINITY;
   for (const line of set) {
-    const dist =
-      line < from ? from - line : line > to ? line - to : 0
+    const dist = line < from ? from - line : line > to ? line - to : 0;
     if (dist < bestDist) {
-      bestDist = dist
-      bestLine = line
+      bestDist = dist;
+      bestLine = line;
     }
   }
-  if (bestLine == null) return null
+  if (bestLine == null) return null;
 
-  let start = bestLine
-  let end = bestLine
-  while (set.has(start - 1)) start -= 1
-  while (set.has(end + 1)) end += 1
-  return { start, end }
+  let start = bestLine;
+  let end = bestLine;
+  while (set.has(start - 1)) start -= 1;
+  while (set.has(end + 1)) end += 1;
+  return { start, end };
 }
 
 /**
@@ -212,6 +211,6 @@ function longerRange(
   a: { start: number; end: number } | null,
   b: { start: number; end: number },
 ): { start: number; end: number } {
-  if (!a) return b
-  return b.end - b.start >= a.end - a.start ? b : a
+  if (!a) return b;
+  return b.end - b.start >= a.end - a.start ? b : a;
 }

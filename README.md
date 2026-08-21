@@ -52,13 +52,13 @@ Markdup loads the file at the pull request base and head. Then it aligns blocks 
 
 ## What you get
 
-| | |
-| --- | --- |
-| **Rendered Before / After** | Formatted Markdown on both sides of the diff, not only source. |
-| **Aligned blocks** | Top-level sections stay matched, so moves and edits stay clear. |
-| **Collapsed unchanged text** | Stable sections start folded. When you need context, expand them. |
-| **Comments on rendered text** | You can select text in the rich view and leave a review comment. |
-| **Local GitHub access** | OAuth or a personal access token. The token stays in the extension’s private storage (`chrome.storage.local`) on this browser. |
+|                               |                                                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Rendered Before / After**   | Formatted Markdown on both sides of the diff, not only source.                                                                 |
+| **Aligned blocks**            | Top-level sections stay matched, so moves and edits stay clear.                                                                |
+| **Collapsed unchanged text**  | Stable sections start folded. When you need context, expand them.                                                              |
+| **Comments on rendered text** | You can select text in the rich view and leave a review comment.                                                               |
+| **Local GitHub access**       | OAuth or a personal access token. The token stays in the extension’s private storage (`chrome.storage.local`) on this browser. |
 
 Markdup runs on the pull request **Files changed** page. It targets `.md` and `.markdown` files.
 
@@ -163,34 +163,34 @@ This command type-checks and writes an optimized bundle to `dist/`. Load that fo
 
 ### Scripts
 
-| Command | Description |
-| --- | --- |
-| `pnpm dev` | Dev server with hot reload (output in `dist/`) |
-| `pnpm build` | Production build into `dist/` |
-| `pnpm type-check` | TypeScript check only |
-| `pnpm test` | Run unit tests |
-| `pnpm test:coverage` | Unit tests with a coverage summary |
-| `pnpm package` | Type-check, test, build, and zip into `releases/release-X.Y.Z/` (requires `releases/release-notes.md`) |
-| `pnpm release` | Patch-bump version, package, and print publish steps |
+| Command              | Description                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------ |
+| `pnpm dev`           | Dev server with hot reload (output in `dist/`)                                                         |
+| `pnpm build`         | Production build into `dist/`                                                                          |
+| `pnpm type-check`    | TypeScript check only                                                                                  |
+| `pnpm test`          | Run unit tests                                                                                         |
+| `pnpm test:coverage` | Unit tests with a coverage summary                                                                     |
+| `pnpm package`       | Type-check, test, build, and zip into `releases/release-X.Y.Z/` (requires `releases/release-notes.md`) |
+| `pnpm release`       | Patch-bump version, package, and print publish steps                                                   |
 
 ### Project layout
 
-| Path | Purpose |
-| --- | --- |
-| `manifest.config.ts` | Manifest V3 (GitHub host permissions + content script) |
-| `src/popup/` | Toolbar popup UI |
-| `src/options/` | Settings page (GitHub connect) |
-| `src/content/` | UI injected into GitHub pages |
-| `src/background/` | Service worker and GitHub auth |
-| `src/markdown/` | Markdown → ProseMirror schema, align, and transform |
-| `docs/markdown-schema.md` | Schema and transform notes |
-| `docs/rich-markdown-view.md` | Rich Before/After view notes |
-| `docs/demo.mp4` | Local copy of the product demo (README embeds the GitHub-hosted upload) |
-| `public/icons/` | Extension icons |
-| `brand/` | Logo and brand assets |
-| `releases/` | Install-from-zip docs and `release-notes.md` (downloadable zips live on GitHub Releases) |
-| `scripts/` | Package and release helpers |
-| `dist/` | Built extension (load this in Chrome) |
+| Path                         | Purpose                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| `manifest.config.ts`         | Manifest V3 (GitHub host permissions + content script)                                   |
+| `src/popup/`                 | Toolbar popup UI                                                                         |
+| `src/options/`               | Settings page (GitHub connect)                                                           |
+| `src/content/`               | UI injected into GitHub pages                                                            |
+| `src/background/`            | Service worker and GitHub auth                                                           |
+| `src/markdown/`              | Markdown → ProseMirror schema, align, and transform                                      |
+| `docs/markdown-schema.md`    | Schema and transform notes                                                               |
+| `docs/rich-markdown-view.md` | Rich Before/After view notes                                                             |
+| `docs/demo.mp4`              | Local copy of the product demo (README embeds the GitHub-hosted upload)                  |
+| `public/icons/`              | Extension icons                                                                          |
+| `brand/`                     | Logo and brand assets                                                                    |
+| `releases/`                  | Install-from-zip docs and `release-notes.md` (downloadable zips live on GitHub Releases) |
+| `scripts/`                   | Package and release helpers                                                              |
+| `dist/`                      | Built extension (load this in Chrome)                                                    |
 
 ### Contributing
 
@@ -251,11 +251,11 @@ Personal access tokens in Settings still work without your own OAuth App.
 
 Replace Markdup’s brand so users do not confuse your build with the original:
 
-| Path | Use |
-| --- | --- |
-| `brand/markdup-logo.png`, `brand/markdup-logo-512.png` | Product / OAuth App logo |
-| `public/icons/logo.svg` | README and in-product mark |
-| `public/icons/icon-*.png` | Chrome toolbar and `chrome://extensions` icons |
+| Path                                                   | Use                                            |
+| ------------------------------------------------------ | ---------------------------------------------- |
+| `brand/markdup-logo.png`, `brand/markdup-logo-512.png` | Product / OAuth App logo                       |
+| `public/icons/logo.svg`                                | README and in-product mark                     |
+| `public/icons/icon-*.png`                              | Chrome toolbar and `chrome://extensions` icons |
 
 Update the extension `name` / `description` in `manifest.config.ts` if you rename the product. Then rebuild so `dist/` picks up the new assets.
 

@@ -1,9 +1,8 @@
 /** Pattern that matches GitHub PR Files changed paths (classic and new). */
-const PR_FILES_PATH =
-  /^\/[^/]+\/[^/]+\/pull\/\d+\/(?:files|changes)(?:\/.*)?$/
+const PR_FILES_PATH = /^\/[^/]+\/[^/]+\/pull\/\d+\/(?:files|changes)(?:\/.*)?$/;
 
 /** Bidirectional marks GitHub wraps around file paths in the header. */
-const BIDI_MARKS = /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g
+const BIDI_MARKS = /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 
 /**
  * Remove bidirectional marks and whitespace from a raw file path string.
@@ -11,7 +10,7 @@ const BIDI_MARKS = /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g
  * @returns Cleaned path without bidi marks or surrounding whitespace.
  */
 export function cleanFilePath(raw: string): string {
-  return raw.replace(BIDI_MARKS, '').trim()
+  return raw.replace(BIDI_MARKS, "").trim();
 }
 
 /**
@@ -20,7 +19,7 @@ export function cleanFilePath(raw: string): string {
  * @returns True when the pathname matches a PR files or changes route.
  */
 export function isPrFilesPage(pathname = location.pathname): boolean {
-  return PR_FILES_PATH.test(pathname)
+  return PR_FILES_PATH.test(pathname);
 }
 
 /**
@@ -29,8 +28,8 @@ export function isPrFilesPage(pathname = location.pathname): boolean {
  * @returns True when the path ends with .md or .markdown.
  */
 export function isMarkdownPath(path: string): boolean {
-  const lower = cleanFilePath(path).toLowerCase()
-  return lower.endsWith('.md') || lower.endsWith('.markdown')
+  const lower = cleanFilePath(path).toLowerCase();
+  return lower.endsWith(".md") || lower.endsWith(".markdown");
 }
 
 /**
@@ -40,25 +39,23 @@ export function isMarkdownPath(path: string): boolean {
  * @returns The cleaned file path, or null if not found.
  */
 export function getFilePath(region: Element): string | null {
-  const pathButton = region.querySelector<HTMLElement>('button[data-file-path]')
-  const fromAttr = pathButton?.getAttribute('data-file-path')
+  const pathButton = region.querySelector<HTMLElement>("button[data-file-path]");
+  const fromAttr = pathButton?.getAttribute("data-file-path");
   if (fromAttr) {
-    const cleaned = cleanFilePath(fromAttr)
+    const cleaned = cleanFilePath(fromAttr);
     if (cleaned) {
-      return cleaned
+      return cleaned;
     }
   }
 
-  const link = region.querySelector<HTMLAnchorElement>(
-    '[data-diff-header-wrapper] h3 a',
-  )
-  const fromLink = link?.textContent
+  const link = region.querySelector<HTMLAnchorElement>("[data-diff-header-wrapper] h3 a");
+  const fromLink = link?.textContent;
   if (fromLink) {
-    const cleaned = cleanFilePath(fromLink)
+    const cleaned = cleanFilePath(fromLink);
     if (cleaned) {
-      return cleaned
+      return cleaned;
     }
   }
 
-  return null
+  return null;
 }

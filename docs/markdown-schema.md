@@ -30,31 +30,31 @@ You can also call `parseMarkdown` or `mdastToProseMirror` alone when you need on
 
 ### Block nodes
 
-| Node | Markdown | Notes |
-| --- | --- | --- |
-| `paragraph` | text block | |
-| `heading` | `#` … `######` | `level` is 1–6 |
-| `blockquote` | `>` | |
-| `horizontal_rule` | `---` / `***` | |
-| `code_block` | fenced or indented | `params` holds the language tag; Mermaid fences get an interactive renderer in the rich diff |
-| `bullet_list` / `ordered_list` | `-` / `1.` | |
-| `list_item` | list entry | `checked` is `null`, `true`, or `false` for tasks |
-| `table` / `table_row` / `table_header` / `table_cell` | GFM table | |
-| `front_matter` | `---` YAML `---` | atom node; raw YAML in `value` |
-| `html_block` | HTML block | raw HTML in `html` |
+| Node                                                  | Markdown           | Notes                                                                                        |
+| ----------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------- |
+| `paragraph`                                           | text block         |                                                                                              |
+| `heading`                                             | `#` … `######`     | `level` is 1–6                                                                               |
+| `blockquote`                                          | `>`                |                                                                                              |
+| `horizontal_rule`                                     | `---` / `***`      |                                                                                              |
+| `code_block`                                          | fenced or indented | `params` holds the language tag; Mermaid fences get an interactive renderer in the rich diff |
+| `bullet_list` / `ordered_list`                        | `-` / `1.`         |                                                                                              |
+| `list_item`                                           | list entry         | `checked` is `null`, `true`, or `false` for tasks                                            |
+| `table` / `table_row` / `table_header` / `table_cell` | GFM table          |                                                                                              |
+| `front_matter`                                        | `---` YAML `---`   | atom node; raw YAML in `value`                                                               |
+| `html_block`                                          | HTML block         | raw HTML in `html`                                                                           |
 
 ### Inline nodes and marks
 
-| Name | Markdown |
-| --- | --- |
-| `text` | plain text |
-| `image` | `![alt](url)` |
-| `hard_break` | hard line break |
-| `em` | `*emphasis*` |
-| `strong` | `**strong**` |
-| `code` | `` `code` `` |
-| `link` | `[text](url)` or reference link |
-| `strikethrough` | `~~text~~` |
+| Name            | Markdown                        |
+| --------------- | ------------------------------- |
+| `text`          | plain text                      |
+| `image`         | `![alt](url)`                   |
+| `hard_break`    | hard line break                 |
+| `em`            | `*emphasis*`                    |
+| `strong`        | `**strong**`                    |
+| `code`          | `` `code` ``                    |
+| `link`          | `[text](url)` or reference link |
+| `strikethrough` | `~~text~~`                      |
 
 `strong` and `code` can sit on the same text. Example: `**\`V2ActionMenu\`**` becomes one text node with both marks.
 
@@ -69,13 +69,13 @@ These attrs are the anchor data for GitHub review comments.
 
 ## Files
 
-| Path | Role |
-| --- | --- |
-| `src/markdown/schema.ts` | ProseMirror schema |
-| `src/markdown/parse.ts` | Markdown → mdast |
+| Path                            | Role                |
+| ------------------------------- | ------------------- |
+| `src/markdown/schema.ts`        | ProseMirror schema  |
+| `src/markdown/parse.ts`         | Markdown → mdast    |
 | `src/markdown/toProseMirror.ts` | mdast → ProseMirror |
-| `src/markdown/positions.ts` | Source line helpers |
-| `src/markdown/index.ts` | Public API |
+| `src/markdown/positions.ts`     | Source line helpers |
+| `src/markdown/index.ts`         | Public API          |
 
 ## Tests
 

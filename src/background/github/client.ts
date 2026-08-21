@@ -1,4 +1,4 @@
-const API_VERSION = '2022-11-28'
+const API_VERSION = "2022-11-28";
 
 /**
  * Error thrown when a GitHub REST API request fails.
@@ -7,14 +7,14 @@ const API_VERSION = '2022-11-28'
  * @param body - Parsed response body, if available.
  */
 export class GitHubApiError extends Error {
-  readonly status: number
-  readonly body?: unknown
+  readonly status: number;
+  readonly body?: unknown;
 
   constructor(message: string, status: number, body?: unknown) {
-    super(message)
-    this.name = 'GitHubApiError'
-    this.status = status
-    this.body = body
+    super(message);
+    this.name = "GitHubApiError";
+    this.status = status;
+    this.body = body;
   }
 }
 
@@ -25,38 +25,35 @@ export class GitHubApiError extends Error {
  * @param parsed - Parsed JSON body of the error response.
  * @returns A single descriptive error string.
  */
-export function formatGitHubErrorMessage(
-  status: number,
-  parsed: unknown,
-): string {
-  if (typeof parsed === 'object' && parsed !== null) {
+export function formatGitHubErrorMessage(status: number, parsed: unknown): string {
+  if (typeof parsed === "object" && parsed !== null) {
     const record = parsed as {
-      message?: unknown
-      errors?: Array<{ message?: unknown; field?: unknown }>
-    }
+      message?: unknown;
+      errors?: Array<{ message?: unknown; field?: unknown }>;
+    };
     const details =
       Array.isArray(record.errors) && record.errors.length > 0
         ? record.errors
             .map((err) =>
-              typeof err.message === 'string' && err.message.length > 0
+              typeof err.message === "string" && err.message.length > 0
                 ? err.message
-                : typeof err.field === 'string'
+                : typeof err.field === "string"
                   ? `Invalid ${err.field}`
                   : null,
             )
             .filter((m): m is string => Boolean(m))
-        : []
+        : [];
 
     if (details.length > 0) {
-      return details.join(' ')
+      return details.join(" ");
     }
 
-    if (typeof record.message === 'string' && record.message.length > 0) {
-      return record.message
+    if (typeof record.message === "string" && record.message.length > 0) {
+      return record.message;
     }
   }
 
-  return `GitHub request failed (${status})`
+  return `GitHub request failed (${status})`;
 }
 
 /**
@@ -68,41 +65,41 @@ export function formatGitHubErrorMessage(
 export async function githubFetch<T>(
   path: string,
   options: {
-    token?: string | null
-    method?: string
-    body?: unknown
-    headers?: Record<string, string>
-    baseUrl?: string
+    token?: string | null;
+    method?: string;
+    body?: unknown;
+    headers?: Record<string, string>;
+    baseUrl?: string;
   } = {},
 ): Promise<T> {
-  const baseUrl = options.baseUrl ?? 'https://api.github.com'
+  const baseUrl = options.baseUrl ?? "https://api.github.com";
   const headers: Record<string, string> = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': API_VERSION,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": API_VERSION,
     ...options.headers,
-  }
+  };
 
   if (options.token) {
-    headers.Authorization = `Bearer ${options.token}`
+    headers.Authorization = `Bearer ${options.token}`;
   }
 
   if (options.body !== undefined) {
-    headers['Content-Type'] = 'application/json'
+    headers["Content-Type"] = "application/json";
   }
 
   const response = await fetch(`${baseUrl}${path}`, {
-    method: options.method ?? 'GET',
+    method: options.method ?? "GET",
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  })
+  });
 
-  const text = await response.text()
-  let parsed: unknown = undefined
+  const text = await response.text();
+  let parsed: unknown = undefined;
   if (text) {
     try {
-      parsed = JSON.parse(text) as unknown
+      parsed = JSON.parse(text) as unknown;
     } catch {
-      parsed = text
+      parsed = text;
     }
   }
 
@@ -111,8 +108,8 @@ export async function githubFetch<T>(
       formatGitHubErrorMessage(response.status, parsed),
       response.status,
       parsed,
-    )
+    );
   }
 
-  return parsed as T
+  return parsed as T;
 }

@@ -1,34 +1,21 @@
-import { DOMSerializer } from 'prosemirror-model'
-import type { BlockView, RowModel } from '../../markdown/align'
-import { markdownSchema } from '../../markdown/schema'
-import type { ReviewSide } from '../../markdown/sourceRange'
+import { DOMSerializer } from "prosemirror-model";
+import type { BlockView, RowModel } from "../../markdown/align";
+import { markdownSchema } from "../../markdown/schema";
+import type { ReviewSide } from "../../markdown/sourceRange";
 import {
   buildViewSections,
   findUnchangedSectionForRow,
   type UnchangedSection,
-} from '../../markdown/viewSections'
-import { wordDiff, type DiffSegment } from '../../markdown/wordDiff'
-import {
-  disposeMermaidDiagrams,
-  isMermaidBlock,
-  renderMermaidDiagram,
-} from './mermaid'
-import { applyRichLayout, type RichLayout } from './layout'
-import {
-  expandUnchangedSection,
-  getRichViewContext,
-  toggleUnchangedSection,
-} from './selection'
-import { findRowIdForThread, renderThreadCards } from './threads'
+} from "../../markdown/viewSections";
+import { wordDiff, type DiffSegment } from "../../markdown/wordDiff";
+import { disposeMermaidDiagrams, isMermaidBlock, renderMermaidDiagram } from "./mermaid";
+import { applyRichLayout, type RichLayout } from "./layout";
+import { expandUnchangedSection, getRichViewContext, toggleUnchangedSection } from "./selection";
+import { findRowIdForThread, renderThreadCards } from "./threads";
 
-const serializer = DOMSerializer.fromSchema(markdownSchema)
+const serializer = DOMSerializer.fromSchema(markdownSchema);
 
-const TEXT_DIFF_TYPES = new Set([
-  'paragraph',
-  'heading',
-  'list_item',
-  'blockquote',
-])
+const TEXT_DIFF_TYPES = new Set(["paragraph", "heading", "list_item", "blockquote"]);
 
 /**
  * Build the header and body fragment for the rich Before/After view.
@@ -39,84 +26,80 @@ const TEXT_DIFF_TYPES = new Set([
 export function buildRichRoot(
   rows: RowModel[],
   expandedIds: ReadonlySet<string>,
-  layout: RichLayout = 'split',
+  layout: RichLayout = "split",
 ): DocumentFragment {
-  const frag = document.createDocumentFragment()
+  const frag = document.createDocumentFragment();
 
-  const header = document.createElement('div')
-  header.className = 'rgm-rich-header'
-  header.append(
-    buildHeaderSide('before'),
-    buildHeaderSide('after'),
-    buildLayoutToolbar(layout),
-  )
-  frag.appendChild(header)
+  const header = document.createElement("div");
+  header.className = "rgm-rich-header";
+  header.append(buildHeaderSide("before"), buildHeaderSide("after"), buildLayoutToolbar(layout));
+  frag.appendChild(header);
 
-  frag.appendChild(buildRichBody(rows, expandedIds))
-  return frag
+  frag.appendChild(buildRichBody(rows, expandedIds));
+  return frag;
 }
 
 /** Build one Before or After header cell. */
-function buildHeaderSide(side: 'before' | 'after'): HTMLElement {
-  const cell = document.createElement('div')
-  cell.className = 'rgm-rich-header-side'
-  cell.setAttribute('data-side', side === 'before' ? 'LEFT' : 'RIGHT')
-  cell.setAttribute('aria-label', side === 'before' ? 'Before' : 'After')
-  cell.textContent = side === 'before' ? 'Before' : 'After'
-  return cell
+function buildHeaderSide(side: "before" | "after"): HTMLElement {
+  const cell = document.createElement("div");
+  cell.className = "rgm-rich-header-side";
+  cell.setAttribute("data-side", side === "before" ? "LEFT" : "RIGHT");
+  cell.setAttribute("aria-label", side === "before" ? "Before" : "After");
+  cell.textContent = side === "before" ? "Before" : "After";
+  return cell;
 }
 
 /** Build the in-place column-layout selector shown above the diff columns. */
 function buildLayoutToolbar(layout: RichLayout): HTMLElement {
-  const toolbar = document.createElement('div')
-  toolbar.className = 'rgm-rich-layout-toolbar'
-  toolbar.setAttribute('role', 'group')
-  toolbar.setAttribute('aria-label', 'Diff layout')
-  toolbar.setAttribute('data-rgm-chrome', '')
+  const toolbar = document.createElement("div");
+  toolbar.className = "rgm-rich-layout-toolbar";
+  toolbar.setAttribute("role", "group");
+  toolbar.setAttribute("aria-label", "Diff layout");
+  toolbar.setAttribute("data-rgm-chrome", "");
 
   const options: Array<{
-    layout: RichLayout
-    label: string
-    tooltip: string
+    layout: RichLayout;
+    label: string;
+    tooltip: string;
   }> = [
-      {
-        layout: 'before',
-        label: 'Before',
-        tooltip: 'Show only the original version',
-      },
-      {
-        layout: 'after',
-        label: 'After',
-        tooltip: 'Show only the updated version',
-      },
-      {
-        layout: 'split',
-        label: 'All',
-        tooltip: 'Show the original and updated versions side by side',
-      },
-    ]
+    {
+      layout: "before",
+      label: "Before",
+      tooltip: "Show only the original version",
+    },
+    {
+      layout: "after",
+      label: "After",
+      tooltip: "Show only the updated version",
+    },
+    {
+      layout: "split",
+      label: "All",
+      tooltip: "Show the original and updated versions side by side",
+    },
+  ];
 
   for (const option of options) {
-    const selected = option.layout === layout
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'rgm-rich-layout-btn'
-    button.textContent = option.label
-    button.setAttribute('data-tooltip', option.tooltip)
-    button.setAttribute('aria-label', option.tooltip)
-    button.setAttribute('data-rgm-layout-option', option.layout)
-    button.setAttribute('aria-pressed', String(selected))
+    const selected = option.layout === layout;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "rgm-rich-layout-btn";
+    button.textContent = option.label;
+    button.setAttribute("data-tooltip", option.tooltip);
+    button.setAttribute("aria-label", option.tooltip);
+    button.setAttribute("data-rgm-layout-option", option.layout);
+    button.setAttribute("aria-pressed", String(selected));
 
     // A mouse switch should not collapse selected source text or an active
     // editor selection. Keyboard activation keeps normal button focus.
-    button.addEventListener('mousedown', (event) => event.preventDefault())
-    button.addEventListener('click', () => {
-      const richRoot = button.closest<HTMLElement>('[data-rgm-rich]')
-      if (richRoot) applyRichLayout(richRoot, option.layout)
-    })
-    toolbar.appendChild(button)
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("click", () => {
+      const richRoot = button.closest<HTMLElement>("[data-rgm-rich]");
+      if (richRoot) applyRichLayout(richRoot, option.layout);
+    });
+    toolbar.appendChild(button);
   }
-  return toolbar
+  return toolbar;
 }
 
 /**
@@ -127,34 +110,31 @@ function buildLayoutToolbar(layout: RichLayout): HTMLElement {
  * @param expandedIds - Set of unchanged section ids that are expanded.
  * @returns The body element containing all row and fold elements.
  */
-export function buildRichBody(
-  rows: RowModel[],
-  expandedIds: ReadonlySet<string>,
-): HTMLElement {
-  const body = document.createElement('div')
-  body.className = 'rgm-rich-body'
-  body.setAttribute('role', 'table')
+export function buildRichBody(rows: RowModel[], expandedIds: ReadonlySet<string>): HTMLElement {
+  const body = document.createElement("div");
+  body.className = "rgm-rich-body";
+  body.setAttribute("role", "table");
 
-  body.setAttribute('aria-label', 'Rich markdown diff')
+  body.setAttribute("aria-label", "Rich markdown diff");
 
   for (const section of buildViewSections(rows)) {
-    if (section.kind === 'changed') {
+    if (section.kind === "changed") {
       for (const row of section.rows) {
-        body.appendChild(buildRow(row))
+        body.appendChild(buildRow(row));
       }
-      continue
+      continue;
     }
 
-    const expanded = expandedIds.has(section.id)
-    body.appendChild(buildFoldBar(section, expanded))
+    const expanded = expandedIds.has(section.id);
+    body.appendChild(buildFoldBar(section, expanded));
     if (expanded) {
       for (const row of section.rows) {
-        body.appendChild(buildRow(row))
+        body.appendChild(buildRow(row));
       }
     }
   }
 
-  return body
+  return body;
 }
 
 /**
@@ -164,20 +144,19 @@ export function buildRichBody(
  * @returns Nothing.
  */
 export function renderRichBody(richRoot: Element): void {
-  const ctx = getRichViewContext(richRoot)
-  if (!ctx) return
-  const expanded = ctx.expandedUnchangedIds ?? new Set<string>()
-  const fresh = buildRichBody(ctx.rows, expanded)
-  const old = richRoot.querySelector('.rgm-rich-body')
+  const ctx = getRichViewContext(richRoot);
+  if (!ctx) return;
+  const expanded = ctx.expandedUnchangedIds ?? new Set<string>();
+  const fresh = buildRichBody(ctx.rows, expanded);
+  const old = richRoot.querySelector(".rgm-rich-body");
   if (old) {
-    disposeMermaidDiagrams(old)
-    old.replaceWith(fresh)
+    disposeMermaidDiagrams(old);
+    old.replaceWith(fresh);
   } else {
-    richRoot.appendChild(fresh)
+    richRoot.appendChild(fresh);
   }
-  renderThreadCards(richRoot)
+  renderThreadCards(richRoot);
 }
-
 
 /**
  * Expand every collapsed unchanged section that owns a thread row.
@@ -186,17 +165,17 @@ export function renderRichBody(richRoot: Element): void {
  * @returns Nothing.
  */
 export function expandSectionsForThreads(richRoot: Element): void {
-  const ctx = getRichViewContext(richRoot)
-  const threads = ctx?.threads ?? []
-  if (!ctx || threads.length === 0) return
+  const ctx = getRichViewContext(richRoot);
+  const threads = ctx?.threads ?? [];
+  if (!ctx || threads.length === 0) return;
 
-  const sections = buildViewSections(ctx.rows)
+  const sections = buildViewSections(ctx.rows);
   for (const thread of threads) {
-    const rowId = findRowIdForThread(ctx.rows, thread)
-    if (!rowId) continue
-    const section = findUnchangedSectionForRow(sections, rowId)
+    const rowId = findRowIdForThread(ctx.rows, thread);
+    if (!rowId) continue;
+    const section = findUnchangedSectionForRow(sections, rowId);
     if (section) {
-      expandUnchangedSection(richRoot, section.id)
+      expandUnchangedSection(richRoot, section.id);
     }
   }
 }
@@ -207,59 +186,56 @@ export function expandSectionsForThreads(richRoot: Element): void {
  * @param expanded - True when this section is currently expanded.
  * @returns The fold bar element.
  */
-function buildFoldBar(
-  section: UnchangedSection,
-  expanded: boolean,
-): HTMLElement {
-  const bar = document.createElement('div')
-  bar.className = 'rgm-rich-fold'
-  bar.setAttribute('data-rgm-fold', '')
-  bar.setAttribute('data-section-id', section.id)
-  bar.setAttribute('data-rgm-chrome', '')
-  bar.setAttribute('role', 'row')
+function buildFoldBar(section: UnchangedSection, expanded: boolean): HTMLElement {
+  const bar = document.createElement("div");
+  bar.className = "rgm-rich-fold";
+  bar.setAttribute("data-rgm-fold", "");
+  bar.setAttribute("data-section-id", section.id);
+  bar.setAttribute("data-rgm-chrome", "");
+  bar.setAttribute("role", "row");
 
-  const count = section.rows.length
-  const label = `${count} unchanged ${count === 1 ? 'block' : 'blocks'}`
+  const count = section.rows.length;
+  const label = `${count} unchanged ${count === 1 ? "block" : "blocks"}`;
 
-  const btn = document.createElement('button')
-  btn.type = 'button'
-  btn.className = 'rgm-rich-fold-btn'
-  btn.setAttribute('data-rgm-fold-toggle', '')
-  btn.setAttribute('aria-expanded', String(expanded))
-  btn.setAttribute('aria-label', `${expanded ? 'Collapse' : 'Expand'} ${label}`)
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "rgm-rich-fold-btn";
+  btn.setAttribute("data-rgm-fold-toggle", "");
+  btn.setAttribute("aria-expanded", String(expanded));
+  btn.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${label}`);
 
-  const icon = document.createElement('span')
-  icon.className = 'rgm-rich-fold-icon'
-  icon.setAttribute('aria-hidden', 'true')
-  icon.textContent = expanded ? '−' : '+'
+  const icon = document.createElement("span");
+  icon.className = "rgm-rich-fold-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = expanded ? "−" : "+";
 
-  const text = document.createElement('span')
-  text.className = 'rgm-rich-fold-label'
-  text.textContent = label
+  const text = document.createElement("span");
+  text.className = "rgm-rich-fold-label";
+  text.textContent = label;
 
-  btn.append(icon, text)
+  btn.append(icon, text);
 
   if (section.lineFrom != null && section.lineTo != null) {
-    const lines = document.createElement('span')
-    lines.className = 'rgm-rich-fold-lines'
+    const lines = document.createElement("span");
+    lines.className = "rgm-rich-fold-lines";
     lines.textContent =
       section.lineFrom === section.lineTo
         ? `L${section.lineFrom}`
-        : `L${section.lineFrom}–L${section.lineTo}`
-    btn.append(lines)
+        : `L${section.lineFrom}–L${section.lineTo}`;
+    btn.append(lines);
   }
 
-  btn.addEventListener('click', (event) => {
-    event.preventDefault()
-    event.stopPropagation()
-    const richRoot = bar.closest('[data-rgm-rich]')
-    if (!richRoot) return
-    toggleUnchangedSection(richRoot, section.id)
-    renderRichBody(richRoot)
-  })
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const richRoot = bar.closest("[data-rgm-rich]");
+    if (!richRoot) return;
+    toggleUnchangedSection(richRoot, section.id);
+    renderRichBody(richRoot);
+  });
 
-  bar.appendChild(btn)
-  return bar
+  bar.appendChild(btn);
+  return bar;
 }
 
 /**
@@ -268,32 +244,32 @@ function buildFoldBar(
  * @returns The row element.
  */
 export function buildRow(row: RowModel): HTMLElement {
-  const el = document.createElement('div')
-  el.className = 'rgm-rich-row'
-  el.setAttribute('data-row-id', row.id)
-  el.setAttribute('data-changed', row.changed ? 'true' : 'false')
-  el.setAttribute('role', 'row')
+  const el = document.createElement("div");
+  el.className = "rgm-rich-row";
+  el.setAttribute("data-row-id", row.id);
+  el.setAttribute("data-changed", row.changed ? "true" : "false");
+  el.setAttribute("role", "row");
 
   el.appendChild(
     buildCell({
-      side: 'before',
+      side: "before",
       block: row.old,
       peer: row.new,
       changed: row.changed,
       rowId: row.id,
     }),
-  )
+  );
   el.appendChild(
     buildCell({
-      side: 'after',
+      side: "after",
       block: row.new,
       peer: row.old,
       changed: row.changed,
       rowId: row.id,
     }),
-  )
+  );
 
-  return el
+  return el;
 }
 
 /**
@@ -302,45 +278,43 @@ export function buildRow(row: RowModel): HTMLElement {
  * @returns The cell element.
  */
 function buildCell(args: {
-  side: 'before' | 'after'
-  block?: BlockView
-  peer?: BlockView
-  changed: boolean
-  rowId: string
+  side: "before" | "after";
+  block?: BlockView;
+  peer?: BlockView;
+  changed: boolean;
+  rowId: string;
 }): HTMLElement {
-  const { side, block, peer, changed, rowId } = args
-  const reviewSide: ReviewSide = side === 'before' ? 'LEFT' : 'RIGHT'
-  const cell = document.createElement('div')
-  cell.className = `rgm-rich-cell rgm-rich-cell-${side}`
-  cell.setAttribute('role', 'cell')
-  cell.setAttribute('data-block-id', `${rowId}::${side}`)
-  cell.setAttribute('data-side', reviewSide)
+  const { side, block, peer, changed, rowId } = args;
+  const reviewSide: ReviewSide = side === "before" ? "LEFT" : "RIGHT";
+  const cell = document.createElement("div");
+  cell.className = `rgm-rich-cell rgm-rich-cell-${side}`;
+  cell.setAttribute("role", "cell");
+  cell.setAttribute("data-block-id", `${rowId}::${side}`);
+  cell.setAttribute("data-side", reviewSide);
 
   if (changed && block) {
-    cell.classList.add(
-      side === 'before' ? 'rgm-rich-cell-del' : 'rgm-rich-cell-add',
-    )
+    cell.classList.add(side === "before" ? "rgm-rich-cell-del" : "rgm-rich-cell-add");
   }
 
   if (!block) {
-    cell.classList.add('rgm-rich-cell-missing')
-    const missing = document.createElement('p')
-    missing.className = 'rgm-rich-missing'
-    missing.textContent = 'not present'
-    cell.appendChild(missing)
-    return cell
+    cell.classList.add("rgm-rich-cell-missing");
+    const missing = document.createElement("p");
+    missing.className = "rgm-rich-missing";
+    missing.textContent = "not present";
+    cell.appendChild(missing);
+    return cell;
   }
 
   if (block.srcFrom != null) {
-    cell.setAttribute('data-src-from', String(block.srcFrom))
+    cell.setAttribute("data-src-from", String(block.srcFrom));
   }
   if (block.srcTo != null) {
-    cell.setAttribute('data-src-to', String(block.srcTo))
+    cell.setAttribute("data-src-to", String(block.srcTo));
   }
 
-  cell.appendChild(buildGutter(block))
-  cell.appendChild(buildBlockContent(block, side, peer, changed))
-  return cell
+  cell.appendChild(buildGutter(block));
+  cell.appendChild(buildBlockContent(block, side, peer, changed));
+  return cell;
 }
 
 /**
@@ -349,31 +323,27 @@ function buildCell(args: {
  * @returns The gutter element.
  */
 function buildGutter(block: BlockView): HTMLElement {
-  const gutter = document.createElement('div')
-  gutter.className = 'rgm-rich-gutter'
-  gutter.setAttribute('aria-hidden', 'true')
-  gutter.setAttribute('data-rgm-chrome', '')
+  const gutter = document.createElement("div");
+  gutter.className = "rgm-rich-gutter";
+  gutter.setAttribute("aria-hidden", "true");
+  gutter.setAttribute("data-rgm-chrome", "");
 
-  const from = document.createElement('span')
-  from.className = 'rgm-rich-gutter-line'
-  from.textContent =
-    block.srcFrom != null ? String(block.srcFrom) : ''
+  const from = document.createElement("span");
+  from.className = "rgm-rich-gutter-line";
+  from.textContent = block.srcFrom != null ? String(block.srcFrom) : "";
 
-  const rule = document.createElement('span')
-  rule.className = 'rgm-rich-gutter-rule'
+  const rule = document.createElement("span");
+  rule.className = "rgm-rich-gutter-rule";
 
-  const to = document.createElement('span')
-  to.className = 'rgm-rich-gutter-line'
-  const showTo =
-    block.srcTo != null &&
-    block.srcFrom != null &&
-    block.srcTo !== block.srcFrom
-  to.textContent = showTo ? String(block.srcTo) : ''
+  const to = document.createElement("span");
+  to.className = "rgm-rich-gutter-line";
+  const showTo = block.srcTo != null && block.srcFrom != null && block.srcTo !== block.srcFrom;
+  to.textContent = showTo ? String(block.srcTo) : "";
 
-  gutter.appendChild(from)
-  gutter.appendChild(rule)
-  gutter.appendChild(to)
-  return gutter
+  gutter.appendChild(from);
+  gutter.appendChild(rule);
+  gutter.appendChild(to);
+  return gutter;
 }
 
 /**
@@ -386,49 +356,42 @@ function buildGutter(block: BlockView): HTMLElement {
  */
 function buildBlockContent(
   block: BlockView,
-  side: 'before' | 'after',
+  side: "before" | "after",
   peer: BlockView | undefined,
   changed: boolean,
 ): HTMLElement {
-  const wrap = document.createElement('div')
-  wrap.className = 'rgm-rich-content'
+  const wrap = document.createElement("div");
+  wrap.className = "rgm-rich-content";
 
-  if (block.type === 'front_matter') {
-    wrap.appendChild(renderFrontMatter(block))
-    return wrap
+  if (block.type === "front_matter") {
+    wrap.appendChild(renderFrontMatter(block));
+    return wrap;
   }
 
   if (isMermaidBlock(block.node)) {
-    wrap.appendChild(renderMermaidDiagram(block.node.textContent))
-    return wrap
+    wrap.appendChild(renderMermaidDiagram(block.node.textContent));
+    return wrap;
   }
 
-  if (
-    changed &&
-    peer &&
-    TEXT_DIFF_TYPES.has(block.type) &&
-    block.type === peer.type
-  ) {
-    const oldText =
-      side === 'before' ? block.node.textContent : peer.node.textContent
-    const newText =
-      side === 'before' ? peer.node.textContent : block.node.textContent
-    const { oldSegments, newSegments } = wordDiff(oldText, newText)
-    const segments = side === 'before' ? oldSegments : newSegments
+  if (changed && peer && TEXT_DIFF_TYPES.has(block.type) && block.type === peer.type) {
+    const oldText = side === "before" ? block.node.textContent : peer.node.textContent;
+    const newText = side === "before" ? peer.node.textContent : block.node.textContent;
+    const { oldSegments, newSegments } = wordDiff(oldText, newText);
+    const segments = side === "before" ? oldSegments : newSegments;
     if (segments.some((s) => s.tone)) {
-      wrap.appendChild(renderSegmentedBlock(block, segments, side))
-      return wrap
+      wrap.appendChild(renderSegmentedBlock(block, segments, side));
+      return wrap;
     }
   }
 
-  const dom = serializer.serializeNode(block.node)
+  const dom = serializer.serializeNode(block.node);
   if (dom instanceof HTMLElement) {
-    enhanceSerialized(dom, block)
-    wrap.appendChild(dom)
+    enhanceSerialized(dom, block);
+    wrap.appendChild(dom);
   } else {
-    wrap.appendChild(dom)
+    wrap.appendChild(dom);
   }
-  return wrap
+  return wrap;
 }
 
 /**
@@ -441,31 +404,28 @@ function buildBlockContent(
 function renderSegmentedBlock(
   block: BlockView,
   segments: DiffSegment[],
-  side: 'before' | 'after',
+  side: "before" | "after",
 ): HTMLElement {
-  const tag =
-    block.type === 'heading'
-      ? `h${(block.node.attrs.level as number) || 1}`
-      : 'p'
-  const el = document.createElement(tag)
-  el.className = `rgm-rich-block rgm-rich-block-${block.type}`
+  const tag = block.type === "heading" ? `h${(block.node.attrs.level as number) || 1}` : "p";
+  const el = document.createElement(tag);
+  el.className = `rgm-rich-block rgm-rich-block-${block.type}`;
 
-  if (block.type === 'list_item') {
-    const item = document.createElement('div')
-    item.className = 'rgm-rich-list-item'
-    const bullet = document.createElement('span')
-    bullet.className = 'rgm-rich-bullet'
-    bullet.setAttribute('data-rgm-chrome', '')
-    bullet.textContent = '•'
-    item.appendChild(bullet)
-    const text = document.createElement('span')
-    appendSegments(text, segments, side)
-    item.appendChild(text)
-    return item
+  if (block.type === "list_item") {
+    const item = document.createElement("div");
+    item.className = "rgm-rich-list-item";
+    const bullet = document.createElement("span");
+    bullet.className = "rgm-rich-bullet";
+    bullet.setAttribute("data-rgm-chrome", "");
+    bullet.textContent = "•";
+    item.appendChild(bullet);
+    const text = document.createElement("span");
+    appendSegments(text, segments, side);
+    item.appendChild(text);
+    return item;
   }
 
-  appendSegments(el, segments, side)
-  return el
+  appendSegments(el, segments, side);
+  return el;
 }
 
 /**
@@ -478,23 +438,22 @@ function renderSegmentedBlock(
 function appendSegments(
   parent: HTMLElement,
   segments: DiffSegment[],
-  side: 'before' | 'after',
+  side: "before" | "after",
 ): void {
-  let srcOffset = 0
+  let srcOffset = 0;
   for (const seg of segments) {
-    if (side === 'before' && seg.tone === 'ins') continue
-    if (side === 'after' && seg.tone === 'del') continue
+    if (side === "before" && seg.tone === "ins") continue;
+    if (side === "after" && seg.tone === "del") continue;
 
-    const host = document.createElement('span')
-    host.setAttribute('data-src-offset', String(srcOffset))
-    host.setAttribute('data-src-len', String(seg.srcLen))
+    const host = document.createElement("span");
+    host.setAttribute("data-src-offset", String(srcOffset));
+    host.setAttribute("data-src-len", String(seg.srcLen));
     if (seg.tone) {
-      host.className =
-        seg.tone === 'ins' ? 'rgm-rich-ins' : 'rgm-rich-del'
+      host.className = seg.tone === "ins" ? "rgm-rich-ins" : "rgm-rich-del";
     }
-    host.textContent = seg.text
-    parent.appendChild(host)
-    srcOffset += seg.srcLen
+    host.textContent = seg.text;
+    parent.appendChild(host);
+    srcOffset += seg.srcLen;
   }
 }
 
@@ -504,24 +463,24 @@ function appendSegments(
  * @returns The front-matter card element.
  */
 function renderFrontMatter(block: BlockView): HTMLElement {
-  const card = document.createElement('div')
-  card.className = 'rgm-rich-front-matter'
-  const label = document.createElement('div')
-  label.className = 'rgm-rich-front-matter-label'
-  label.setAttribute('data-rgm-chrome', '')
-  label.textContent = 'Front matter'
-  card.appendChild(label)
+  const card = document.createElement("div");
+  card.className = "rgm-rich-front-matter";
+  const label = document.createElement("div");
+  label.className = "rgm-rich-front-matter-label";
+  label.setAttribute("data-rgm-chrome", "");
+  label.textContent = "Front matter";
+  card.appendChild(label);
 
-  const pre = document.createElement('pre')
-  pre.className = 'rgm-rich-front-matter-body'
-  const value = String(block.node.attrs.value ?? '')
-  const wrap = document.createElement('span')
-  wrap.setAttribute('data-src-offset', '0')
-  wrap.setAttribute('data-src-len', String(value.length))
-  wrap.textContent = value
-  pre.appendChild(wrap)
-  card.appendChild(pre)
-  return card
+  const pre = document.createElement("pre");
+  pre.className = "rgm-rich-front-matter-body";
+  const value = String(block.node.attrs.value ?? "");
+  const wrap = document.createElement("span");
+  wrap.setAttribute("data-src-offset", "0");
+  wrap.setAttribute("data-src-len", String(value.length));
+  wrap.textContent = value;
+  pre.appendChild(wrap);
+  card.appendChild(pre);
+  return card;
 }
 
 /**
@@ -531,18 +490,18 @@ function renderFrontMatter(block: BlockView): HTMLElement {
  * @returns Nothing.
  */
 function enhanceSerialized(dom: HTMLElement, block: BlockView): void {
-  if (block.type === 'code_block') {
-    const lang = String(block.node.attrs.params ?? '')
+  if (block.type === "code_block") {
+    const lang = String(block.node.attrs.params ?? "");
     if (lang) {
-      dom.setAttribute('data-lang', lang)
-      const chip = document.createElement('span')
-      chip.className = 'rgm-rich-code-lang'
-      chip.setAttribute('data-rgm-chrome', '')
-      chip.textContent = lang
-      dom.prepend(chip)
+      dom.setAttribute("data-lang", lang);
+      const chip = document.createElement("span");
+      chip.className = "rgm-rich-code-lang";
+      chip.setAttribute("data-rgm-chrome", "");
+      chip.textContent = lang;
+      dom.prepend(chip);
     }
   }
-  annotatePlainTextOffsets(dom)
+  annotatePlainTextOffsets(dom);
 }
 
 /**
@@ -552,27 +511,27 @@ function enhanceSerialized(dom: HTMLElement, block: BlockView): void {
  * @returns Nothing.
  */
 function annotatePlainTextOffsets(root: HTMLElement): void {
-  let offset = 0
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-  const texts: Text[] = []
-  let current = walker.nextNode()
+  let offset = 0;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const texts: Text[] = [];
+  let current = walker.nextNode();
   while (current) {
     if (
       current.nodeType === Node.TEXT_NODE &&
-      !current.parentElement?.closest('[data-rgm-chrome]')
+      !current.parentElement?.closest("[data-rgm-chrome]")
     ) {
-      texts.push(current as Text)
+      texts.push(current as Text);
     }
-    current = walker.nextNode()
+    current = walker.nextNode();
   }
   for (const textNode of texts) {
-    const len = textNode.textContent?.length ?? 0
-    if (len === 0) continue
-    const wrap = document.createElement('span')
-    wrap.setAttribute('data-src-offset', String(offset))
-    wrap.setAttribute('data-src-len', String(len))
-    textNode.parentNode?.insertBefore(wrap, textNode)
-    wrap.appendChild(textNode)
-    offset += len
+    const len = textNode.textContent?.length ?? 0;
+    if (len === 0) continue;
+    const wrap = document.createElement("span");
+    wrap.setAttribute("data-src-offset", String(offset));
+    wrap.setAttribute("data-src-len", String(len));
+    textNode.parentNode?.insertBefore(wrap, textNode);
+    wrap.appendChild(textNode);
+    offset += len;
   }
 }

@@ -1,5 +1,5 @@
 /** GitHub review-comment side. `'LEFT'` = before, `'RIGHT'` = after. */
-export type ReviewSide = 'LEFT' | 'RIGHT'
+export type ReviewSide = "LEFT" | "RIGHT";
 
 /**
  * Source span for a rich-view selection.
@@ -7,23 +7,23 @@ export type ReviewSide = 'LEFT' | 'RIGHT'
  * at end-of-line (col = lineLength + 1).
  */
 export type SourceRange = {
-  side: ReviewSide
-  startLine: number
-  startCol: number
-  endLine: number
-  endCol: number
-  quotedText: string
-}
+  side: ReviewSide;
+  startLine: number;
+  startCol: number;
+  endLine: number;
+  endCol: number;
+  quotedText: string;
+};
 
 export type BlockSourceAnchor = {
-  side: ReviewSide
-  srcFrom: number
-  srcTo: number
+  side: ReviewSide;
+  srcFrom: number;
+  srcTo: number;
   /** Block plain text (ProseMirror `textContent` or front-matter value). */
-  plainText: string
+  plainText: string;
   /** Inclusive source lines for the range [`srcFrom`, `srcTo`]. */
-  sourceLines: string[]
-}
+  sourceLines: string[];
+};
 
 /**
  * Extract lines from a full file string by 1-based inclusive line numbers.
@@ -32,19 +32,15 @@ export type BlockSourceAnchor = {
  * @param srcTo - Last line (1-based, inclusive).
  * @returns Array of source lines in the given range.
  */
-export function linesForRange(
-  fileText: string,
-  srcFrom: number,
-  srcTo: number,
-): string[] {
+export function linesForRange(fileText: string, srcFrom: number, srcTo: number): string[] {
   if (srcFrom < 1 || srcTo < srcFrom) {
-    return []
+    return [];
   }
-  const all = fileText.split('\n')
+  const all = fileText.split("\n");
   // File text often ends with a trailing newline, which creates a final empty
   // split entry. Source line N is `all[N - 1]`. Do not trim the trailing
   // empty entry unless it is past `srcTo`.
-  return all.slice(srcFrom - 1, srcTo)
+  return all.slice(srcFrom - 1, srcTo);
 }
 
 /**
@@ -53,39 +49,39 @@ export function linesForRange(
  * @returns An object with `line` and `col` (both 1-based).
  */
 export function plainOffsetToPos(args: {
-  plainText: string
-  srcFrom: number
-  srcTo: number
-  sourceLines: string[]
-  offset: number
+  plainText: string;
+  srcFrom: number;
+  srcTo: number;
+  sourceLines: string[];
+  offset: number;
 }): { line: number; col: number } {
-  const { plainText, srcFrom, srcTo, sourceLines } = args
-  const offset = clamp(args.offset, 0, plainText.length)
+  const { plainText, srcFrom, srcTo, sourceLines } = args;
+  const offset = clamp(args.offset, 0, plainText.length);
 
   if (sourceLines.length === 0 || srcFrom < 1) {
-    return { line: Math.max(srcFrom, 1), col: offset + 1 }
+    return { line: Math.max(srcFrom, 1), col: offset + 1 };
   }
 
-  if (plainText.includes('\n')) {
+  if (plainText.includes("\n")) {
     return offsetInMultilinePlain({
       plainText,
       srcFrom,
       srcTo,
       sourceLines,
       offset,
-    })
+    });
   }
 
   if (srcFrom === srcTo) {
-    const sourceLine = sourceLines[0] ?? ''
-    const idx = sourceLine.indexOf(plainText)
+    const sourceLine = sourceLines[0] ?? "";
+    const idx = sourceLine.indexOf(plainText);
     if (plainText.length > 0 && idx >= 0) {
-      return { line: srcFrom, col: idx + offset + 1 }
+      return { line: srcFrom, col: idx + offset + 1 };
     }
     return {
       line: srcFrom,
       col: clamp(offset + 1, 1, sourceLine.length + 1),
-    }
+    };
   }
 
   // Soft-wrapped or multi-line Markdown rendered as one plain blob (no `\n`).
@@ -95,7 +91,7 @@ export function plainOffsetToPos(args: {
     srcTo,
     sourceLines,
     offset,
-  })
+  });
 }
 
 /**
@@ -113,22 +109,22 @@ export function offsetsToSourceRange(
   endOffset: number,
   quotedText: string,
 ): SourceRange {
-  const from = Math.min(startOffset, endOffset)
-  const to = Math.max(startOffset, endOffset)
+  const from = Math.min(startOffset, endOffset);
+  const to = Math.max(startOffset, endOffset);
   const start = plainOffsetToPos({
     plainText: anchor.plainText,
     srcFrom: anchor.srcFrom,
     srcTo: anchor.srcTo,
     sourceLines: anchor.sourceLines,
     offset: from,
-  })
+  });
   const end = plainOffsetToPos({
     plainText: anchor.plainText,
     srcFrom: anchor.srcFrom,
     srcTo: anchor.srcTo,
     sourceLines: anchor.sourceLines,
     offset: to,
-  })
+  });
 
   return {
     side: anchor.side,
@@ -137,7 +133,7 @@ export function offsetsToSourceRange(
     endLine: end.line,
     endCol: end.col,
     quotedText,
-  }
+  };
 }
 
 /**
@@ -147,15 +143,12 @@ export function offsetsToSourceRange(
  * @param fileText - Full file content for line-length lookup.
  * @returns A new `SourceRange` that covers complete lines.
  */
-export function expandSourceRangeToWholeLines(
-  range: SourceRange,
-  fileText: string,
-): SourceRange {
-  const startLine = Math.min(range.startLine, range.endLine)
-  const endLine = Math.max(range.startLine, range.endLine)
-  const lines = fileText.split('\n')
-  const last = lines[endLine - 1] ?? ''
-  const quotedText = lines.slice(startLine - 1, endLine).join('\n')
+export function expandSourceRangeToWholeLines(range: SourceRange, fileText: string): SourceRange {
+  const startLine = Math.min(range.startLine, range.endLine);
+  const endLine = Math.max(range.startLine, range.endLine);
+  const lines = fileText.split("\n");
+  const last = lines[endLine - 1] ?? "";
+  const quotedText = lines.slice(startLine - 1, endLine).join("\n");
   return {
     side: range.side,
     startLine,
@@ -163,7 +156,7 @@ export function expandSourceRangeToWholeLines(
     endLine,
     endCol: last.length + 1,
     quotedText,
-  }
+  };
 }
 
 /**
@@ -180,9 +173,9 @@ export function sourcePosToPlainOffset(
   line: number,
   col: number,
 ): number {
-  const targetCol = Math.max(1, col)
-  let best = 0
-  let bestScore = Number.POSITIVE_INFINITY
+  const targetCol = Math.max(1, col);
+  let best = 0;
+  let bestScore = Number.POSITIVE_INFINITY;
 
   for (let offset = 0; offset <= anchor.plainText.length; offset += 1) {
     const pos = plainOffsetToPos({
@@ -191,17 +184,16 @@ export function sourcePosToPlainOffset(
       srcTo: anchor.srcTo,
       sourceLines: anchor.sourceLines,
       offset,
-    })
-    const score =
-      Math.abs(pos.line - line) * 10_000 + Math.abs(pos.col - targetCol)
+    });
+    const score = Math.abs(pos.line - line) * 10_000 + Math.abs(pos.col - targetCol);
     if (score < bestScore) {
-      bestScore = score
-      best = offset
+      bestScore = score;
+      best = offset;
     }
-    if (score === 0) break
+    if (score === 0) break;
   }
 
-  return best
+  return best;
 }
 
 /**
@@ -216,23 +208,23 @@ export function plainOffsetsForLineSpan(
   startLine: number,
   endLine: number,
 ): { from: number; to: number } | null {
-  const fromLine = Math.max(startLine, anchor.srcFrom)
-  const toLine = Math.min(endLine, anchor.srcTo)
+  const fromLine = Math.max(startLine, anchor.srcFrom);
+  const toLine = Math.min(endLine, anchor.srcTo);
   if (fromLine > toLine) {
-    return null
+    return null;
   }
 
   if (fromLine === anchor.srcFrom && toLine === anchor.srcTo) {
-    return { from: 0, to: anchor.plainText.length }
+    return { from: 0, to: anchor.plainText.length };
   }
 
-  const last = anchor.sourceLines[toLine - anchor.srcFrom] ?? ''
-  const from = sourcePosToPlainOffset(anchor, fromLine, 1)
-  const to = sourcePosToPlainOffset(anchor, toLine, last.length + 1)
+  const last = anchor.sourceLines[toLine - anchor.srcFrom] ?? "";
+  const from = sourcePosToPlainOffset(anchor, fromLine, 1);
+  const to = sourcePosToPlainOffset(anchor, toLine, last.length + 1);
   if (from === to && anchor.plainText.length > 0) {
-    return { from: 0, to: anchor.plainText.length }
+    return { from: 0, to: anchor.plainText.length };
   }
-  return { from: Math.min(from, to), to: Math.max(from, to) }
+  return { from: Math.min(from, to), to: Math.max(from, to) };
 }
 
 /**
@@ -241,18 +233,14 @@ export function plainOffsetsForLineSpan(
  * @param b - Second source range.
  * @returns The merged range, or `null` when the sides differ.
  */
-export function mergeSourceRanges(
-  a: SourceRange,
-  b: SourceRange,
-): SourceRange | null {
+export function mergeSourceRanges(a: SourceRange, b: SourceRange): SourceRange | null {
   if (a.side !== b.side) {
-    return null
+    return null;
   }
   const aFirst =
-    a.startLine < b.startLine ||
-    (a.startLine === b.startLine && a.startCol <= b.startCol)
-  const start = aFirst ? a : b
-  const end = aFirst ? b : a
+    a.startLine < b.startLine || (a.startLine === b.startLine && a.startCol <= b.startCol);
+  const start = aFirst ? a : b;
+  const end = aFirst ? b : a;
   return {
     side: a.side,
     startLine: start.startLine,
@@ -262,7 +250,7 @@ export function mergeSourceRanges(
     quotedText: aFirst
       ? joinQuoted(a.quotedText, b.quotedText)
       : joinQuoted(b.quotedText, a.quotedText),
-  }
+  };
 }
 
 /**
@@ -272,11 +260,11 @@ export function mergeSourceRanges(
  * @returns The combined quoted text.
  */
 function joinQuoted(left: string, right: string): string {
-  if (!left) return right
-  if (!right) return left
-  if (left.endsWith(right) || left.includes(right)) return left
-  if (right.startsWith(left)) return right
-  return `${left}${right}`
+  if (!left) return right;
+  if (!right) return left;
+  if (left.endsWith(right) || left.includes(right)) return left;
+  if (right.startsWith(left)) return right;
+  return `${left}${right}`;
 }
 
 /**
@@ -285,29 +273,29 @@ function joinQuoted(left: string, right: string): string {
  * @returns An object with `line` and `col` (both 1-based).
  */
 function offsetInMultilinePlain(args: {
-  plainText: string
-  srcFrom: number
-  srcTo: number
-  sourceLines: string[]
-  offset: number
+  plainText: string;
+  srcFrom: number;
+  srcTo: number;
+  sourceLines: string[];
+  offset: number;
 }): { line: number; col: number } {
-  const { plainText, srcFrom, srcTo, sourceLines, offset } = args
-  const parts = plainText.split('\n')
-  const fence = isFencedCode(sourceLines)
-  const contentStart = fence ? srcFrom + 1 : srcFrom
+  const { plainText, srcFrom, srcTo, sourceLines, offset } = args;
+  const parts = plainText.split("\n");
+  const fence = isFencedCode(sourceLines);
+  const contentStart = fence ? srcFrom + 1 : srcFrom;
 
-  let remaining = offset
+  let remaining = offset;
   for (let i = 0; i < parts.length; i++) {
-    const part = parts[i]!
-    const line = clamp(contentStart + i, srcFrom, srcTo)
+    const part = parts[i]!;
+    const line = clamp(contentStart + i, srcFrom, srcTo);
     if (remaining <= part.length) {
-      return { line, col: remaining + 1 }
+      return { line, col: remaining + 1 };
     }
-    remaining -= part.length + 1
+    remaining -= part.length + 1;
   }
 
-  const last = sourceLines[sourceLines.length - 1] ?? ''
-  return { line: srcTo, col: last.length + 1 }
+  const last = sourceLines[sourceLines.length - 1] ?? "";
+  return { line: srcTo, col: last.length + 1 };
 }
 
 /**
@@ -318,44 +306,44 @@ function offsetInMultilinePlain(args: {
  * @returns An object with `line` and `col` (both 1-based).
  */
 function offsetInWrappedPlain(args: {
-  plainText: string
-  srcFrom: number
-  srcTo: number
-  sourceLines: string[]
-  offset: number
+  plainText: string;
+  srcFrom: number;
+  srcTo: number;
+  sourceLines: string[];
+  offset: number;
 }): { line: number; col: number } {
-  const { plainText, srcFrom, srcTo, sourceLines, offset } = args
-  const segments = locateWrappedSegments(plainText, sourceLines, srcFrom)
+  const { plainText, srcFrom, srcTo, sourceLines, offset } = args;
+  const segments = locateWrappedSegments(plainText, sourceLines, srcFrom);
 
   if (segments.length === 0) {
-    if (offset <= 0) return { line: srcFrom, col: 1 }
-    const last = sourceLines[sourceLines.length - 1] ?? ''
-    return { line: srcTo, col: last.length + 1 }
+    if (offset <= 0) return { line: srcFrom, col: 1 };
+    const last = sourceLines[sourceLines.length - 1] ?? "";
+    return { line: srcTo, col: last.length + 1 };
   }
 
   for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]!
-    const isLast = i === segments.length - 1
+    const seg = segments[i]!;
+    const isLast = i === segments.length - 1;
     if (offset < seg.plainTo || (isLast && offset >= seg.plainTo)) {
-      const local = Math.max(0, Math.min(offset, seg.plainTo) - seg.plainFrom)
-      return { line: seg.line, col: seg.colBase + local }
+      const local = Math.max(0, Math.min(offset, seg.plainTo) - seg.plainFrom);
+      return { line: seg.line, col: seg.colBase + local };
     }
   }
 
-  const lastSeg = segments[segments.length - 1]!
+  const lastSeg = segments[segments.length - 1]!;
   return {
     line: lastSeg.line,
     col: lastSeg.colBase + (lastSeg.plainTo - lastSeg.plainFrom),
-  }
+  };
 }
 
 type WrappedSegment = {
-  line: number
-  plainFrom: number
-  plainTo: number
+  line: number;
+  plainFrom: number;
+  plainTo: number;
   /** 1-based source column that corresponds to `plainFrom`. */
-  colBase: number
-}
+  colBase: number;
+};
 
 /**
  * Locate each source line's visible content inside the plain text string.
@@ -369,19 +357,19 @@ function locateWrappedSegments(
   sourceLines: string[],
   srcFrom: number,
 ): WrappedSegment[] {
-  const segments: WrappedSegment[] = []
-  let cursor = 0
+  const segments: WrappedSegment[] = [];
+  let cursor = 0;
 
   for (let i = 0; i < sourceLines.length; i++) {
-    const raw = sourceLines[i] ?? ''
-    const lineNum = srcFrom + i
+    const raw = sourceLines[i] ?? "";
+    const lineNum = srcFrom + i;
     if (raw.length === 0) {
-      continue
+      continue;
     }
 
-    const match = matchSourceLineInPlain(plainText, cursor, raw)
+    const match = matchSourceLineInPlain(plainText, cursor, raw);
     if (!match) {
-      continue
+      continue;
     }
 
     segments.push({
@@ -389,11 +377,11 @@ function locateWrappedSegments(
       plainFrom: match.plainFrom,
       plainTo: match.plainTo,
       colBase: match.colBase,
-    })
-    cursor = match.plainTo
+    });
+    cursor = match.plainTo;
   }
 
-  return segments
+  return segments;
 }
 
 /**
@@ -410,16 +398,16 @@ function matchSourceLineInPlain(
   from: number,
   sourceLine: string,
 ): { plainFrom: number; plainTo: number; colBase: number } | null {
-  const trimmedStart = sourceLine.match(/^\s*/)?.[0]?.length ?? 0
-  const body = sourceLine.slice(trimmedStart)
+  const trimmedStart = sourceLine.match(/^\s*/)?.[0]?.length ?? 0;
+  const body = sourceLine.slice(trimmedStart);
   if (body.length === 0) {
-    return null
+    return null;
   }
 
   // Skip softbreak whitespace in the plain stream.
-  let start = from
+  let start = from;
   while (start < plainText.length && /\s/.test(plainText[start]!)) {
-    start += 1
+    start += 1;
   }
 
   // Exact body match (paragraph or continuation lines).
@@ -428,52 +416,52 @@ function matchSourceLineInPlain(
       plainFrom: start,
       plainTo: start + body.length,
       colBase: trimmedStart + 1,
-    }
+    };
   }
 
   // Heading, quote, or list marker not present in plain text.
-  const stripped = stripMarkdownLinePrefix(body)
+  const stripped = stripMarkdownLinePrefix(body);
   if (stripped.length > 0 && stripped !== body) {
-    const markerLen = body.length - stripped.length
-    const gap = plainText.indexOf(stripped, start)
+    const markerLen = body.length - stripped.length;
+    const gap = plainText.indexOf(stripped, start);
     if (gap >= 0 && gap - start <= 2) {
       return {
         plainFrom: gap,
         plainTo: gap + stripped.length,
         colBase: trimmedStart + markerLen + 1,
-      }
+      };
     }
   }
 
   // Fuzzy match: walk source body against plain text, allowing extra whitespace.
-  let si = 0
-  let pi = start
-  const plainFrom = start
+  let si = 0;
+  let pi = start;
+  const plainFrom = start;
   while (si < body.length && pi < plainText.length) {
-    const sc = body[si]!
-    const pc = plainText[pi]!
+    const sc = body[si]!;
+    const pc = plainText[pi]!;
     if (sc === pc) {
-      si += 1
-      pi += 1
-      continue
+      si += 1;
+      pi += 1;
+      continue;
     }
     if (/\s/.test(pc)) {
-      pi += 1
-      continue
+      pi += 1;
+      continue;
     }
     // Unmatched Markdown marker in source (for example, a leftover `#`).
     if (/[#>*`\-\d.]/.test(sc) && sc !== pc) {
-      si += 1
-      continue
+      si += 1;
+      continue;
     }
-    break
+    break;
   }
 
   if (si > 0 && pi > plainFrom) {
-    return { plainFrom, plainTo: pi, colBase: trimmedStart + 1 }
+    return { plainFrom, plainTo: pi, colBase: trimmedStart + 1 };
   }
 
-  return null
+  return null;
 }
 
 /**
@@ -483,10 +471,10 @@ function matchSourceLineInPlain(
  */
 function stripMarkdownLinePrefix(line: string): string {
   return line
-    .replace(/^#{1,6}\s+/, '')
-    .replace(/^>\s?/, '')
-    .replace(/^([*+-]|\d+\.)\s+/, '')
-    .replace(/^\[\s?[xX ]\]\s+/, '')
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/^>\s?/, "")
+    .replace(/^([*+-]|\d+\.)\s+/, "")
+    .replace(/^\[\s?[xX ]\]\s+/, "");
 }
 
 /**
@@ -495,10 +483,10 @@ function stripMarkdownLinePrefix(line: string): string {
  * @returns `true` when the first and last lines are backtick fences.
  */
 function isFencedCode(sourceLines: string[]): boolean {
-  if (sourceLines.length < 2) return false
-  const first = sourceLines[0] ?? ''
-  const last = sourceLines[sourceLines.length - 1] ?? ''
-  return /^`{3,}/.test(first) && /^`{3,}\s*$/.test(last)
+  if (sourceLines.length < 2) return false;
+  const first = sourceLines[0] ?? "";
+  const last = sourceLines[sourceLines.length - 1] ?? "";
+  return /^`{3,}/.test(first) && /^`{3,}\s*$/.test(last);
 }
 
 /**
@@ -509,5 +497,5 @@ function isFencedCode(sourceLines: string[]): boolean {
  * @returns The clamped value.
  */
 function clamp(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n))
+  return Math.max(min, Math.min(max, n));
 }

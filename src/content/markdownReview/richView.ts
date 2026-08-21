@@ -1,45 +1,41 @@
-import type { Node as PMNode } from 'prosemirror-model'
-import type { RowModel } from '../../markdown/align'
-import { buildViewSections } from '../../markdown/viewSections'
-import { DIFF_BODY, RGM_STUB } from './selectors'
-import {
-  bindOverlayRepaint,
-  clearRichViewContext,
-  setRichViewContext,
-} from './selection'
-import { bindComposer } from './composer'
+import type { Node as PMNode } from "prosemirror-model";
+import type { RowModel } from "../../markdown/align";
+import { buildViewSections } from "../../markdown/viewSections";
+import { DIFF_BODY, RGM_STUB } from "./selectors";
+import { bindOverlayRepaint, clearRichViewContext, setRichViewContext } from "./selection";
+import { bindComposer } from "./composer";
 import {
   bindFileCollapseSync,
   bindHeaderControlSuppress,
   showInterferingHeaderControls,
   unbindFileCollapseSync,
-} from './headerControls'
-import { buildRichRoot } from './renderBody'
-import { disposeMermaidDiagrams } from './mermaid'
-import { initialRichLayout } from './layout'
-import type { CommentableLines } from '../../shared/commentableLines'
+} from "./headerControls";
+import { buildRichRoot } from "./renderBody";
+import { disposeMermaidDiagrams } from "./mermaid";
+import { initialRichLayout } from "./layout";
+import type { CommentableLines } from "../../shared/commentableLines";
 
 /** Attribute used to hide the native diff body. */
-const HIDDEN_ATTR = 'data-rgm-diff-hidden'
+const HIDDEN_ATTR = "data-rgm-diff-hidden";
 
-const composerCleanups = new WeakMap<Element, () => void>()
-const overlayCleanups = new WeakMap<Element, () => void>()
+const composerCleanups = new WeakMap<Element, () => void>();
+const overlayCleanups = new WeakMap<Element, () => void>();
 
 export type ShowRichViewOptions = {
-  baseText?: string
-  headText?: string
-  owner?: string
-  repo?: string
-  pullNumber?: number
-  path?: string
-  baseSha?: string
-  headSha?: string
-  commentable?: CommentableLines
-  viewerLogin?: string
-}
+  baseText?: string;
+  headText?: string;
+  owner?: string;
+  repo?: string;
+  pullNumber?: number;
+  path?: string;
+  baseSha?: string;
+  headSha?: string;
+  commentable?: CommentableLines;
+  viewerLogin?: string;
+};
 
 /** Elements this extension injects into a file region. */
-const OWN_NODES = '[data-rgm-rich], [data-rgm-stub], [data-rgm-auth-panel]'
+const OWN_NODES = "[data-rgm-rich], [data-rgm-stub], [data-rgm-auth-panel]";
 
 /**
  * Find the native diff body element within a file region.
@@ -55,26 +51,26 @@ const OWN_NODES = '[data-rgm-rich], [data-rgm-stub], [data-rgm-auth-panel]'
  * @returns The diff body element, or null if not found.
  */
 function findDiffBody(region: Element): HTMLElement | null {
-  const header = region.querySelector('[data-diff-header-wrapper]')
+  const header = region.querySelector("[data-diff-header-wrapper]");
   if (header?.parentElement === region) {
-    let fallback: HTMLElement | null = null
-    let sibling = header.nextElementSibling
+    let fallback: HTMLElement | null = null;
+    let sibling = header.nextElementSibling;
     while (sibling) {
       if (sibling instanceof HTMLElement && !sibling.matches(OWN_NODES)) {
         // The rendered diff is the surest match, so keep looking for it.
         if (sibling.querySelector('table[aria-label^="Diff for:"]')) {
-          return sibling
+          return sibling;
         }
-        fallback ??= sibling
+        fallback ??= sibling;
       }
-      sibling = sibling.nextElementSibling
+      sibling = sibling.nextElementSibling;
     }
     if (fallback) {
-      return fallback
+      return fallback;
     }
   }
 
-  return region.querySelector<HTMLElement>(DIFF_BODY)
+  return region.querySelector<HTMLElement>(DIFF_BODY);
 }
 
 /**
@@ -90,28 +86,28 @@ export function showRichView(
   rows: RowModel[],
   options: ShowRichViewOptions = {},
 ): void {
-  const diffBody = findDiffBody(region)
+  const diffBody = findDiffBody(region);
   if (!diffBody) {
-    return
+    return;
   }
 
-  diffBody.setAttribute(HIDDEN_ATTR, '')
-  region.querySelector('[data-rgm-auth-panel]')?.remove()
+  diffBody.setAttribute(HIDDEN_ATTR, "");
+  region.querySelector("[data-rgm-auth-panel]")?.remove();
 
-  let root = region.querySelector<HTMLElement>('[data-rgm-rich]')
+  let root = region.querySelector<HTMLElement>("[data-rgm-rich]");
   if (!root) {
-    root = document.createElement('div')
-    root.setAttribute('data-rgm-rich', '')
-    root.setAttribute('data-rgm-stub', '')
-    diffBody.after(root)
+    root = document.createElement("div");
+    root.setAttribute("data-rgm-rich", "");
+    root.setAttribute("data-rgm-stub", "");
+    diffBody.after(root);
   }
 
-  const layout = initialRichLayout(options.path)
-  root.setAttribute('data-rgm-layout', layout)
-  const expanded = new Set<string>()
+  const layout = initialRichLayout(options.path);
+  root.setAttribute("data-rgm-layout", layout);
+  const expanded = new Set<string>();
   setRichViewContext(root, {
-    baseText: options.baseText ?? '',
-    headText: options.headText ?? '',
+    baseText: options.baseText ?? "",
+    headText: options.headText ?? "",
     rows,
     owner: options.owner,
     repo: options.repo,
@@ -123,15 +119,15 @@ export function showRichView(
     viewerLogin: options.viewerLogin,
     expandedUnchangedIds: expanded,
     layout,
-  })
-  disposeMermaidDiagrams(root)
-  root.replaceChildren(buildRichRoot(rows, expanded, layout))
-  composerCleanups.get(root)?.()
-  composerCleanups.set(root, bindComposer(root))
-  overlayCleanups.get(root)?.()
-  overlayCleanups.set(root, bindOverlayRepaint(root))
-  bindHeaderControlSuppress(region)
-  bindFileCollapseSync(region)
+  });
+  disposeMermaidDiagrams(root);
+  root.replaceChildren(buildRichRoot(rows, expanded, layout));
+  composerCleanups.get(root)?.();
+  composerCleanups.set(root, bindComposer(root));
+  overlayCleanups.get(root)?.();
+  overlayCleanups.set(root, bindOverlayRepaint(root));
+  bindHeaderControlSuppress(region);
+  bindFileCollapseSync(region);
 }
 
 /**
@@ -140,29 +136,29 @@ export function showRichView(
  * @returns Nothing.
  */
 export function showRichLoading(region: Element): void {
-  const diffBody = findDiffBody(region)
+  const diffBody = findDiffBody(region);
   if (!diffBody) {
-    return
+    return;
   }
-  diffBody.setAttribute(HIDDEN_ATTR, '')
-  region.querySelector('[data-rgm-auth-panel]')?.remove()
+  diffBody.setAttribute(HIDDEN_ATTR, "");
+  region.querySelector("[data-rgm-auth-panel]")?.remove();
 
-  let root = region.querySelector<HTMLElement>('[data-rgm-rich]')
+  let root = region.querySelector<HTMLElement>("[data-rgm-rich]");
   if (!root) {
-    root = document.createElement('div')
-    root.setAttribute('data-rgm-rich', '')
-    root.setAttribute('data-rgm-stub', '')
-    diffBody.after(root)
+    root = document.createElement("div");
+    root.setAttribute("data-rgm-rich", "");
+    root.setAttribute("data-rgm-stub", "");
+    diffBody.after(root);
   }
 
-  disposeMermaidDiagrams(root)
-  root.replaceChildren()
-  const status = document.createElement('p')
-  status.className = 'rgm-rich-status'
-  status.textContent = 'Loading rich Markdown view…'
-  root.appendChild(status)
-  bindHeaderControlSuppress(region)
-  bindFileCollapseSync(region)
+  disposeMermaidDiagrams(root);
+  root.replaceChildren();
+  const status = document.createElement("p");
+  status.className = "rgm-rich-status";
+  status.textContent = "Loading rich Markdown view…";
+  root.appendChild(status);
+  bindHeaderControlSuppress(region);
+  bindFileCollapseSync(region);
 }
 
 /**
@@ -172,28 +168,28 @@ export function showRichLoading(region: Element): void {
  * @returns Nothing.
  */
 export function showRichError(region: Element, message: string): void {
-  const diffBody = findDiffBody(region)
+  const diffBody = findDiffBody(region);
   if (!diffBody) {
-    return
+    return;
   }
-  diffBody.setAttribute(HIDDEN_ATTR, '')
+  diffBody.setAttribute(HIDDEN_ATTR, "");
 
-  let root = region.querySelector<HTMLElement>('[data-rgm-rich]')
+  let root = region.querySelector<HTMLElement>("[data-rgm-rich]");
   if (!root) {
-    root = document.createElement('div')
-    root.setAttribute('data-rgm-rich', '')
-    root.setAttribute('data-rgm-stub', '')
-    diffBody.after(root)
+    root = document.createElement("div");
+    root.setAttribute("data-rgm-rich", "");
+    root.setAttribute("data-rgm-stub", "");
+    diffBody.after(root);
   }
 
-  disposeMermaidDiagrams(root)
-  root.replaceChildren()
-  const status = document.createElement('p')
-  status.className = 'rgm-rich-status rgm-rich-status-error'
-  status.textContent = message
-  root.appendChild(status)
-  bindHeaderControlSuppress(region)
-  bindFileCollapseSync(region)
+  disposeMermaidDiagrams(root);
+  root.replaceChildren();
+  const status = document.createElement("p");
+  status.className = "rgm-rich-status rgm-rich-status-error";
+  status.textContent = message;
+  root.appendChild(status);
+  bindHeaderControlSuppress(region);
+  bindFileCollapseSync(region);
 }
 
 /**
@@ -202,21 +198,21 @@ export function showRichError(region: Element, message: string): void {
  * @returns Nothing.
  */
 export function hideRichView(region: Element): void {
-  showInterferingHeaderControls(region)
-  unbindFileCollapseSync(region)
-  const diffBody = findDiffBody(region)
-  diffBody?.removeAttribute(HIDDEN_ATTR)
-  const rich = region.querySelector('[data-rgm-rich]')
+  showInterferingHeaderControls(region);
+  unbindFileCollapseSync(region);
+  const diffBody = findDiffBody(region);
+  diffBody?.removeAttribute(HIDDEN_ATTR);
+  const rich = region.querySelector("[data-rgm-rich]");
   if (rich) {
-    disposeMermaidDiagrams(rich)
-    composerCleanups.get(rich)?.()
-    composerCleanups.delete(rich)
-    overlayCleanups.get(rich)?.()
-    overlayCleanups.delete(rich)
-    clearRichViewContext(rich)
-    rich.remove()
+    disposeMermaidDiagrams(rich);
+    composerCleanups.get(rich)?.();
+    composerCleanups.delete(rich);
+    overlayCleanups.get(rich)?.();
+    overlayCleanups.delete(rich);
+    clearRichViewContext(rich);
+    rich.remove();
   }
-  region.querySelector(RGM_STUB)?.remove()
+  region.querySelector(RGM_STUB)?.remove();
 }
 
 /**
@@ -225,9 +221,9 @@ export function hideRichView(region: Element): void {
  * @returns Nothing.
  */
 export function ensureNativeDiffHidden(region: Element): void {
-  const diffBody = findDiffBody(region)
+  const diffBody = findDiffBody(region);
   if (diffBody) {
-    diffBody.setAttribute(HIDDEN_ATTR, '')
+    diffBody.setAttribute(HIDDEN_ATTR, "");
   }
 }
 
@@ -237,7 +233,7 @@ export function ensureNativeDiffHidden(region: Element): void {
  * @returns True when the region is in rich mode.
  */
 export function isRichMode(region: Element): boolean {
-  return region.getAttribute('data-rgm-mode') === 'rich'
+  return region.getAttribute("data-rgm-mode") === "rich";
 }
 
 /**
@@ -252,20 +248,20 @@ export function renderRowsForTest(
   rows: RowModel[],
   options: ShowRichViewOptions & { startCollapsed?: boolean } = {},
 ): HTMLElement {
-  const host = document.createElement('div')
-  host.setAttribute('data-rgm-rich', '')
+  const host = document.createElement("div");
+  host.setAttribute("data-rgm-rich", "");
 
   const expanded = options.startCollapsed
     ? new Set<string>()
     : new Set(
         buildViewSections(rows)
-          .filter((s) => s.kind === 'unchanged')
+          .filter((s) => s.kind === "unchanged")
           .map((s) => s.id),
-      )
+      );
 
   setRichViewContext(host, {
-    baseText: options.baseText ?? '',
-    headText: options.headText ?? '',
+    baseText: options.baseText ?? "",
+    headText: options.headText ?? "",
     rows,
     owner: options.owner,
     repo: options.repo,
@@ -276,9 +272,9 @@ export function renderRowsForTest(
     commentable: options.commentable,
     viewerLogin: options.viewerLogin,
     expandedUnchangedIds: expanded,
-  })
-  host.appendChild(buildRichRoot(rows, expanded))
-  return host
+  });
+  host.appendChild(buildRichRoot(rows, expanded));
+  return host;
 }
 
 /**
@@ -288,5 +284,5 @@ export function renderRowsForTest(
  * @returns The plain text content of the node.
  */
 export function blockTextForTest(node: PMNode): string {
-  return node.textContent
+  return node.textContent;
 }

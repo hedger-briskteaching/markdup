@@ -280,7 +280,7 @@
 }
 
 .rgm-comment-editor-btn.is-active,
-.rgm-comment-editor-btn[aria-pressed='true'] {
+.rgm-comment-editor-btn[aria-pressed="true"] {
   background: var(--control-transparent-bgColor-selected, rgba(208, 215, 222, 0.48));
   box-shadow: inset 0 0 0 1px var(--rgm-bp-300, var(--borderColor-default, #c4cbd1));
 }
@@ -1273,10 +1273,10 @@
  * card too. Hide it there. :focus-within keeps an open reply or edit editor
  * selectable while the source highlight is up.
  */
+[data-rgm-rich]:has([data-rgm-sel-highlight]) [data-rgm-thread-card]:not(:focus-within)::selection,
 [data-rgm-rich]:has([data-rgm-sel-highlight])
-  [data-rgm-thread-card]:not(:focus-within)::selection,
-[data-rgm-rich]:has([data-rgm-sel-highlight])
-  [data-rgm-thread-card]:not(:focus-within) *::selection {
+  [data-rgm-thread-card]:not(:focus-within)
+  *::selection {
   background: transparent;
 }
 
@@ -1422,7 +1422,9 @@
   background: var(--bgColor-muted, #fafbfc);
   width: auto;
   box-sizing: border-box;
-  transition: outline-color 200ms ease, box-shadow 200ms ease;
+  transition:
+    outline-color 200ms ease,
+    box-shadow 200ms ease;
 }
 
 [data-rgm-thread-card].rgm-thread-card-flash {

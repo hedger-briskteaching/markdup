@@ -11,17 +11,17 @@
  * also what happens when the pull request gains a new commit.
  */
 
-import type { RowModel } from '../../markdown/align'
-import type { FileSnapshot } from '../../shared/messages'
+import type { RowModel } from "../../markdown/align";
+import type { FileSnapshot } from "../../shared/messages";
 
 type CacheEntry = {
-  snapshot: FileSnapshot
+  snapshot: FileSnapshot;
   /** Aligned rows for this snapshot, parsed once. */
-  rows: RowModel[]
-}
+  rows: RowModel[];
+};
 
-const entries = new Map<string, CacheEntry>()
-let viewerLogin: { value: string | undefined } | null = null
+const entries = new Map<string, CacheEntry>();
+let viewerLogin: { value: string | undefined } | null = null;
 
 /**
  * Build the cache key for one file in one pull request.
@@ -31,13 +31,8 @@ let viewerLogin: { value: string | undefined } | null = null
  * @param path - File path within the repository.
  * @returns The cache key.
  */
-function keyFor(
-  owner: string,
-  repo: string,
-  pullNumber: number,
-  path: string,
-): string {
-  return `${owner}/${repo}/${pullNumber}/${path}`
+function keyFor(owner: string, repo: string, pullNumber: number, path: string): string {
+  return `${owner}/${repo}/${pullNumber}/${path}`;
 }
 
 /**
@@ -54,7 +49,7 @@ export function getCachedSnapshot(
   pullNumber: number,
   path: string,
 ): CacheEntry | undefined {
-  return entries.get(keyFor(owner, repo, pullNumber, path))
+  return entries.get(keyFor(owner, repo, pullNumber, path));
 }
 
 /**
@@ -73,7 +68,7 @@ export function setCachedSnapshot(
   path: string,
   entry: CacheEntry,
 ): void {
-  entries.set(keyFor(owner, repo, pullNumber, path), entry)
+  entries.set(keyFor(owner, repo, pullNumber, path), entry);
 }
 
 /**
@@ -82,7 +77,7 @@ export function setCachedSnapshot(
  * @returns The cached box, or null when the login has not been read yet.
  */
 export function getCachedViewerLogin(): { value: string | undefined } | null {
-  return viewerLogin
+  return viewerLogin;
 }
 
 /**
@@ -91,7 +86,7 @@ export function getCachedViewerLogin(): { value: string | undefined } | null {
  * @returns Nothing.
  */
 export function setCachedViewerLogin(value: string | undefined): void {
-  viewerLogin = { value }
+  viewerLogin = { value };
 }
 
 /**
@@ -99,6 +94,6 @@ export function setCachedViewerLogin(value: string | undefined): void {
  * @returns Nothing.
  */
 export function clearSnapshotCache(): void {
-  entries.clear()
-  viewerLogin = null
+  entries.clear();
+  viewerLogin = null;
 }

@@ -1,31 +1,24 @@
-import type {
-  AuthStatusResponse,
-  ExtensionEvent,
-} from '../../shared/messages'
-import {
-  hideAuthPanel,
-  setAuthPanelError,
-  showAuthPanel,
-} from './authPanel'
-import { maybeShowToggleNux, resetToggleNuxForTests } from './nux'
-import { clearRichPathIntents, hasRichPathIntent } from './richIntent'
-import { ensureRichMounted, isRichMode, setRichMode } from './richStub'
+import type { AuthStatusResponse, ExtensionEvent } from "../../shared/messages";
+import { hideAuthPanel, setAuthPanelError, showAuthPanel } from "./authPanel";
+import { maybeShowToggleNux, resetToggleNuxForTests } from "./nux";
+import { clearRichPathIntents, hasRichPathIntent } from "./richIntent";
+import { ensureRichMounted, isRichMode, setRichMode } from "./richStub";
 import {
   DIFF_HEADER_WRAPPER,
   FILE_VIEW_SEGMENTED,
   HEADER_ACTIONS,
   KEBAB_ICON,
   RGM_TOGGLE,
-} from './selectors'
+} from "./selectors";
 
-const LABEL_TEXT = 'Markdup'
+const LABEL_TEXT = "Markdup";
 
 const TOOLTIP_OFF =
-  'Markdup is off — showing the source diff. Turn on to preview rendered markdown.'
+  "Markdup is off — showing the source diff. Turn on to preview rendered markdown.";
 const TOOLTIP_ON =
-  'Markdup is on — showing rendered markdown. Turn off to return to the source diff.'
+  "Markdup is on — showing rendered markdown. Turn off to return to the source diff.";
 
-const pendingRegions = new Set<Element>()
+const pendingRegions = new Set<Element>();
 
 /**
  * Find the kebab menu button inside a file region header.
@@ -33,22 +26,22 @@ const pendingRegions = new Set<Element>()
  * @returns The kebab button element, or null if not found.
  */
 function findKebabButton(region: Element): HTMLElement | null {
-  const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region
-  const buttons = header.querySelectorAll<HTMLElement>('button')
+  const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region;
+  const buttons = header.querySelectorAll<HTMLElement>("button");
   for (const button of buttons) {
     if (button.querySelector(KEBAB_ICON)) {
-      return button
+      return button;
     }
     const label = (
-      button.getAttribute('aria-label') ??
-      button.getAttribute('aria-labelledby') ??
-      ''
-    ).toLowerCase()
-    if (label.includes('more options')) {
-      return button
+      button.getAttribute("aria-label") ??
+      button.getAttribute("aria-labelledby") ??
+      ""
+    ).toLowerCase();
+    if (label.includes("more options")) {
+      return button;
     }
   }
-  return null
+  return null;
 }
 
 /**
@@ -57,13 +50,13 @@ function findKebabButton(region: Element): HTMLElement | null {
  * @returns The actions container element, or null if not found.
  */
 function findActionsContainer(region: Element): HTMLElement | null {
-  const kebab = findKebabButton(region)
+  const kebab = findKebabButton(region);
   if (kebab?.parentElement) {
-    return kebab.parentElement
+    return kebab.parentElement;
   }
 
-  const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region
-  return header.querySelector<HTMLElement>(HEADER_ACTIONS)
+  const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region;
+  return header.querySelector<HTMLElement>(HEADER_ACTIONS);
 }
 
 /**
@@ -72,8 +65,8 @@ function findActionsContainer(region: Element): HTMLElement | null {
  * @returns The native toggle element, or null if not present.
  */
 function findNativeFileViewToggle(region: Element): HTMLElement | null {
-  const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region
-  return header.querySelector<HTMLElement>(FILE_VIEW_SEGMENTED)
+  const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region;
+  return header.querySelector<HTMLElement>(FILE_VIEW_SEGMENTED);
 }
 
 /**
@@ -82,9 +75,9 @@ function findNativeFileViewToggle(region: Element): HTMLElement | null {
  * @returns Nothing.
  */
 function hideNativeFileViewToggle(native: HTMLElement): void {
-  native.setAttribute('data-rgm-native-hidden', '')
-  native.setAttribute('hidden', '')
-  native.setAttribute('aria-hidden', 'true')
+  native.setAttribute("data-rgm-native-hidden", "");
+  native.setAttribute("hidden", "");
+  native.setAttribute("aria-hidden", "true");
 }
 
 /**
@@ -94,14 +87,14 @@ function hideNativeFileViewToggle(native: HTMLElement): void {
  * @returns Nothing.
  */
 function syncToggleState(toggle: HTMLElement, rich: boolean): void {
-  const tip = rich ? TOOLTIP_ON : TOOLTIP_OFF
-  toggle.setAttribute('data-rgm-mode', rich ? 'rich' : 'source')
-  toggle.setAttribute('data-tooltip', tip)
+  const tip = rich ? TOOLTIP_ON : TOOLTIP_OFF;
+  toggle.setAttribute("data-rgm-mode", rich ? "rich" : "source");
+  toggle.setAttribute("data-tooltip", tip);
 
-  const switchBtn = toggle.querySelector<HTMLButtonElement>('[role="switch"]')
+  const switchBtn = toggle.querySelector<HTMLButtonElement>('[role="switch"]');
   if (switchBtn) {
-    switchBtn.setAttribute('aria-checked', String(rich))
-    switchBtn.setAttribute('aria-description', tip)
+    switchBtn.setAttribute("aria-checked", String(rich));
+    switchBtn.setAttribute("aria-description", tip);
   }
 }
 
@@ -111,8 +104,8 @@ function syncToggleState(toggle: HTMLElement, rich: boolean): void {
  */
 function sendAuthStatus(): Promise<AuthStatusResponse> {
   return chrome.runtime.sendMessage({
-    type: 'AUTH_STATUS',
-  }) as Promise<AuthStatusResponse>
+    type: "AUTH_STATUS",
+  }) as Promise<AuthStatusResponse>;
 }
 
 /**
@@ -122,10 +115,10 @@ function sendAuthStatus(): Promise<AuthStatusResponse> {
  * @returns Nothing.
  */
 function enableRich(region: Element, toggle: HTMLElement): void {
-  pendingRegions.delete(region)
-  hideAuthPanel(region)
-  setRichMode(region, true)
-  syncToggleState(toggle, true)
+  pendingRegions.delete(region);
+  hideAuthPanel(region);
+  setRichMode(region, true);
+  syncToggleState(toggle, true);
 }
 
 /**
@@ -135,11 +128,11 @@ function enableRich(region: Element, toggle: HTMLElement): void {
  * @returns Nothing.
  */
 function cancelAuth(region: Element, toggle: HTMLElement): void {
-  pendingRegions.delete(region)
-  hideAuthPanel(region)
-  void chrome.runtime.sendMessage({ type: 'AUTH_CANCEL' })
-  setRichMode(region, false)
-  syncToggleState(toggle, false)
+  pendingRegions.delete(region);
+  hideAuthPanel(region);
+  void chrome.runtime.sendMessage({ type: "AUTH_CANCEL" });
+  setRichMode(region, false);
+  syncToggleState(toggle, false);
 }
 
 /**
@@ -150,40 +143,38 @@ function cancelAuth(region: Element, toggle: HTMLElement): void {
  * @returns Nothing.
  */
 function beginAuth(region: Element, toggle: HTMLElement): void {
-  pendingRegions.add(region)
-  syncToggleState(toggle, false)
+  pendingRegions.add(region);
+  syncToggleState(toggle, false);
 
   void sendAuthStatus()
     .then((status) => {
       if (!pendingRegions.has(region)) {
-        return
+        return;
       }
 
       if (status.authenticated) {
-        enableRich(region, toggle)
-        return
+        enableRich(region, toggle);
+        return;
       }
 
       showAuthPanel(region, {
         onCancel: () => cancelAuth(region, toggle),
-      })
-      syncToggleState(toggle, false)
+      });
+      syncToggleState(toggle, false);
     })
     .catch((error: unknown) => {
       if (!pendingRegions.has(region)) {
-        return
+        return;
       }
       const message =
-        error instanceof Error
-          ? error.message
-          : 'Markdup could not check the GitHub connection.'
+        error instanceof Error ? error.message : "Markdup could not check the GitHub connection.";
       showAuthPanel(region, {
         onCancel: () => cancelAuth(region, toggle),
         errorMessage: message,
-      })
-      setAuthPanelError(region, message)
-      syncToggleState(toggle, false)
-    })
+      });
+      setAuthPanelError(region, message);
+      syncToggleState(toggle, false);
+    });
 }
 
 /**
@@ -193,33 +184,33 @@ function beginAuth(region: Element, toggle: HTMLElement): void {
  * @returns The toggle wrapper element.
  */
 function createToggleControl(path: string, region: Element): HTMLElement {
-  const toggle = document.createElement('div')
-  toggle.setAttribute('data-rgm-toggle', '')
-  toggle.setAttribute('data-rgm-file', path)
+  const toggle = document.createElement("div");
+  toggle.setAttribute("data-rgm-toggle", "");
+  toggle.setAttribute("data-rgm-file", path);
 
-  const switchBtn = document.createElement('button')
-  switchBtn.type = 'button'
-  switchBtn.setAttribute('role', 'switch')
-  switchBtn.setAttribute('aria-label', LABEL_TEXT)
-  switchBtn.className = 'rgm-switch'
+  const switchBtn = document.createElement("button");
+  switchBtn.type = "button";
+  switchBtn.setAttribute("role", "switch");
+  switchBtn.setAttribute("aria-label", LABEL_TEXT);
+  switchBtn.className = "rgm-switch";
 
-  const track = document.createElement('span')
-  track.className = 'rgm-switch-track'
-  track.setAttribute('aria-hidden', 'true')
+  const track = document.createElement("span");
+  track.className = "rgm-switch-track";
+  track.setAttribute("aria-hidden", "true");
 
-  const thumb = document.createElement('span')
-  thumb.className = 'rgm-switch-thumb'
-  track.appendChild(thumb)
-  switchBtn.appendChild(track)
+  const thumb = document.createElement("span");
+  thumb.className = "rgm-switch-thumb";
+  track.appendChild(thumb);
+  switchBtn.appendChild(track);
 
-  const label = document.createElement('span')
-  label.className = 'rgm-switch-label'
-  label.textContent = LABEL_TEXT
+  const label = document.createElement("span");
+  label.className = "rgm-switch-label";
+  label.textContent = LABEL_TEXT;
 
-  toggle.appendChild(switchBtn)
-  toggle.appendChild(label)
+  toggle.appendChild(switchBtn);
+  toggle.appendChild(label);
 
-  syncToggleState(toggle, isRichMode(region) || hasRichPathIntent(path))
+  syncToggleState(toggle, isRichMode(region) || hasRichPathIntent(path));
 
   /**
    * Toggle rich Markdown mode, or cancel a pending auth flow.
@@ -227,21 +218,21 @@ function createToggleControl(path: string, region: Element): HTMLElement {
    * @returns Nothing.
    */
   const onActivate = (event: Event) => {
-    event.preventDefault()
-    event.stopPropagation()
+    event.preventDefault();
+    event.stopPropagation();
 
     if (isRichMode(region) || pendingRegions.has(region) || hasRichPathIntent(path)) {
-      cancelAuth(region, toggle)
-      return
+      cancelAuth(region, toggle);
+      return;
     }
 
-    beginAuth(region, toggle)
-  }
+    beginAuth(region, toggle);
+  };
 
-  switchBtn.addEventListener('click', onActivate)
-  label.addEventListener('click', onActivate)
+  switchBtn.addEventListener("click", onActivate);
+  label.addEventListener("click", onActivate);
 
-  return toggle
+  return toggle;
 }
 
 /**
@@ -249,11 +240,11 @@ function createToggleControl(path: string, region: Element): HTMLElement {
  * @returns The divider element.
  */
 function createHeaderDivider(): HTMLElement {
-  const divider = document.createElement('span')
-  divider.setAttribute('data-rgm-header-divider', '')
-  divider.setAttribute('aria-hidden', 'true')
-  divider.textContent = '|'
-  return divider
+  const divider = document.createElement("span");
+  divider.setAttribute("data-rgm-header-divider", "");
+  divider.setAttribute("aria-hidden", "true");
+  divider.textContent = "|";
+  return divider;
 }
 
 /**
@@ -265,26 +256,22 @@ function createHeaderDivider(): HTMLElement {
  * @param native - The native file-view toggle, or null.
  * @returns Nothing.
  */
-function placeToggle(
-  region: Element,
-  toggle: HTMLElement,
-  native: HTMLElement | null,
-): void {
+function placeToggle(region: Element, toggle: HTMLElement, native: HTMLElement | null): void {
   if (native) {
-    hideNativeFileViewToggle(native)
+    hideNativeFileViewToggle(native);
   }
 
-  const divider = createHeaderDivider()
-  const actions = findActionsContainer(region)
+  const divider = createHeaderDivider();
+  const actions = findActionsContainer(region);
   if (actions) {
-    actions.appendChild(divider)
-    actions.appendChild(toggle)
-    return
+    actions.appendChild(divider);
+    actions.appendChild(toggle);
+    return;
   }
 
-  const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region
-  header.appendChild(divider)
-  header.appendChild(toggle)
+  const header = region.querySelector(DIFF_HEADER_WRAPPER) ?? region;
+  header.appendChild(divider);
+  header.appendChild(toggle);
 }
 
 /**
@@ -293,30 +280,30 @@ function placeToggle(
  * @returns Nothing.
  */
 function onAuthEvent(message: ExtensionEvent): void {
-  if (message.type === 'AUTH_COMPLETE') {
-    for (const region of [...pendingRegions]) {
-      const toggle = region.querySelector<HTMLElement>(RGM_TOGGLE)
+  if (message.type === "AUTH_COMPLETE") {
+    for (const region of Array.from(pendingRegions)) {
+      const toggle = region.querySelector<HTMLElement>(RGM_TOGGLE);
       if (toggle) {
-        enableRich(region, toggle)
+        enableRich(region, toggle);
       } else {
-        pendingRegions.delete(region)
+        pendingRegions.delete(region);
       }
     }
-    return
+    return;
   }
 
-  if (message.type === 'AUTH_ERROR') {
+  if (message.type === "AUTH_ERROR") {
     for (const region of pendingRegions) {
-      setAuthPanelError(region, message.message)
-      const toggle = region.querySelector<HTMLElement>(RGM_TOGGLE)
+      setAuthPanelError(region, message.message);
+      const toggle = region.querySelector<HTMLElement>(RGM_TOGGLE);
       if (toggle) {
-        syncToggleState(toggle, false)
+        syncToggleState(toggle, false);
       }
     }
   }
 }
 
-let authListenerAttached = false
+let authListenerAttached = false;
 
 /**
  * Attach the runtime message listener for auth events (one-shot).
@@ -324,17 +311,17 @@ let authListenerAttached = false
  */
 function ensureAuthListener(): void {
   if (authListenerAttached) {
-    return
+    return;
   }
-  if (typeof chrome === 'undefined' || !chrome.runtime?.onMessage) {
-    return
+  if (typeof chrome === "undefined" || !chrome.runtime?.onMessage) {
+    return;
   }
-  authListenerAttached = true
+  authListenerAttached = true;
   chrome.runtime.onMessage.addListener((message: ExtensionEvent) => {
-    if (message?.type === 'AUTH_COMPLETE' || message?.type === 'AUTH_ERROR') {
-      onAuthEvent(message)
+    if (message?.type === "AUTH_COMPLETE" || message?.type === "AUTH_ERROR") {
+      onAuthEvent(message);
     }
-  })
+  });
 }
 
 /**
@@ -343,10 +330,10 @@ function ensureAuthListener(): void {
  * @returns Nothing.
  */
 export function resetAuthListenerForTests(): void {
-  authListenerAttached = false
-  pendingRegions.clear()
-  clearRichPathIntents()
-  resetToggleNuxForTests()
+  authListenerAttached = false;
+  pendingRegions.clear();
+  clearRichPathIntents();
+  resetToggleNuxForTests();
 }
 
 /**
@@ -356,7 +343,7 @@ export function resetAuthListenerForTests(): void {
  * @returns Nothing.
  */
 function syncToggleToActualMode(region: Element, toggle: HTMLElement): void {
-  syncToggleState(toggle, isRichMode(region))
+  syncToggleState(toggle, isRichMode(region));
 }
 
 /**
@@ -366,26 +353,26 @@ function syncToggleToActualMode(region: Element, toggle: HTMLElement): void {
  * @returns Nothing.
  */
 export function injectToggle(region: Element, path: string): void {
-  ensureAuthListener()
+  ensureAuthListener();
 
-  const existing = region.querySelector<HTMLElement>(RGM_TOGGLE)
+  const existing = region.querySelector<HTMLElement>(RGM_TOGGLE);
   if (existing) {
     // GitHub can re-render the body while the toggle survives. Restore mode.
     if (hasRichPathIntent(path) || isRichMode(region)) {
-      ensureRichMounted(region)
-      syncToggleToActualMode(region, existing)
+      ensureRichMounted(region);
+      syncToggleToActualMode(region, existing);
     }
-    return
+    return;
   }
 
-  const native = findNativeFileViewToggle(region)
-  const toggle = createToggleControl(path, region)
-  placeToggle(region, toggle, native)
-  void maybeShowToggleNux(toggle)
+  const native = findNativeFileViewToggle(region);
+  const toggle = createToggleControl(path, region);
+  placeToggle(region, toggle, native);
+  void maybeShowToggleNux(toggle);
 
   // Header re-render wiped previous toggle. Restore rich intent.
   if (hasRichPathIntent(path)) {
-    ensureRichMounted(region)
-    syncToggleToActualMode(region, toggle)
+    ensureRichMounted(region);
+    syncToggleToActualMode(region, toggle);
   }
 }

@@ -4,10 +4,10 @@
  * script matches; the review UI is only allowed on Files and Changes, so
  * init decides when to add and remove the stylesheet.
  */
-import CSS from './markdownReview.css?inline'
+import CSS from "./markdownReview.css?inline";
 
 /** DOM id for the injected stylesheet element. */
-const STYLE_ID = 'rgm-markdown-review-styles'
+const STYLE_ID = "rgm-markdown-review-styles";
 
 /**
  * Insert the extension stylesheet into the document head.
@@ -16,13 +16,13 @@ const STYLE_ID = 'rgm-markdown-review-styles'
  */
 export function injectStyles(): void {
   if (document.getElementById(STYLE_ID)) {
-    return
+    return;
   }
 
-  const style = document.createElement('style')
-  style.id = STYLE_ID
-  style.textContent = CSS
-  document.head.appendChild(style)
+  const style = document.createElement("style");
+  style.id = STYLE_ID;
+  style.textContent = CSS;
+  document.head.appendChild(style);
 }
 
 /**
@@ -30,5 +30,5 @@ export function injectStyles(): void {
  * @returns Nothing.
  */
 export function removeStyles(): void {
-  document.getElementById(STYLE_ID)?.remove()
+  document.getElementById(STYLE_ID)?.remove();
 }

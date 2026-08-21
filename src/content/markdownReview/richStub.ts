@@ -1,11 +1,8 @@
-import { alignMarkdown } from '../../markdown/align'
-import type { FileSnapshot } from '../../shared/messages'
-import { commentableFromDto } from '../../shared/commentableLines'
-import { consumeCommentsDirty } from './composer'
-import {
-  hasRichPathIntent,
-  setRichPathIntent,
-} from './richIntent'
+import { alignMarkdown } from "../../markdown/align";
+import type { FileSnapshot } from "../../shared/messages";
+import { commentableFromDto } from "../../shared/commentableLines";
+import { consumeCommentsDirty } from "./composer";
+import { hasRichPathIntent, setRichPathIntent } from "./richIntent";
 import {
   ensureNativeDiffHidden,
   hideRichView,
@@ -13,39 +10,37 @@ import {
   showRichError,
   showRichLoading,
   showRichView,
-} from './richView'
-import { syncFileCollapsedState } from './headerControls'
+} from "./richView";
+import { syncFileCollapsedState } from "./headerControls";
 import {
   getCachedSnapshot,
   getCachedViewerLogin,
   setCachedSnapshot,
   setCachedViewerLogin,
-} from './snapshotCache'
-import { RGM_TOGGLE } from './selectors'
-import { syncThreadsFromServer } from './syncThreads'
+} from "./snapshotCache";
+import { RGM_TOGGLE } from "./selectors";
+import { syncThreadsFromServer } from "./syncThreads";
 
-export { isRichMode }
+export { isRichMode };
 
 /**
  * Parse the current URL to extract owner, repo, and pull number.
  * @returns The parsed pull request identifiers, or null if not on a PR page.
  */
 function parseLocationPull(): {
-  owner: string
-  repo: string
-  pullNumber: number
+  owner: string;
+  repo: string;
+  pullNumber: number;
 } | null {
-  const match = location.pathname.match(
-    /^\/([^/]+)\/([^/]+)\/pull\/(\d+)/,
-  )
+  const match = location.pathname.match(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
   if (!match) {
-    return null
+    return null;
   }
   return {
     owner: match[1]!,
     repo: match[2]!,
     pullNumber: Number(match[3]),
-  }
+  };
 }
 
 /**
@@ -54,14 +49,12 @@ function parseLocationPull(): {
  * @returns The file path string, or null if not found.
  */
 function filePathForRegion(region: Element): string | null {
-  const fromToggle = region
-    .querySelector(RGM_TOGGLE)
-    ?.getAttribute('data-rgm-file')
+  const fromToggle = region.querySelector(RGM_TOGGLE)?.getAttribute("data-rgm-file");
   if (fromToggle) {
-    return fromToggle
+    return fromToggle;
   }
-  const button = region.querySelector<HTMLElement>('button[data-file-path]')
-  return button?.getAttribute('data-file-path') ?? null
+  const button = region.querySelector<HTMLElement>("button[data-file-path]");
+  return button?.getAttribute("data-file-path") ?? null;
 }
 
 /**
@@ -79,17 +72,17 @@ async function loadSnapshot(
   path: string,
 ): Promise<FileSnapshot> {
   const response = (await chrome.runtime.sendMessage({
-    type: 'FETCH_FILE_SNAPSHOT',
+    type: "FETCH_FILE_SNAPSHOT",
     owner,
     repo,
     pullNumber,
     path,
-  })) as FileSnapshot | { error: string }
+  })) as FileSnapshot | { error: string };
 
-  if (response && 'error' in response) {
-    throw new Error(response.error)
+  if (response && "error" in response) {
+    throw new Error(response.error);
   }
-  return response
+  return response;
 }
 
 /**
@@ -100,25 +93,25 @@ async function loadSnapshot(
  * @returns Nothing.
  */
 export function setRichMode(region: Element, rich: boolean): void {
-  const path = filePathForRegion(region)
+  const path = filePathForRegion(region);
   if (path) {
-    setRichPathIntent(path, rich)
+    setRichPathIntent(path, rich);
   }
 
   if (!rich) {
-    const needsNativeRefresh = consumeCommentsDirty(region)
-    region.removeAttribute('data-rgm-mode')
-    hideRichView(region)
+    const needsNativeRefresh = consumeCommentsDirty(region);
+    region.removeAttribute("data-rgm-mode");
+    hideRichView(region);
     // GitHub native Files DOM was painted before our API comments existed.
     // Unhiding alone leaves stale widgets. Reload so pending threads appear.
     if (needsNativeRefresh) {
-      window.location.reload()
+      window.location.reload();
     }
-    return
+    return;
   }
 
-  region.setAttribute('data-rgm-mode', 'rich')
-  void mountRichView(region)
+  region.setAttribute("data-rgm-mode", "rich");
+  void mountRichView(region);
 }
 
 /**
@@ -128,21 +121,21 @@ export function setRichMode(region: Element, rich: boolean): void {
  * @returns Nothing.
  */
 export function ensureRichMounted(region: Element): void {
-  const path = filePathForRegion(region)
+  const path = filePathForRegion(region);
   if (!path || !hasRichPathIntent(path)) {
-    return
+    return;
   }
 
-  region.setAttribute('data-rgm-mode', 'rich')
+  region.setAttribute("data-rgm-mode", "rich");
 
-  if (region.querySelector('[data-rgm-rich]')) {
+  if (region.querySelector("[data-rgm-rich]")) {
     // Collapse/expand remounts GitHub diff body without our hide marker.
-    ensureNativeDiffHidden(region)
-    syncFileCollapsedState(region)
-    return
+    ensureNativeDiffHidden(region);
+    syncFileCollapsedState(region);
+    return;
   }
 
-  void mountRichView(region)
+  void mountRichView(region);
 }
 
 /**
@@ -151,85 +144,73 @@ export function ensureRichMounted(region: Element): void {
  * @returns Nothing.
  */
 async function mountRichView(region: Element): Promise<void> {
-  const pull = parseLocationPull()
-  const path = filePathForRegion(region)
+  const pull = parseLocationPull();
+  const path = filePathForRegion(region);
 
   if (!pull || !path) {
     showRichError(
       region,
-      'This page is not a pull request Files view, or the file path is missing.',
-    )
-    return
+      "This page is not a pull request Files view, or the file path is missing.",
+    );
+    return;
   }
 
-  const cached = getCachedSnapshot(pull.owner, pull.repo, pull.pullNumber, path)
-  const cachedLogin = getCachedViewerLogin()
+  const cached = getCachedSnapshot(pull.owner, pull.repo, pull.pullNumber, path);
+  const cachedLogin = getCachedViewerLogin();
   // A cache hit can mount without a single round trip, so skip the spinner.
   if (!cached) {
-    showRichLoading(region)
+    showRichLoading(region);
   }
 
   try {
     const snapshot =
-      cached?.snapshot ??
-      (await loadSnapshot(pull.owner, pull.repo, pull.pullNumber, path))
+      cached?.snapshot ?? (await loadSnapshot(pull.owner, pull.repo, pull.pullNumber, path));
 
-    if (region.getAttribute('data-rgm-mode') !== 'rich') {
-      return
+    if (region.getAttribute("data-rgm-mode") !== "rich") {
+      return;
     }
 
     if (snapshot.baseText == null && snapshot.headText == null) {
-      showRichError(
-        region,
-        'This file could not be loaded at the pull request base or head.',
-      )
-      return
+      showRichError(region, "This file could not be loaded at the pull request base or head.");
+      return;
     }
 
-    const rows =
-      cached?.rows ??
-      alignMarkdown(snapshot.baseText ?? '', snapshot.headText ?? '')
+    const rows = cached?.rows ?? alignMarkdown(snapshot.baseText ?? "", snapshot.headText ?? "");
     if (!cached) {
       setCachedSnapshot(pull.owner, pull.repo, pull.pullNumber, path, {
         snapshot,
         rows,
-      })
+      });
     }
 
-    const viewerLogin = cachedLogin
-      ? cachedLogin.value
-      : await fetchViewerLogin()
+    const viewerLogin = cachedLogin ? cachedLogin.value : await fetchViewerLogin();
     if (!cachedLogin) {
-      setCachedViewerLogin(viewerLogin)
+      setCachedViewerLogin(viewerLogin);
     }
-    if (region.getAttribute('data-rgm-mode') !== 'rich') {
-      return
+    if (region.getAttribute("data-rgm-mode") !== "rich") {
+      return;
     }
     showRichView(region, rows, {
-      baseText: snapshot.baseText ?? '',
-      headText: snapshot.headText ?? '',
+      baseText: snapshot.baseText ?? "",
+      headText: snapshot.headText ?? "",
       owner: snapshot.owner,
       repo: snapshot.repo,
       pullNumber: snapshot.pullNumber,
       path: snapshot.path,
       baseSha: snapshot.baseSha,
       headSha: snapshot.headSha,
-      commentable: commentableFromDto(
-        snapshot.commentable ?? { left: [], right: [] },
-      ),
+      commentable: commentableFromDto(snapshot.commentable ?? { left: [], right: [] }),
       viewerLogin,
-    })
+    });
 
-    void loadThreadIndex(region, snapshot)
+    void loadThreadIndex(region, snapshot);
   } catch (error) {
-    if (region.getAttribute('data-rgm-mode') !== 'rich') {
-      return
+    if (region.getAttribute("data-rgm-mode") !== "rich") {
+      return;
     }
     const message =
-      error instanceof Error
-        ? error.message
-        : 'The rich Markdown view failed to load.'
-    showRichError(region, message)
+      error instanceof Error ? error.message : "The rich Markdown view failed to load.";
+    showRichError(region, message);
   }
 }
 
@@ -241,18 +222,14 @@ async function mountRichView(region: Element): Promise<void> {
  * @param headText - Head-side markdown text.
  * @returns Nothing.
  */
-export function setRichModeFromTexts(
-  region: Element,
-  baseText: string,
-  headText: string,
-): void {
-  const path = filePathForRegion(region)
+export function setRichModeFromTexts(region: Element, baseText: string, headText: string): void {
+  const path = filePathForRegion(region);
   if (path) {
-    setRichPathIntent(path, true)
+    setRichPathIntent(path, true);
   }
-  region.setAttribute('data-rgm-mode', 'rich')
-  const rows = alignMarkdown(baseText, headText)
-  showRichView(region, rows, { baseText, headText })
+  region.setAttribute("data-rgm-mode", "rich");
+  const rows = alignMarkdown(baseText, headText);
+  showRichView(region, rows, { baseText, headText });
 }
 
 /**
@@ -261,25 +238,22 @@ export function setRichModeFromTexts(
  * @param snapshot - The file snapshot containing pull request metadata.
  * @returns Nothing.
  */
-async function loadThreadIndex(
-  region: Element,
-  snapshot: FileSnapshot,
-): Promise<void> {
-  const rich = region.querySelector('[data-rgm-rich]')
-  if (!rich) return
+async function loadThreadIndex(region: Element, snapshot: FileSnapshot): Promise<void> {
+  const rich = region.querySelector("[data-rgm-rich]");
+  if (!rich) return;
 
   const result = await syncThreadsFromServer(rich, {
     owner: snapshot.owner,
     repo: snapshot.repo,
     pullNumber: snapshot.pullNumber,
     path: snapshot.path,
-  })
+  });
 
-  if (region.getAttribute('data-rgm-mode') !== 'rich') {
-    return
+  if (region.getAttribute("data-rgm-mode") !== "rich") {
+    return;
   }
   if (!result.ok) {
-    console.warn('[Markdup] thread sync failed', result.error)
+    console.warn("[Markdup] thread sync failed", result.error);
   }
 }
 
@@ -290,13 +264,13 @@ async function loadThreadIndex(
 async function fetchViewerLogin(): Promise<string | undefined> {
   try {
     const status = (await chrome.runtime.sendMessage({
-      type: 'AUTH_STATUS',
-    })) as { authenticated?: boolean; login?: string }
+      type: "AUTH_STATUS",
+    })) as { authenticated?: boolean; login?: string };
     if (status?.authenticated && status.login) {
-      return status.login
+      return status.login;
     }
   } catch {
     // Auth status unavailable — edit/delete stay hidden.
   }
-  return undefined
+  return undefined;
 }

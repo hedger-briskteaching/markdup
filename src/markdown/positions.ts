@@ -1,16 +1,16 @@
-import type { Node as UnistNode } from 'unist'
+import type { Node as UnistNode } from "unist";
 
 /** A 1-based inclusive source line range derived from an mdast/unist position. */
 export type SrcRange = {
-  from: number
-  to: number
-}
+  from: number;
+  to: number;
+};
 
 /** Default ProseMirror attribute definitions for source-range tracking. */
 export const SRC_RANGE_ATTRS = {
   srcFrom: { default: null as number | null },
   srcTo: { default: null as number | null },
-} as const
+} as const;
 
 /**
  * Build `data-src-from` / `data-src-to` DOM attributes from a node's own
@@ -23,17 +23,17 @@ export const SRC_RANGE_ATTRS = {
  * @returns An attribute record, empty when the node has no source range.
  */
 export function srcDataAttrs(attrs: {
-  srcFrom?: unknown
-  srcTo?: unknown
+  srcFrom?: unknown;
+  srcTo?: unknown;
 }): Record<string, string> {
-  const out: Record<string, string> = {}
-  if (typeof attrs.srcFrom === 'number') {
-    out['data-src-from'] = String(attrs.srcFrom)
+  const out: Record<string, string> = {};
+  if (typeof attrs.srcFrom === "number") {
+    out["data-src-from"] = String(attrs.srcFrom);
   }
-  if (typeof attrs.srcTo === 'number') {
-    out['data-src-to'] = String(attrs.srcTo)
+  if (typeof attrs.srcTo === "number") {
+    out["data-src-to"] = String(attrs.srcTo);
   }
-  return out
+  return out;
 }
 
 /**
@@ -42,12 +42,12 @@ export function srcDataAttrs(attrs: {
  * @returns The 1-based inclusive line range, or `null` when position data is absent.
  */
 export function srcRangeFromNode(node: UnistNode): SrcRange | null {
-  const start = node.position?.start?.line
-  const end = node.position?.end?.line
-  if (typeof start !== 'number' || typeof end !== 'number') {
-    return null
+  const start = node.position?.start?.line;
+  const end = node.position?.end?.line;
+  if (typeof start !== "number" || typeof end !== "number") {
+    return null;
   }
-  return { from: start, to: end }
+  return { from: start, to: end };
 }
 
 /**
@@ -56,12 +56,12 @@ export function srcRangeFromNode(node: UnistNode): SrcRange | null {
  * @returns An object with `srcFrom` and `srcTo` (both `null` when position data is absent).
  */
 export function srcAttrsFromNode(node: UnistNode): {
-  srcFrom: number | null
-  srcTo: number | null
+  srcFrom: number | null;
+  srcTo: number | null;
 } {
-  const range = srcRangeFromNode(node)
+  const range = srcRangeFromNode(node);
   return {
     srcFrom: range?.from ?? null,
     srcTo: range?.to ?? null,
-  }
+  };
 }

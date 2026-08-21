@@ -18,20 +18,20 @@
  */
 
 /** Divider inside the toolbar. The only stable test id GitHub gives it. */
-const TOOLBAR_ANCHOR = '[data-testid="file-controls-divider"]'
+const TOOLBAR_ANCHOR = '[data-testid="file-controls-divider"]';
 
 /**
  * Class prefix fallback. The suffix is a CSS-module hash that changes between
  * GitHub deploys, so only match on the stable prefix.
  */
-const TOOLBAR_CLASS_HINT = '[class*="PullRequestFilesToolbar-module__"]'
+const TOOLBAR_CLASS_HINT = '[class*="PullRequestFilesToolbar-module__"]';
 
-const TOOLBAR_ROOT = '[data-component="Stack"]'
+const TOOLBAR_ROOT = '[data-component="Stack"]';
 
 /** Wait before retrying, for when GitHub's HTML has not caught up yet. */
-const RETRY_DELAY_MS = 700
+const RETRY_DELAY_MS = 700;
 
-let inFlight = false
+let inFlight = false;
 
 /**
  * Find the Files toolbar in a live document or a parsed one.
@@ -39,11 +39,11 @@ let inFlight = false
  * @returns The toolbar element, or null when the markup has moved on.
  */
 export function findFilesToolbar(root: Document | Element): HTMLElement | null {
-  const anchored = root.querySelector(TOOLBAR_ANCHOR)?.closest(TOOLBAR_ROOT)
-  if (anchored instanceof HTMLElement) return anchored
+  const anchored = root.querySelector(TOOLBAR_ANCHOR)?.closest(TOOLBAR_ROOT);
+  if (anchored instanceof HTMLElement) return anchored;
 
-  const hinted = root.querySelector(TOOLBAR_CLASS_HINT)?.closest(TOOLBAR_ROOT)
-  return hinted instanceof HTMLElement ? hinted : null
+  const hinted = root.querySelector(TOOLBAR_CLASS_HINT)?.closest(TOOLBAR_ROOT);
+  return hinted instanceof HTMLElement ? hinted : null;
 }
 
 /**
@@ -55,35 +55,35 @@ export function findFilesToolbar(root: Document | Element): HTMLElement | null {
  * @returns How many text nodes were rewritten.
  */
 export function copyToolbarText(live: Element, fresh: Element): number {
-  let written = 0
+  let written = 0;
 
-  const liveText = textChildren(live)
-  const freshText = textChildren(fresh)
+  const liveText = textChildren(live);
+  const freshText = textChildren(fresh);
   // Differing counts mean the shape changed, and pairing them up would write
   // the wrong values. Leave this level alone and let the children be matched.
   if (liveText.length === freshText.length) {
     for (let i = 0; i < liveText.length; i += 1) {
-      const next = freshText[i]!.textContent ?? ''
+      const next = freshText[i]!.textContent ?? "";
       if (liveText[i]!.textContent !== next) {
-        liveText[i]!.textContent = next
-        written += 1
+        liveText[i]!.textContent = next;
+        written += 1;
       }
     }
   }
 
-  const freshChildren = [...fresh.children]
-  const taken = new Set<number>()
+  const freshChildren = [...fresh.children];
+  const taken = new Set<number>();
   for (const child of live.children) {
-    const shape = signature(child)
+    const shape = signature(child);
     for (let i = 0; i < freshChildren.length; i += 1) {
-      if (taken.has(i) || signature(freshChildren[i]!) !== shape) continue
-      taken.add(i)
-      written += copyToolbarText(child, freshChildren[i]!)
-      break
+      if (taken.has(i) || signature(freshChildren[i]!) !== shape) continue;
+      taken.add(i);
+      written += copyToolbarText(child, freshChildren[i]!);
+      break;
     }
   }
 
-  return written
+  return written;
 }
 
 /**
@@ -91,24 +91,22 @@ export function copyToolbarText(live: Element, fresh: Element): number {
  * @returns True when something was rewritten.
  */
 export async function syncFilesToolbar(): Promise<boolean> {
-  const live = findFilesToolbar(document)
-  if (!live) return false
+  const live = findFilesToolbar(document);
+  if (!live) return false;
 
-  let html: string
+  let html: string;
   try {
-    const response = await fetch(location.href, { credentials: 'same-origin' })
-    if (!response.ok) return false
-    html = await response.text()
+    const response = await fetch(location.href, { credentials: "same-origin" });
+    if (!response.ok) return false;
+    html = await response.text();
   } catch {
-    return false
+    return false;
   }
 
-  const fresh = findFilesToolbar(
-    new DOMParser().parseFromString(html, 'text/html'),
-  )
-  if (!fresh) return false
+  const fresh = findFilesToolbar(new DOMParser().parseFromString(html, "text/html"));
+  if (!fresh) return false;
 
-  return copyToolbarText(live, fresh) > 0
+  return copyToolbarText(live, fresh) > 0;
 }
 
 /**
@@ -118,14 +116,14 @@ export async function syncFilesToolbar(): Promise<boolean> {
  * @returns True when something was rewritten.
  */
 export async function syncFilesToolbarSoon(): Promise<boolean> {
-  if (inFlight) return false
-  inFlight = true
+  if (inFlight) return false;
+  inFlight = true;
   try {
-    if (await syncFilesToolbar()) return true
-    await delay(RETRY_DELAY_MS)
-    return await syncFilesToolbar()
+    if (await syncFilesToolbar()) return true;
+    await delay(RETRY_DELAY_MS);
+    return await syncFilesToolbar();
   } finally {
-    inFlight = false
+    inFlight = false;
   }
 }
 
@@ -135,9 +133,7 @@ export async function syncFilesToolbarSoon(): Promise<boolean> {
  * @returns Its text nodes, in order.
  */
 function textChildren(el: Element): Text[] {
-  return [...el.childNodes].filter(
-    (node): node is Text => node.nodeType === Node.TEXT_NODE,
-  )
+  return [...el.childNodes].filter((node): node is Text => node.nodeType === Node.TEXT_NODE);
 }
 
 /**
@@ -150,10 +146,10 @@ function textChildren(el: Element): Text[] {
 function signature(el: Element): string {
   return [
     el.tagName,
-    el.getAttribute('data-component') ?? '',
-    el.getAttribute('data-testid') ?? '',
-    (el.getAttribute('class') ?? '').split(/\s+/)[0] ?? '',
-  ].join('|')
+    el.getAttribute("data-component") ?? "",
+    el.getAttribute("data-testid") ?? "",
+    (el.getAttribute("class") ?? "").split(/\s+/)[0] ?? "",
+  ].join("|");
 }
 
 /**
@@ -163,6 +159,6 @@ function signature(el: Element): string {
  */
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
-    window.setTimeout(resolve, ms)
-  })
+    window.setTimeout(resolve, ms);
+  });
 }

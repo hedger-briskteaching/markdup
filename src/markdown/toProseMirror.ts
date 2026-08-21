@@ -13,12 +13,12 @@ import type {
   TableCell,
   TableRow,
   YAML,
-} from 'mdast'
-import { Mark, type Node as PMNode } from 'prosemirror-model'
-import { srcAttrsFromNode } from './positions'
-import { markdownSchema } from './schema'
+} from "mdast";
+import { Mark, type Node as PMNode } from "prosemirror-model";
+import { srcAttrsFromNode } from "./positions";
+import { markdownSchema } from "./schema";
 
-type Align = 'left' | 'right' | 'center' | null
+type Align = "left" | "right" | "center" | null;
 
 /**
  * Convert an mdast tree into a ProseMirror document that uses `markdownSchema`.
@@ -26,18 +26,18 @@ type Align = 'left' | 'right' | 'center' | null
  * @returns A ProseMirror doc node.
  */
 export function mdastToProseMirror(tree: Root): PMNode {
-  const defs = collectDefinitions(tree)
+  const defs = collectDefinitions(tree);
   const blocks = tree.children
     .map((child) => blockToNode(child, defs))
-    .filter((n): n is PMNode => n !== null)
+    .filter((n): n is PMNode => n !== null);
 
   if (blocks.length === 0) {
-    return markdownSchema.node('doc', null, [
-      markdownSchema.node('paragraph', { srcFrom: null, srcTo: null }),
-    ])
+    return markdownSchema.node("doc", null, [
+      markdownSchema.node("paragraph", { srcFrom: null, srcTo: null }),
+    ]);
   }
 
-  return markdownSchema.node('doc', null, blocks)
+  return markdownSchema.node("doc", null, blocks);
 }
 
 /**
@@ -46,13 +46,13 @@ export function mdastToProseMirror(tree: Root): PMNode {
  * @returns A map from lowercase identifier to its definition node.
  */
 function collectDefinitions(tree: Root): Map<string, Definition> {
-  const defs = new Map<string, Definition>()
+  const defs = new Map<string, Definition>();
   walk(tree, (node) => {
-    if (node.type === 'definition') {
-      defs.set(node.identifier.toLowerCase(), node)
+    if (node.type === "definition") {
+      defs.set(node.identifier.toLowerCase(), node);
     }
-  })
-  return defs
+  });
+  return defs;
 }
 
 /**
@@ -62,10 +62,10 @@ function collectDefinitions(tree: Root): Map<string, Definition> {
  * @returns Nothing.
  */
 function walk(node: Nodes, visit: (node: Nodes) => void): void {
-  visit(node)
-  if ('children' in node && Array.isArray(node.children)) {
+  visit(node);
+  if ("children" in node && Array.isArray(node.children)) {
     for (const child of node.children as Nodes[]) {
-      walk(child, visit)
+      walk(child, visit);
     }
   }
 }
@@ -80,66 +80,58 @@ function blockToNode(
   node: Content | BlockContent | YAML,
   defs: Map<string, Definition>,
 ): PMNode | null {
-  const src = srcAttrsFromNode(node)
+  const src = srcAttrsFromNode(node);
 
   switch (node.type) {
-    case 'yaml':
-      return markdownSchema.node('front_matter', {
+    case "yaml":
+      return markdownSchema.node("front_matter", {
         ...src,
         value: node.value,
-      })
+      });
 
-    case 'paragraph':
-      return markdownSchema.node(
-        'paragraph',
-        src,
-        phrasingToInline(node.children, defs),
-      )
+    case "paragraph":
+      return markdownSchema.node("paragraph", src, phrasingToInline(node.children, defs));
 
-    case 'heading':
+    case "heading":
       return markdownSchema.node(
-        'heading',
+        "heading",
         { ...src, level: clampHeadingLevel(node) },
         phrasingToInline(node.children, defs),
-      )
+      );
 
-    case 'blockquote':
+    case "blockquote":
+      return markdownSchema.node("blockquote", src, childrenBlocks(node, defs));
+
+    case "thematicBreak":
+      return markdownSchema.node("horizontal_rule", src);
+
+    case "code":
       return markdownSchema.node(
-        'blockquote',
-        src,
-        childrenBlocks(node, defs),
-      )
-
-    case 'thematicBreak':
-      return markdownSchema.node('horizontal_rule', src)
-
-    case 'code':
-      return markdownSchema.node(
-        'code_block',
-        { ...src, params: node.lang ?? '' },
+        "code_block",
+        { ...src, params: node.lang ?? "" },
         node.value ? [markdownSchema.text(node.value)] : [],
-      )
+      );
 
-    case 'list':
-      return listToNode(node, defs)
+    case "list":
+      return listToNode(node, defs);
 
-    case 'table':
-      return tableToNode(node, defs)
+    case "table":
+      return tableToNode(node, defs);
 
-    case 'html':
-      return markdownSchema.node('html_block', {
+    case "html":
+      return markdownSchema.node("html_block", {
         ...src,
         html: node.value,
-      })
+      });
 
-    case 'definition':
-    case 'footnoteDefinition':
+    case "definition":
+    case "footnoteDefinition":
       // Reference targets are resolved into links. Definitions are not rendered.
-      return null
+      return null;
 
     default:
       // Unknown block type. Skip it instead of failing the whole file.
-      return null
+      return null;
   }
 }
 
@@ -149,10 +141,10 @@ function blockToNode(
  * @returns The clamped level number.
  */
 function clampHeadingLevel(node: Heading): number {
-  const level = node.depth
-  if (level < 1) return 1
-  if (level > 6) return 6
-  return level
+  const level = node.depth;
+  if (level < 1) return 1;
+  if (level > 6) return 6;
+  return level;
 }
 
 /**
@@ -162,21 +154,16 @@ function clampHeadingLevel(node: Heading): number {
  * @param defs - Collected reference definitions.
  * @returns Array of ProseMirror block nodes (at least one).
  */
-function childrenBlocks(
-  parent: Parents,
-  defs: Map<string, Definition>,
-): PMNode[] {
-  const out: PMNode[] = []
+function childrenBlocks(parent: Parents, defs: Map<string, Definition>): PMNode[] {
+  const out: PMNode[] = [];
   for (const child of parent.children) {
-    const n = blockToNode(child as Content, defs)
-    if (n) out.push(n)
+    const n = blockToNode(child as Content, defs);
+    if (n) out.push(n);
   }
   if (out.length === 0) {
-    out.push(
-      markdownSchema.node('paragraph', { srcFrom: null, srcTo: null }),
-    )
+    out.push(markdownSchema.node("paragraph", { srcFrom: null, srcTo: null }));
   }
-  return out
+  return out;
 }
 
 /**
@@ -186,27 +173,27 @@ function childrenBlocks(
  * @returns The ProseMirror list node.
  */
 function listToNode(node: List, defs: Map<string, Definition>): PMNode {
-  const src = srcAttrsFromNode(node)
-  const items = node.children.map((item) => listItemToNode(item, defs))
+  const src = srcAttrsFromNode(node);
+  const items = node.children.map((item) => listItemToNode(item, defs));
   if (node.ordered) {
     return markdownSchema.node(
-      'ordered_list',
+      "ordered_list",
       {
         ...src,
         order: node.start ?? 1,
         tight: node.spread === false || node.spread === undefined,
       },
       items,
-    )
+    );
   }
   return markdownSchema.node(
-    'bullet_list',
+    "bullet_list",
     {
       ...src,
       tight: node.spread === false || node.spread === undefined,
     },
     items,
-  )
+  );
 }
 
 /**
@@ -215,15 +202,11 @@ function listToNode(node: List, defs: Map<string, Definition>): PMNode {
  * @param defs - Collected reference definitions.
  * @returns The ProseMirror list-item node.
  */
-function listItemToNode(
-  node: ListItem,
-  defs: Map<string, Definition>,
-): PMNode {
-  const src = srcAttrsFromNode(node)
-  const checked =
-    typeof node.checked === 'boolean' ? node.checked : null
-  const content = childrenBlocks(node, defs)
-  return markdownSchema.node('list_item', { ...src, checked }, content)
+function listItemToNode(node: ListItem, defs: Map<string, Definition>): PMNode {
+  const src = srcAttrsFromNode(node);
+  const checked = typeof node.checked === "boolean" ? node.checked : null;
+  const content = childrenBlocks(node, defs);
+  return markdownSchema.node("list_item", { ...src, checked }, content);
 }
 
 /**
@@ -233,12 +216,12 @@ function listItemToNode(
  * @returns The ProseMirror table node.
  */
 function tableToNode(node: Table, defs: Map<string, Definition>): PMNode {
-  const src = srcAttrsFromNode(node)
-  const aligns = node.align ?? []
+  const src = srcAttrsFromNode(node);
+  const aligns = node.align ?? [];
   const rows = node.children.map((row, rowIndex) =>
     tableRowToNode(row, aligns, defs, rowIndex === 0),
-  )
-  return markdownSchema.node('table', src, rows)
+  );
+  return markdownSchema.node("table", src, rows);
 }
 
 /**
@@ -255,11 +238,11 @@ function tableRowToNode(
   defs: Map<string, Definition>,
   isHeader: boolean,
 ): PMNode {
-  const src = srcAttrsFromNode(row)
+  const src = srcAttrsFromNode(row);
   const cells = row.children.map((cell, i) =>
     tableCellToNode(cell, aligns[i] ?? null, defs, isHeader),
-  )
-  return markdownSchema.node('table_row', src, cells)
+  );
+  return markdownSchema.node("table_row", src, cells);
 }
 
 /**
@@ -276,13 +259,9 @@ function tableCellToNode(
   defs: Map<string, Definition>,
   isHeader: boolean,
 ): PMNode {
-  const src = srcAttrsFromNode(cell)
-  const type = isHeader ? 'table_header' : 'table_cell'
-  return markdownSchema.node(
-    type,
-    { ...src, align },
-    phrasingToInline(cell.children, defs),
-  )
+  const src = srcAttrsFromNode(cell);
+  const type = isHeader ? "table_header" : "table_cell";
+  return markdownSchema.node(type, { ...src, align }, phrasingToInline(cell.children, defs));
 }
 
 /**
@@ -298,11 +277,11 @@ function phrasingToInline(
   defs: Map<string, Definition>,
   active: readonly Mark[] = [],
 ): PMNode[] {
-  const out: PMNode[] = []
+  const out: PMNode[] = [];
   for (const node of nodes) {
-    out.push(...phrasingNode(node, defs, active))
+    out.push(...phrasingNode(node, defs, active));
   }
-  return mergeAdjacentText(out)
+  return mergeAdjacentText(out);
 }
 
 /**
@@ -318,99 +297,84 @@ function phrasingNode(
   active: readonly Mark[],
 ): PMNode[] {
   switch (node.type) {
-    case 'text':
-      return node.value
-        ? [markdownSchema.text(node.value, Mark.setFrom(active))]
-        : []
+    case "text":
+      return node.value ? [markdownSchema.text(node.value, Mark.setFrom(active))] : [];
 
-    case 'inlineCode':
+    case "inlineCode":
       return [
         markdownSchema.text(
           node.value,
-          Mark.setFrom([
-            ...active,
-            markdownSchema.marks.code.create(),
-          ]),
+          Mark.setFrom([...active, markdownSchema.marks.code.create()]),
         ),
-      ]
+      ];
 
-    case 'break':
-      return [markdownSchema.node('hard_break')]
+    case "break":
+      return [markdownSchema.node("hard_break")];
 
-    case 'image':
+    case "image":
       return [
-        markdownSchema.node('image', {
+        markdownSchema.node("image", {
           src: node.url,
           alt: node.alt ?? null,
           title: node.title ?? null,
         }),
-      ]
+      ];
 
-    case 'imageReference': {
-      const def = defs.get(node.identifier.toLowerCase())
+    case "imageReference": {
+      const def = defs.get(node.identifier.toLowerCase());
       return [
-        markdownSchema.node('image', {
-          src: def?.url ?? '',
+        markdownSchema.node("image", {
+          src: def?.url ?? "",
           alt: node.alt ?? null,
           title: def?.title ?? null,
         }),
-      ]
+      ];
     }
 
-    case 'emphasis':
-      return phrasingToInline(node.children, defs, [
-        ...active,
-        markdownSchema.marks.em.create(),
-      ])
+    case "emphasis":
+      return phrasingToInline(node.children, defs, [...active, markdownSchema.marks.em.create()]);
 
-    case 'strong':
+    case "strong":
       return phrasingToInline(node.children, defs, [
         ...active,
         markdownSchema.marks.strong.create(),
-      ])
+      ]);
 
-    case 'delete':
+    case "delete":
       return phrasingToInline(node.children, defs, [
         ...active,
         markdownSchema.marks.strikethrough.create(),
-      ])
+      ]);
 
-    case 'link':
+    case "link":
       return phrasingToInline(node.children, defs, [
         ...active,
         markdownSchema.marks.link.create({
           href: node.url,
           title: node.title ?? null,
         }),
-      ])
+      ]);
 
-    case 'linkReference': {
-      const def = defs.get(node.identifier.toLowerCase())
+    case "linkReference": {
+      const def = defs.get(node.identifier.toLowerCase());
       return phrasingToInline(node.children, defs, [
         ...active,
         markdownSchema.marks.link.create({
-          href: def?.url ?? '',
+          href: def?.url ?? "",
           title: def?.title ?? null,
         }),
-      ])
+      ]);
     }
 
-    case 'html':
+    case "html":
       // Inline HTML is kept as plain text so that selection and anchors stay simple.
-      return node.value
-        ? [markdownSchema.text(node.value, Mark.setFrom(active))]
-        : []
+      return node.value ? [markdownSchema.text(node.value, Mark.setFrom(active))] : [];
 
-    case 'footnoteReference':
-      return [
-        markdownSchema.text(
-          `[${node.identifier}]`,
-          Mark.setFrom(active),
-        ),
-      ]
+    case "footnoteReference":
+      return [markdownSchema.text(`[${node.identifier}]`, Mark.setFrom(active))];
 
     default:
-      return []
+      return [];
   }
 }
 
@@ -420,22 +384,15 @@ function phrasingNode(
  * @returns A new array with adjacent same-mark text nodes combined.
  */
 function mergeAdjacentText(nodes: PMNode[]): PMNode[] {
-  if (nodes.length < 2) return nodes
-  const out: PMNode[] = []
+  if (nodes.length < 2) return nodes;
+  const out: PMNode[] = [];
   for (const node of nodes) {
-    const prev = out[out.length - 1]
-    if (
-      prev?.isText &&
-      node.isText &&
-      Mark.sameSet(prev.marks, node.marks)
-    ) {
-      out[out.length - 1] = markdownSchema.text(
-        (prev.text ?? '') + (node.text ?? ''),
-        prev.marks,
-      )
+    const prev = out[out.length - 1];
+    if (prev?.isText && node.isText && Mark.sameSet(prev.marks, node.marks)) {
+      out[out.length - 1] = markdownSchema.text((prev.text ?? "") + (node.text ?? ""), prev.marks);
     } else {
-      out.push(node)
+      out.push(node);
     }
   }
-  return out
+  return out;
 }

@@ -1,24 +1,23 @@
 /** Storage key marking that the Markdup toggle NUX has been shown. */
-export const NUX_TOGGLE_VISITED_KEY = 'nux.markdupToggleVisited'
+export const NUX_TOGGLE_VISITED_KEY = "nux.markdupToggleVisited";
 
-const NUX_SELECTOR = '[data-rgm-nux]'
+const NUX_SELECTOR = "[data-rgm-nux]";
 
-const NUX_MESSAGE =
-  'Use this toggle to review markdown files in rich text format.'
+const NUX_MESSAGE = "Use this toggle to review markdown files in rich text format.";
 
 /** True once this page has claimed the NUX slot (shown or skipped). */
-let nuxClaimed = false
+let nuxClaimed = false;
 
 /**
  * Read whether the toggle NUX has already been visited.
  * @returns True when storage says the NUX was already shown.
  */
 async function hasVisitedToggleNux(): Promise<boolean> {
-  if (typeof chrome === 'undefined' || !chrome.storage?.local) {
-    return true
+  if (typeof chrome === "undefined" || !chrome.storage?.local) {
+    return true;
   }
-  const result = await chrome.storage.local.get(NUX_TOGGLE_VISITED_KEY)
-  return Boolean(result[NUX_TOGGLE_VISITED_KEY])
+  const result = await chrome.storage.local.get(NUX_TOGGLE_VISITED_KEY);
+  return Boolean(result[NUX_TOGGLE_VISITED_KEY]);
 }
 
 /**
@@ -26,10 +25,10 @@ async function hasVisitedToggleNux(): Promise<boolean> {
  * @returns Nothing.
  */
 async function markToggleNuxVisited(): Promise<void> {
-  if (typeof chrome === 'undefined' || !chrome.storage?.local) {
-    return
+  if (typeof chrome === "undefined" || !chrome.storage?.local) {
+    return;
   }
-  await chrome.storage.local.set({ [NUX_TOGGLE_VISITED_KEY]: true })
+  await chrome.storage.local.set({ [NUX_TOGGLE_VISITED_KEY]: true });
 }
 
 /**
@@ -37,7 +36,7 @@ async function markToggleNuxVisited(): Promise<void> {
  * @returns Nothing.
  */
 export function dismissToggleNux(): void {
-  document.querySelector(NUX_SELECTOR)?.remove()
+  document.querySelector(NUX_SELECTOR)?.remove();
 }
 
 /**
@@ -46,41 +45,41 @@ export function dismissToggleNux(): void {
  * @returns The created popup element.
  */
 function showToggleNux(toggle: HTMLElement): HTMLElement {
-  dismissToggleNux()
+  dismissToggleNux();
 
-  const popup = document.createElement('div')
-  popup.setAttribute('data-rgm-nux', '')
-  popup.setAttribute('role', 'status')
-  popup.setAttribute('aria-live', 'polite')
+  const popup = document.createElement("div");
+  popup.setAttribute("data-rgm-nux", "");
+  popup.setAttribute("role", "status");
+  popup.setAttribute("aria-live", "polite");
 
-  const arrow = document.createElement('span')
-  arrow.className = 'rgm-nux-arrow'
-  arrow.setAttribute('aria-hidden', 'true')
+  const arrow = document.createElement("span");
+  arrow.className = "rgm-nux-arrow";
+  arrow.setAttribute("aria-hidden", "true");
 
-  const body = document.createElement('div')
-  body.className = 'rgm-nux-body'
+  const body = document.createElement("div");
+  body.className = "rgm-nux-body";
 
-  const message = document.createElement('p')
-  message.className = 'rgm-nux-message'
-  message.textContent = NUX_MESSAGE
+  const message = document.createElement("p");
+  message.className = "rgm-nux-message";
+  message.textContent = NUX_MESSAGE;
 
-  const dismissBtn = document.createElement('button')
-  dismissBtn.type = 'button'
-  dismissBtn.className = 'rgm-nux-dismiss'
-  dismissBtn.textContent = 'Got it'
-  dismissBtn.addEventListener('click', (event) => {
-    event.preventDefault()
-    event.stopPropagation()
-    dismissToggleNux()
-  })
+  const dismissBtn = document.createElement("button");
+  dismissBtn.type = "button";
+  dismissBtn.className = "rgm-nux-dismiss";
+  dismissBtn.textContent = "Got it";
+  dismissBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dismissToggleNux();
+  });
 
-  body.appendChild(message)
-  body.appendChild(dismissBtn)
-  popup.appendChild(arrow)
-  popup.appendChild(body)
-  toggle.appendChild(popup)
+  body.appendChild(message);
+  body.appendChild(dismissBtn);
+  popup.appendChild(arrow);
+  popup.appendChild(body);
+  toggle.appendChild(popup);
 
-  return popup
+  return popup;
 }
 
 /**
@@ -91,31 +90,31 @@ function showToggleNux(toggle: HTMLElement): HTMLElement {
  */
 export async function maybeShowToggleNux(toggle: HTMLElement): Promise<void> {
   if (nuxClaimed) {
-    return
+    return;
   }
   if (document.querySelector(NUX_SELECTOR)) {
-    nuxClaimed = true
-    return
+    nuxClaimed = true;
+    return;
   }
 
-  nuxClaimed = true
+  nuxClaimed = true;
 
   try {
     if (await hasVisitedToggleNux()) {
-      return
+      return;
     }
 
     // Toggle may have been removed while storage was resolving.
     if (!toggle.isConnected) {
-      nuxClaimed = false
-      return
+      nuxClaimed = false;
+      return;
     }
 
-    showToggleNux(toggle)
-    await markToggleNuxVisited()
+    showToggleNux(toggle);
+    await markToggleNuxVisited();
   } catch {
     // Allow a later mount to retry if storage failed before showing.
-    nuxClaimed = false
+    nuxClaimed = false;
   }
 }
 
@@ -125,6 +124,6 @@ export async function maybeShowToggleNux(toggle: HTMLElement): Promise<void> {
  * @returns Nothing.
  */
 export function resetToggleNuxForTests(): void {
-  nuxClaimed = false
-  dismissToggleNux()
+  nuxClaimed = false;
+  dismissToggleNux();
 }

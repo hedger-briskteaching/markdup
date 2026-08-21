@@ -91,11 +91,11 @@ is still on, Markdup restores the toggle and remounts from `richIntent.ts`.
    persistent highlight. GitHub’s “must be in the PR diff” rule is enforced
    when posting, not by hijacking the selection.
 
-| Path | Role |
-| --- | --- |
-| `src/markdown/sourceRange.ts` | Plain offset → source line/col; whole-line expand |
-| `src/shared/commentableLines.ts` | Parse patch; clamp to commentable lines on create |
-| `src/content/markdownReview/selection.ts` | DOM selection → `SourceRange` + highlight |
+| Path                                      | Role                                              |
+| ----------------------------------------- | ------------------------------------------------- |
+| `src/markdown/sourceRange.ts`             | Plain offset → source line/col; whole-line expand |
+| `src/shared/commentableLines.ts`          | Parse patch; clamp to commentable lines on create |
+| `src/content/markdownReview/selection.ts` | DOM selection → `SourceRange` + highlight         |
 
 Chrome UI (`data-rgm-chrome`) is skipped when measuring offsets.
 
@@ -111,11 +111,11 @@ Chrome UI (`data-rgm-chrome`) is skipped when measuring offsets.
    and only then paints thread cards — full replace. Switching back to source
    reloads the page so native widgets match production.
 
-| Path | Role |
-| --- | --- |
-| `src/background/github/pulls.ts` | List / create + `buildThreads` |
-| `src/content/markdownReview/composer.ts` | Selection composer UI |
-| `src/shared/reviewComment.ts` | Create payload helper |
+| Path                                     | Role                           |
+| ---------------------------------------- | ------------------------------ |
+| `src/background/github/pulls.ts`         | List / create + `buildThreads` |
+| `src/content/markdownReview/composer.ts` | Selection composer UI          |
+| `src/shared/reviewComment.ts`            | Create payload helper          |
 
 ## Data flow
 
@@ -131,17 +131,17 @@ PR URL + file path
 
 ## Files
 
-| Path | Role |
-| --- | --- |
-| `src/markdown/align.ts` | Block alignment into `RowModel` |
-| `src/markdown/wordDiff.ts` | Inline insert/delete segments |
-| `src/markdown/sourceRange.ts` | Source line/col helpers |
-| `src/background/github/contents.ts` | Pull refs + file contents API |
-| `src/markdown/viewSections.ts` | Group rows into changed / unchanged sections |
-| `src/content/markdownReview/richView.ts` | Mount / unmount, loading and error states |
-| `src/content/markdownReview/renderBody.ts` | Row + fold-bar DOM, body rebuild |
-| `src/content/markdownReview/richStub.ts` | Toggle mount / unmount |
-| `src/content/markdownReview/selection.ts` | Selection → source range + expand state |
+| Path                                       | Role                                         |
+| ------------------------------------------ | -------------------------------------------- |
+| `src/markdown/align.ts`                    | Block alignment into `RowModel`              |
+| `src/markdown/wordDiff.ts`                 | Inline insert/delete segments                |
+| `src/markdown/sourceRange.ts`              | Source line/col helpers                      |
+| `src/background/github/contents.ts`        | Pull refs + file contents API                |
+| `src/markdown/viewSections.ts`             | Group rows into changed / unchanged sections |
+| `src/content/markdownReview/richView.ts`   | Mount / unmount, loading and error states    |
+| `src/content/markdownReview/renderBody.ts` | Row + fold-bar DOM, body rebuild             |
+| `src/content/markdownReview/richStub.ts`   | Toggle mount / unmount                       |
+| `src/content/markdownReview/selection.ts`  | Selection → source range + expand state      |
 
 ## Row rules
 

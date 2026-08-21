@@ -1,20 +1,20 @@
-import type { RowModel } from './align'
+import type { RowModel } from "./align";
 
 export type ChangedSection = {
-  kind: 'changed'
-  rows: RowModel[]
-}
+  kind: "changed";
+  rows: RowModel[];
+};
 
 export type UnchangedSection = {
-  kind: 'unchanged'
-  id: string
-  rows: RowModel[]
+  kind: "unchanged";
+  id: string;
+  rows: RowModel[];
   /** Inclusive source line span across both sides, when known. */
-  lineFrom: number | null
-  lineTo: number | null
-}
+  lineFrom: number | null;
+  lineTo: number | null;
+};
 
-export type ViewSection = ChangedSection | UnchangedSection
+export type ViewSection = ChangedSection | UnchangedSection;
 
 /**
  * Group consecutive row-model runs into changed and unchanged sections.
@@ -23,35 +23,35 @@ export type ViewSection = ChangedSection | UnchangedSection
  * @returns Array of view sections ready for rendering.
  */
 export function buildViewSections(rows: RowModel[]): ViewSection[] {
-  if (rows.length === 0) return []
+  if (rows.length === 0) return [];
 
-  const sections: ViewSection[] = []
-  let i = 0
-  let unchangedIndex = 0
+  const sections: ViewSection[] = [];
+  let i = 0;
+  let unchangedIndex = 0;
 
   while (i < rows.length) {
-    const start = i
-    const changed = rows[i]!.changed
-    i += 1
+    const start = i;
+    const changed = rows[i]!.changed;
+    i += 1;
     while (i < rows.length && rows[i]!.changed === changed) {
-      i += 1
+      i += 1;
     }
-    const slice = rows.slice(start, i)
+    const slice = rows.slice(start, i);
     if (changed) {
-      sections.push({ kind: 'changed', rows: slice })
+      sections.push({ kind: "changed", rows: slice });
     } else {
-      const id = `unchanged-${unchangedIndex}`
-      unchangedIndex += 1
+      const id = `unchanged-${unchangedIndex}`;
+      unchangedIndex += 1;
       sections.push({
-        kind: 'unchanged',
+        kind: "unchanged",
         id,
         rows: slice,
         ...lineSpanForRows(slice),
-      })
+      });
     }
   }
 
-  return sections
+  return sections;
 }
 
 /**
@@ -65,12 +65,12 @@ export function findUnchangedSectionForRow(
   rowId: string,
 ): UnchangedSection | null {
   for (const section of sections) {
-    if (section.kind !== 'unchanged') continue
+    if (section.kind !== "unchanged") continue;
     if (section.rows.some((row) => row.id === rowId)) {
-      return section
+      return section;
     }
   }
-  return null
+  return null;
 }
 
 /**
@@ -79,24 +79,23 @@ export function findUnchangedSectionForRow(
  * @returns An object with `lineFrom` and `lineTo` (both `null` when no source data exists).
  */
 function lineSpanForRows(rows: RowModel[]): {
-  lineFrom: number | null
-  lineTo: number | null
+  lineFrom: number | null;
+  lineTo: number | null;
 } {
-  let lineFrom: number | null = null
-  let lineTo: number | null = null
+  let lineFrom: number | null = null;
+  let lineTo: number | null = null;
 
   for (const row of rows) {
     for (const block of [row.old, row.new]) {
-      if (!block) continue
+      if (!block) continue;
       if (block.srcFrom != null) {
-        lineFrom =
-          lineFrom == null ? block.srcFrom : Math.min(lineFrom, block.srcFrom)
+        lineFrom = lineFrom == null ? block.srcFrom : Math.min(lineFrom, block.srcFrom);
       }
       if (block.srcTo != null) {
-        lineTo = lineTo == null ? block.srcTo : Math.max(lineTo, block.srcTo)
+        lineTo = lineTo == null ? block.srcTo : Math.max(lineTo, block.srcTo);
       }
     }
   }
 
-  return { lineFrom, lineTo }
+  return { lineFrom, lineTo };
 }

@@ -1,18 +1,9 @@
-import type { RowModel } from '../../markdown/align'
-import {
-  buildViewSections,
-  findUnchangedSectionForRow,
-} from '../../markdown/viewSections'
-import type {
-  ReviewCommentDto,
-  ReviewThreadDto,
-} from '../../shared/messages'
-import {
-  mountCommentEditor,
-  type CommentEditorHandle,
-} from './commentEditor'
-import { markCommentsDirty } from './composer'
-import { renderMarkdownBody } from './markdownBody'
+import type { RowModel } from "../../markdown/align";
+import { buildViewSections, findUnchangedSectionForRow } from "../../markdown/viewSections";
+import type { ReviewCommentDto, ReviewThreadDto } from "../../shared/messages";
+import { mountCommentEditor, type CommentEditorHandle } from "./commentEditor";
+import { markCommentsDirty } from "./composer";
+import { renderMarkdownBody } from "./markdownBody";
 import {
   applyThreadHoverHighlight,
   clearThreadHoverHighlight,
@@ -22,9 +13,9 @@ import {
   paintCommentedMarks,
   type RichViewContext,
   type SourceRange,
-} from './selection'
-import { syncThreadsFromServer } from './syncThreads'
-import { scrollToThreadCard } from './threadFocus'
+} from "./selection";
+import { syncThreadsFromServer } from "./syncThreads";
+import { scrollToThreadCard } from "./threadFocus";
 
 /**
  * Insert or replace a thread built from a newly created review comment.
@@ -39,10 +30,10 @@ export function upsertThreadFromComment(
   comment: ReviewCommentDto,
   options?: { pending?: boolean },
 ): ReviewThreadDto[] {
-  const side = comment.side
-  const line = comment.line ?? comment.originalLine
+  const side = comment.side;
+  const line = comment.line ?? comment.originalLine;
   if (!side || line == null) {
-    return threads
+    return threads;
   }
 
   const thread: ReviewThreadDto = {
@@ -53,15 +44,15 @@ export function upsertThreadFromComment(
     line,
     comments: [comment],
     pending: options?.pending ?? true,
-  }
+  };
 
-  const without = threads.filter((t) => t.rootId !== thread.rootId)
-  without.push(thread)
+  const without = threads.filter((t) => t.rootId !== thread.rootId);
+  without.push(thread);
   without.sort((a, b) => {
-    if (a.startLine !== b.startLine) return a.startLine - b.startLine
-    return a.rootId - b.rootId
-  })
-  return without
+    if (a.startLine !== b.startLine) return a.startLine - b.startLine;
+    return a.rootId - b.rootId;
+  });
+  return without;
 }
 
 /**
@@ -71,51 +62,47 @@ export function upsertThreadFromComment(
  * @returns Nothing.
  */
 export function renderThreadCards(richRoot: Element): void {
-  clearThreadCards(richRoot)
+  clearThreadCards(richRoot);
 
-  const root = richRoot as HTMLElement
-  const ctx = getRichViewContext(richRoot)
-  const threads = ctx?.threads ?? []
+  const root = richRoot as HTMLElement;
+  const ctx = getRichViewContext(richRoot);
+  const threads = ctx?.threads ?? [];
   if (threads.length === 0 || !ctx?.rows) {
-    paintCommentedMarks(root, [])
-    return
+    paintCommentedMarks(root, []);
+    return;
   }
 
-  const body = richRoot.querySelector('.rgm-rich-body')
-  if (!body) return
+  const body = richRoot.querySelector(".rgm-rich-body");
+  if (!body) return;
 
-  const fileName = (ctx.path ?? '').split('/').pop() || ctx.path || 'file'
-  const sections = buildViewSections(ctx.rows)
+  const fileName = (ctx.path ?? "").split("/").pop() || ctx.path || "file";
+  const sections = buildViewSections(ctx.rows);
 
   for (const thread of threads) {
-    const rowId = findRowIdForThread(ctx.rows, thread)
-    const rowEl = rowId
-      ? body.querySelector(`[data-row-id="${rowId}"]`)
-      : null
+    const rowId = findRowIdForThread(ctx.rows, thread);
+    const rowEl = rowId ? body.querySelector(`[data-row-id="${rowId}"]`) : null;
 
     if (!rowEl && rowId) {
-      const section = findUnchangedSectionForRow(sections, rowId)
+      const section = findUnchangedSectionForRow(sections, rowId);
       if (section && !isUnchangedSectionExpanded(richRoot, section.id)) {
-        continue
+        continue;
       }
     }
 
-    const card = buildThreadCard(thread, fileName, root, ctx)
-    attachHoverHighlight(card, root, rangeForThread(thread))
+    const card = buildThreadCard(thread, fileName, root, ctx);
+    attachHoverHighlight(card, root, rangeForThread(thread));
 
     if (rowEl) {
-      const cell = rowEl.querySelector<HTMLElement>(
-        `.rgm-rich-cell[data-side="${thread.side}"]`,
-      )
+      const cell = rowEl.querySelector<HTMLElement>(`.rgm-rich-cell[data-side="${thread.side}"]`);
       if (cell) {
-        placeThreadCard(cell, card, rangeForThread(thread))
-        continue
+        placeThreadCard(cell, card, rangeForThread(thread));
+        continue;
       }
-      rowEl.appendChild(card)
-      continue
+      rowEl.appendChild(card);
+      continue;
     }
 
-    body.appendChild(card)
+    body.appendChild(card);
   }
 
   paintCommentedMarks(
@@ -124,18 +111,18 @@ export function renderThreadCards(richRoot: Element): void {
       threadId: thread.rootId,
       range: rangeForThread(thread),
     })),
-  )
-  bindThreadTextInteractions(root)
+  );
+  bindThreadTextInteractions(root);
 }
 
 /** Marks the table row a thread card is mounted in, so it can be cleaned up. */
-const COMMENT_ROW_CLASS = 'rgm-rich-comment-row'
+const COMMENT_ROW_CLASS = "rgm-rich-comment-row";
 
 /** Marks the list item a thread card is mounted in, so it can be cleaned up. */
-const COMMENT_ITEM_CLASS = 'rgm-rich-comment-item'
+const COMMENT_ITEM_CLASS = "rgm-rich-comment-item";
 
 /** Every wrapper a thread card can be mounted in. */
-const COMMENT_SLOT_SELECTOR = `.${COMMENT_ROW_CLASS}, .${COMMENT_ITEM_CLASS}`
+const COMMENT_SLOT_SELECTOR = `.${COMMENT_ROW_CLASS}, .${COMMENT_ITEM_CLASS}`;
 
 /**
  * Mount a thread card with the text it targets.
@@ -147,21 +134,14 @@ const COMMENT_SLOT_SELECTOR = `.${COMMENT_ROW_CLASS}, .${COMMENT_ITEM_CLASS}`
  * @param range - The source range the thread targets.
  * @returns Nothing.
  */
-function placeThreadCard(
-  cell: HTMLElement,
-  card: HTMLElement,
-  range: SourceRange,
-): void {
-  const anchor = findSubAnchorForSourceRange(cell, range)
-  const host = anchor?.closest('tr, li')
+function placeThreadCard(cell: HTMLElement, card: HTMLElement, range: SourceRange): void {
+  const anchor = findSubAnchorForSourceRange(cell, range);
+  const host = anchor?.closest("tr, li");
   if (host?.parentElement) {
-    host.parentElement.insertBefore(
-      buildCommentSlot(host, card),
-      host.nextSibling,
-    )
-    return
+    host.parentElement.insertBefore(buildCommentSlot(host, card), host.nextSibling);
+    return;
   }
-  cell.appendChild(card)
+  cell.appendChild(card);
 }
 
 /**
@@ -171,10 +151,10 @@ function placeThreadCard(
  * @returns The wrapper element holding the card.
  */
 function buildCommentSlot(host: Element, card: HTMLElement): HTMLElement {
-  if (host.tagName === 'TR') {
-    return buildCommentRow(host, card)
+  if (host.tagName === "TR") {
+    return buildCommentRow(host, card);
   }
-  return buildCommentItem(card)
+  return buildCommentItem(card);
 }
 
 /**
@@ -186,15 +166,15 @@ function buildCommentSlot(host: Element, card: HTMLElement): HTMLElement {
  * @returns The comment row element.
  */
 function buildCommentRow(row: Element, card: HTMLElement): HTMLElement {
-  const commentRow = document.createElement('tr')
-  commentRow.className = COMMENT_ROW_CLASS
-  commentRow.setAttribute('data-rgm-chrome', '')
+  const commentRow = document.createElement("tr");
+  commentRow.className = COMMENT_ROW_CLASS;
+  commentRow.setAttribute("data-rgm-chrome", "");
 
-  const holder = document.createElement('td')
-  holder.colSpan = tableColumnCount(row)
-  holder.appendChild(card)
-  commentRow.appendChild(holder)
-  return commentRow
+  const holder = document.createElement("td");
+  holder.colSpan = tableColumnCount(row);
+  holder.appendChild(card);
+  commentRow.appendChild(holder);
+  return commentRow;
 }
 
 /**
@@ -205,11 +185,11 @@ function buildCommentRow(row: Element, card: HTMLElement): HTMLElement {
  * @returns The comment item element.
  */
 function buildCommentItem(card: HTMLElement): HTMLElement {
-  const item = document.createElement('li')
-  item.className = COMMENT_ITEM_CLASS
-  item.setAttribute('data-rgm-chrome', '')
-  item.appendChild(card)
-  return item
+  const item = document.createElement("li");
+  item.className = COMMENT_ITEM_CLASS;
+  item.setAttribute("data-rgm-chrome", "");
+  item.appendChild(card);
+  return item;
 }
 
 /**
@@ -219,14 +199,14 @@ function buildCommentItem(card: HTMLElement): HTMLElement {
  * @returns The column count, at least 1.
  */
 function tableColumnCount(row: Element): number {
-  const table = row.closest('table')
-  if (!table) return 1
-  let widest = 1
-  for (const other of table.querySelectorAll('tr')) {
-    const cells = other.querySelectorAll('th, td').length
-    if (cells > widest) widest = cells
+  const table = row.closest("table");
+  if (!table) return 1;
+  let widest = 1;
+  for (const other of table.querySelectorAll("tr")) {
+    const cells = other.querySelectorAll("th, td").length;
+    if (cells > widest) widest = cells;
   }
-  return widest
+  return widest;
 }
 
 /**
@@ -236,16 +216,16 @@ function tableColumnCount(row: Element): number {
  * @returns The source range for the thread.
  */
 export function rangeForThread(thread: ReviewThreadDto): SourceRange {
-  const endLine = thread.line
-  const startLine = Math.min(thread.startLine ?? endLine, endLine)
+  const endLine = thread.line;
+  const startLine = Math.min(thread.startLine ?? endLine, endLine);
   return {
     side: thread.side,
     startLine,
     startCol: 1,
     endLine,
     endCol: 1,
-    quotedText: '',
-  }
+    quotedText: "",
+  };
 }
 
 /**
@@ -255,28 +235,24 @@ export function rangeForThread(thread: ReviewThreadDto): SourceRange {
  * @param range - The source range to highlight on hover.
  * @returns Nothing.
  */
-function attachHoverHighlight(
-  card: HTMLElement,
-  richRoot: HTMLElement,
-  range: SourceRange,
-): void {
+function attachHoverHighlight(card: HTMLElement, richRoot: HTMLElement, range: SourceRange): void {
   /**
    * Apply the hover highlight for this thread range.
    * @returns Nothing.
    */
-  const show = () => applyThreadHoverHighlight(richRoot, range)
+  const show = () => applyThreadHoverHighlight(richRoot, range);
   /**
    * Clear the hover highlight for this thread range.
    * @returns Nothing.
    */
-  const hide = () => clearThreadHoverHighlight(richRoot)
-  card.addEventListener('mouseenter', show)
-  card.addEventListener('mouseleave', hide)
-  card.addEventListener('focusin', show)
-  card.addEventListener('focusout', hide)
+  const hide = () => clearThreadHoverHighlight(richRoot);
+  card.addEventListener("mouseenter", show);
+  card.addEventListener("mouseleave", hide);
+  card.addEventListener("focusin", show);
+  card.addEventListener("focusout", hide);
 }
 
-const textInteractionsBound = new WeakSet<Element>()
+const textInteractionsBound = new WeakSet<Element>();
 
 /**
  * Bind click-to-scroll interactions on commented text regions.
@@ -284,28 +260,27 @@ const textInteractionsBound = new WeakSet<Element>()
  * @returns Nothing.
  */
 function bindThreadTextInteractions(richRoot: HTMLElement): void {
-  if (textInteractionsBound.has(richRoot)) return
-  textInteractionsBound.add(richRoot)
+  if (textInteractionsBound.has(richRoot)) return;
+  textInteractionsBound.add(richRoot);
 
-  richRoot.addEventListener('click', (event) => {
-    const selection = window.getSelection()
-    if (selection && !selection.isCollapsed) return
+  richRoot.addEventListener("click", (event) => {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) return;
 
-    const target = event.target instanceof Element ? event.target : null
+    const target = event.target instanceof Element ? event.target : null;
     if (
       !target ||
       target.closest(
-        '[data-rgm-thread-card], [data-rgm-composer], [data-rgm-comment-bubble], [data-rgm-fold], .rgm-comment-editor',
+        "[data-rgm-thread-card], [data-rgm-composer], [data-rgm-comment-bubble], [data-rgm-fold], .rgm-comment-editor",
       )
     ) {
-      return
+      return;
     }
 
-    const threadId =
-      threadIdAtPoint(richRoot, event) ?? threadIdFromFallbackCell(target)
-    if (threadId == null) return
-    scrollToThreadCard(richRoot, threadId)
-  })
+    const threadId = threadIdAtPoint(richRoot, event) ?? threadIdFromFallbackCell(target);
+    if (threadId == null) return;
+    scrollToThreadCard(richRoot, threadId);
+  });
 }
 
 /**
@@ -315,21 +290,21 @@ function bindThreadTextInteractions(richRoot: HTMLElement): void {
  * @returns The thread id string, or null if none found.
  */
 function threadIdAtPoint(richRoot: Element, event: MouseEvent): string | null {
-  const layer = richRoot.querySelector('[data-rgm-commented-layer]')
-  if (!layer) return null
-  for (const box of layer.querySelectorAll<HTMLElement>('[data-thread-id]')) {
-    const rect = box.getBoundingClientRect()
-    if (rect.width <= 0 || rect.height <= 0) continue
+  const layer = richRoot.querySelector("[data-rgm-commented-layer]");
+  if (!layer) return null;
+  for (const box of layer.querySelectorAll<HTMLElement>("[data-thread-id]")) {
+    const rect = box.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) continue;
     if (
       event.clientX >= rect.left &&
       event.clientX <= rect.right &&
       event.clientY >= rect.top &&
       event.clientY <= rect.bottom
     ) {
-      return box.getAttribute('data-thread-id')
+      return box.getAttribute("data-thread-id");
     }
   }
-  return null
+  return null;
 }
 
 /**
@@ -338,11 +313,7 @@ function threadIdAtPoint(richRoot: Element, event: MouseEvent): string | null {
  * @returns The thread id string, or null if none found.
  */
 function threadIdFromFallbackCell(target: Element): string | null {
-  return (
-    target
-      .closest('.rgm-commented-cell')
-      ?.getAttribute('data-rgm-commented-thread') ?? null
-  )
+  return target.closest(".rgm-commented-cell")?.getAttribute("data-rgm-commented-thread") ?? null;
 }
 
 /**
@@ -351,12 +322,12 @@ function threadIdFromFallbackCell(target: Element): string | null {
  * @returns Nothing.
  */
 export function clearThreadCards(richRoot: Element): void {
-  richRoot.querySelectorAll('[data-rgm-thread-card]').forEach((el) => el.remove())
+  richRoot.querySelectorAll("[data-rgm-thread-card]").forEach((el) => el.remove());
   // Drop the rows and items the cards were mounted in, or empty ones pile up.
-  richRoot.querySelectorAll(COMMENT_SLOT_SELECTOR).forEach((el) => el.remove())
+  richRoot.querySelectorAll(COMMENT_SLOT_SELECTOR).forEach((el) => el.remove());
   // A removed card never fires mouseleave, so its hover highlight would
   // otherwise stay painted forever (for example after deleting a comment).
-  clearThreadHoverHighlight(richRoot)
+  clearThreadHoverHighlight(richRoot);
 }
 
 /**
@@ -366,46 +337,43 @@ export function clearThreadCards(richRoot: Element): void {
  * @param thread - The review thread DTO.
  * @returns The matching row id, or null if no match is found.
  */
-export function findRowIdForThread(
-  rows: RowModel[],
-  thread: ReviewThreadDto,
-): string | null {
+export function findRowIdForThread(rows: RowModel[], thread: ReviewThreadDto): string | null {
   const lines = [thread.line, thread.startLine].filter(
     (n, i, arr) => Number.isFinite(n) && arr.indexOf(n) === i,
-  )
+  );
 
   for (const row of rows) {
-    const block = thread.side === 'LEFT' ? row.old : row.new
+    const block = thread.side === "LEFT" ? row.old : row.new;
     if (!block || block.srcFrom == null || block.srcTo == null) {
-      continue
+      continue;
     }
     for (const line of lines) {
       if (line >= block.srcFrom && line <= block.srcTo) {
-        return row.id
+        return row.id;
       }
     }
   }
 
-  let bestId: string | null = null
-  let bestDist = Number.POSITIVE_INFINITY
-  const target = thread.line
+  let bestId: string | null = null;
+  let bestDist = Number.POSITIVE_INFINITY;
+  const target = thread.line;
   for (const row of rows) {
-    const block = thread.side === 'LEFT' ? row.old : row.new
+    const block = thread.side === "LEFT" ? row.old : row.new;
     if (!block || block.srcFrom == null || block.srcTo == null) {
-      continue
+      continue;
     }
     const dist =
       target < block.srcFrom
         ? block.srcFrom - target
         : target > block.srcTo
           ? target - block.srcTo
-          : 0
+          : 0;
     if (dist < bestDist) {
-      bestDist = dist
-      bestId = row.id
+      bestDist = dist;
+      bestId = row.id;
     }
   }
-  return bestId
+  return bestId;
 }
 
 /**
@@ -415,9 +383,9 @@ export function findRowIdForThread(
  * @returns True when the thread is re-anchored.
  */
 export function isReanchored(thread: ReviewThreadDto): boolean {
-  const root = thread.comments[0]
-  if (!root || root.originalLine == null) return false
-  return root.originalLine !== thread.line
+  const root = thread.comments[0];
+  if (!root || root.originalLine == null) return false;
+  return root.originalLine !== thread.line;
 }
 
 /**
@@ -426,12 +394,9 @@ export function isReanchored(thread: ReviewThreadDto): boolean {
  * @param viewerLogin - The signed-in GitHub login.
  * @returns True when the comment was authored by the viewer.
  */
-function isOwnComment(
-  comment: ReviewCommentDto,
-  viewerLogin: string | undefined,
-): boolean {
-  if (!viewerLogin || !comment.userLogin) return false
-  return viewerLogin.toLowerCase() === comment.userLogin.toLowerCase()
+function isOwnComment(comment: ReviewCommentDto, viewerLogin: string | undefined): boolean {
+  if (!viewerLogin || !comment.userLogin) return false;
+  return viewerLogin.toLowerCase() === comment.userLogin.toLowerCase();
 }
 
 /**
@@ -448,126 +413,122 @@ function buildThreadCard(
   richRoot: HTMLElement,
   ctx: RichViewContext,
 ): HTMLElement {
-  const root = thread.comments[0]
-  const reanchored = isReanchored(thread)
+  const root = thread.comments[0];
+  const reanchored = isReanchored(thread);
 
-  const card = document.createElement('div')
-  card.setAttribute('data-rgm-thread-card', '')
-  card.setAttribute('data-thread-id', String(thread.rootId))
-  card.setAttribute('data-side', thread.side)
-  card.className = 'rgm-thread-card'
+  const card = document.createElement("div");
+  card.setAttribute("data-rgm-thread-card", "");
+  card.setAttribute("data-thread-id", String(thread.rootId));
+  card.setAttribute("data-side", thread.side);
+  card.className = "rgm-thread-card";
 
-  const bar = document.createElement('div')
-  bar.className = 'rgm-thread-bar'
+  const bar = document.createElement("div");
+  bar.className = "rgm-thread-bar";
 
-  const identity = document.createElement('div')
-  identity.className = 'rgm-thread-identity'
+  const identity = document.createElement("div");
+  identity.className = "rgm-thread-identity";
 
-  const avatar = document.createElement('span')
-  avatar.className = 'rgm-thread-avatar'
-  avatar.setAttribute('aria-hidden', 'true')
-  avatar.textContent = initials(root?.userLogin ?? '?')
+  const avatar = document.createElement("span");
+  avatar.className = "rgm-thread-avatar";
+  avatar.setAttribute("aria-hidden", "true");
+  avatar.textContent = initials(root?.userLogin ?? "?");
 
-  const meta = document.createElement('div')
-  meta.className = 'rgm-thread-meta'
+  const meta = document.createElement("div");
+  meta.className = "rgm-thread-meta";
 
-  const who = document.createElement('span')
-  who.className = 'rgm-thread-login'
-  who.textContent = root?.userLogin || 'unknown'
+  const who = document.createElement("span");
+  who.className = "rgm-thread-login";
+  who.textContent = root?.userLogin || "unknown";
 
-  const when = document.createElement('span')
-  when.className = 'rgm-thread-when'
-  when.textContent = root?.createdAt
-    ? formatRelativeTime(root.createdAt)
-    : ''
+  const when = document.createElement("span");
+  when.className = "rgm-thread-when";
+  when.textContent = root?.createdAt ? formatRelativeTime(root.createdAt) : "";
 
-  meta.append(who, when)
-  identity.append(avatar, meta)
+  meta.append(who, when);
+  identity.append(avatar, meta);
 
-  const locus = document.createElement('div')
-  locus.className = 'rgm-thread-locus'
+  const locus = document.createElement("div");
+  locus.className = "rgm-thread-locus";
 
-  const pathPill = document.createElement('span')
-  pathPill.className = 'rgm-thread-path'
-  pathPill.textContent = formatPathLines(fileName, thread, reanchored)
+  const pathPill = document.createElement("span");
+  pathPill.className = "rgm-thread-path";
+  pathPill.textContent = formatPathLines(fileName, thread, reanchored);
 
-  const chip = document.createElement('span')
+  const chip = document.createElement("span");
   if (thread.pending) {
-    chip.className = 'rgm-thread-chip rgm-thread-chip-pending'
-    chip.textContent = 'Pending'
+    chip.className = "rgm-thread-chip rgm-thread-chip-pending";
+    chip.textContent = "Pending";
   } else if (reanchored) {
-    chip.className = 'rgm-thread-chip rgm-thread-chip-reanchored'
-    chip.textContent = 'Re-anchored — source moved'
+    chip.className = "rgm-thread-chip rgm-thread-chip-reanchored";
+    chip.textContent = "Re-anchored — source moved";
   } else {
-    chip.className = 'rgm-thread-chip rgm-thread-chip-open'
-    chip.textContent = 'Open'
+    chip.className = "rgm-thread-chip rgm-thread-chip-open";
+    chip.textContent = "Open";
   }
 
-  locus.append(pathPill, chip)
+  locus.append(pathPill, chip);
 
-  const showBtn = document.createElement('button')
-  showBtn.type = 'button'
-  showBtn.className = 'rgm-thread-show'
-  showBtn.textContent = 'Hide'
-  showBtn.setAttribute('aria-expanded', 'true')
+  const showBtn = document.createElement("button");
+  showBtn.type = "button";
+  showBtn.className = "rgm-thread-show";
+  showBtn.textContent = "Hide";
+  showBtn.setAttribute("aria-expanded", "true");
 
-  const detail = document.createElement('div')
-  detail.className = 'rgm-thread-detail'
-  detail.hidden = false
+  const detail = document.createElement("div");
+  detail.className = "rgm-thread-detail";
+  detail.hidden = false;
 
   for (const comment of thread.comments) {
-    detail.appendChild(
-      buildCommentBlock(comment, richRoot, ctx),
-    )
+    detail.appendChild(buildCommentBlock(comment, richRoot, ctx));
   }
 
-  const replySlot = document.createElement('div')
-  replySlot.className = 'rgm-thread-reply-slot'
-  detail.appendChild(replySlot)
+  const replySlot = document.createElement("div");
+  replySlot.className = "rgm-thread-reply-slot";
+  detail.appendChild(replySlot);
 
-  const replyBtn = document.createElement('button')
-  replyBtn.type = 'button'
-  replyBtn.className = 'rgm-thread-action'
-  replyBtn.textContent = 'Reply'
-  replyBtn.addEventListener('click', () => {
-    openReplyComposer(replySlot, thread, richRoot, ctx, replyBtn)
-  })
+  const replyBtn = document.createElement("button");
+  replyBtn.type = "button";
+  replyBtn.className = "rgm-thread-action";
+  replyBtn.textContent = "Reply";
+  replyBtn.addEventListener("click", () => {
+    openReplyComposer(replySlot, thread, richRoot, ctx, replyBtn);
+  });
 
-  const footer = document.createElement('div')
-  footer.className = 'rgm-thread-footer'
+  const footer = document.createElement("div");
+  footer.className = "rgm-thread-footer";
 
-  const footerActions = document.createElement('div')
-  footerActions.className = 'rgm-thread-footer-actions'
-  footerActions.appendChild(replyBtn)
+  const footerActions = document.createElement("div");
+  footerActions.className = "rgm-thread-footer-actions";
+  footerActions.appendChild(replyBtn);
 
   if (root?.htmlUrl) {
-    const sep = document.createElement('span')
-    sep.className = 'rgm-thread-footer-sep'
-    sep.setAttribute('aria-hidden', 'true')
-    sep.textContent = '|'
+    const sep = document.createElement("span");
+    sep.className = "rgm-thread-footer-sep";
+    sep.setAttribute("aria-hidden", "true");
+    sep.textContent = "|";
 
-    const link = document.createElement('a')
-    link.className = 'rgm-thread-link'
-    link.href = root.htmlUrl
-    link.target = '_blank'
-    link.rel = 'noopener noreferrer'
-    link.textContent = 'Open on GitHub'
-    footerActions.append(sep, link)
+    const link = document.createElement("a");
+    link.className = "rgm-thread-link";
+    link.href = root.htmlUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Open on GitHub";
+    footerActions.append(sep, link);
   }
 
-  footer.appendChild(footerActions)
-  detail.appendChild(footer)
+  footer.appendChild(footerActions);
+  detail.appendChild(footer);
 
-  showBtn.addEventListener('click', () => {
-    const open = detail.hidden
-    detail.hidden = !open
-    showBtn.textContent = open ? 'Hide' : 'Show'
-    showBtn.setAttribute('aria-expanded', String(open))
-  })
+  showBtn.addEventListener("click", () => {
+    const open = detail.hidden;
+    detail.hidden = !open;
+    showBtn.textContent = open ? "Hide" : "Show";
+    showBtn.setAttribute("aria-expanded", String(open));
+  });
 
-  bar.append(identity, locus, showBtn)
-  card.append(bar, detail)
-  return card
+  bar.append(identity, locus, showBtn);
+  card.append(bar, detail);
+  return card;
 }
 
 /**
@@ -582,65 +543,65 @@ function buildCommentBlock(
   richRoot: HTMLElement,
   ctx: RichViewContext,
 ): HTMLElement {
-  const block = document.createElement('div')
-  block.className = 'rgm-thread-comment'
-  block.setAttribute('data-comment-id', String(comment.id))
+  const block = document.createElement("div");
+  block.className = "rgm-thread-comment";
+  block.setAttribute("data-comment-id", String(comment.id));
 
-  const head = document.createElement('div')
-  head.className = 'rgm-thread-identity'
+  const head = document.createElement("div");
+  head.className = "rgm-thread-identity";
 
-  const avatar = document.createElement('span')
-  avatar.className = 'rgm-thread-avatar'
-  avatar.setAttribute('aria-hidden', 'true')
-  avatar.textContent = initials(comment.userLogin || '?')
+  const avatar = document.createElement("span");
+  avatar.className = "rgm-thread-avatar";
+  avatar.setAttribute("aria-hidden", "true");
+  avatar.textContent = initials(comment.userLogin || "?");
 
-  const meta = document.createElement('div')
-  meta.className = 'rgm-thread-meta'
-  const who = document.createElement('span')
-  who.className = 'rgm-thread-login'
-  who.textContent = comment.userLogin || 'unknown'
-  const when = document.createElement('span')
-  when.className = 'rgm-thread-when'
-  when.textContent = formatRelativeTime(comment.createdAt)
-  meta.append(who, when)
-  head.append(avatar, meta)
-  block.appendChild(head)
+  const meta = document.createElement("div");
+  meta.className = "rgm-thread-meta";
+  const who = document.createElement("span");
+  who.className = "rgm-thread-login";
+  who.textContent = comment.userLogin || "unknown";
+  const when = document.createElement("span");
+  when.className = "rgm-thread-when";
+  when.textContent = formatRelativeTime(comment.createdAt);
+  meta.append(who, when);
+  head.append(avatar, meta);
+  block.appendChild(head);
 
-  const bodyHost = document.createElement('div')
-  bodyHost.className = 'rgm-thread-body'
-  bodyHost.appendChild(renderMarkdownBody(comment.body))
-  block.appendChild(bodyHost)
+  const bodyHost = document.createElement("div");
+  bodyHost.className = "rgm-thread-body";
+  bodyHost.appendChild(renderMarkdownBody(comment.body));
+  block.appendChild(bodyHost);
 
   if (isOwnComment(comment, ctx.viewerLogin)) {
-    const actions = document.createElement('div')
-    actions.className = 'rgm-thread-comment-actions'
+    const actions = document.createElement("div");
+    actions.className = "rgm-thread-comment-actions";
 
-    const editBtn = document.createElement('button')
-    editBtn.type = 'button'
-    editBtn.className = 'rgm-thread-action'
-    editBtn.textContent = 'Edit'
-    editBtn.addEventListener('click', () => {
-      openEditComposer(block, bodyHost, actions, comment, richRoot, ctx)
-    })
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "rgm-thread-action";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", () => {
+      openEditComposer(block, bodyHost, actions, comment, richRoot, ctx);
+    });
 
-    const deleteBtn = document.createElement('button')
-    deleteBtn.type = 'button'
-    deleteBtn.className = 'rgm-thread-action rgm-thread-action-danger'
-    deleteBtn.textContent = 'Delete'
-    deleteBtn.addEventListener('click', () => {
-      void deleteComment(comment, richRoot, ctx, deleteBtn)
-    })
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "rgm-thread-action rgm-thread-action-danger";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", () => {
+      void deleteComment(comment, richRoot, ctx, deleteBtn);
+    });
 
-    const sep = document.createElement('span')
-    sep.className = 'rgm-thread-footer-sep'
-    sep.setAttribute('aria-hidden', 'true')
-    sep.textContent = '|'
+    const sep = document.createElement("span");
+    sep.className = "rgm-thread-footer-sep";
+    sep.setAttribute("aria-hidden", "true");
+    sep.textContent = "|";
 
-    actions.append(editBtn, sep, deleteBtn)
-    block.appendChild(actions)
+    actions.append(editBtn, sep, deleteBtn);
+    block.appendChild(actions);
   }
 
-  return block
+  return block;
 }
 
 /**
@@ -659,44 +620,44 @@ function openReplyComposer(
   ctx: RichViewContext,
   replyBtn: HTMLButtonElement,
 ): void {
-  if (slot.querySelector('.rgm-thread-reply')) return
-  replyBtn.disabled = true
+  if (slot.querySelector(".rgm-thread-reply")) return;
+  replyBtn.disabled = true;
 
-  const panel = document.createElement('div')
-  panel.className = 'rgm-thread-reply'
+  const panel = document.createElement("div");
+  panel.className = "rgm-thread-reply";
 
-  const editorHost = document.createElement('div')
-  panel.appendChild(editorHost)
+  const editorHost = document.createElement("div");
+  panel.appendChild(editorHost);
 
-  const actions = document.createElement('div')
-  actions.className = 'rgm-composer-actions'
-  const status = document.createElement('span')
-  status.className = 'rgm-composer-status'
-  status.hidden = true
+  const actions = document.createElement("div");
+  actions.className = "rgm-composer-actions";
+  const status = document.createElement("span");
+  status.className = "rgm-composer-status";
+  status.hidden = true;
 
-  const submit = document.createElement('button')
-  submit.type = 'button'
-  submit.className = 'rgm-composer-btn rgm-composer-btn-primary'
-  submit.textContent = 'Reply'
+  const submit = document.createElement("button");
+  submit.type = "button";
+  submit.className = "rgm-composer-btn rgm-composer-btn-primary";
+  submit.textContent = "Reply";
 
-  const cancel = document.createElement('button')
-  cancel.type = 'button'
-  cancel.className = 'rgm-composer-btn'
-  cancel.textContent = 'Cancel'
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "rgm-composer-btn";
+  cancel.textContent = "Cancel";
 
-  let editor: CommentEditorHandle | null = null
+  let editor: CommentEditorHandle | null = null;
   /**
    * Close the reply panel and re-enable the reply button.
    * @returns Nothing.
    */
   const close = () => {
-    editor?.destroy()
-    panel.remove()
-    replyBtn.disabled = false
-  }
+    editor?.destroy();
+    panel.remove();
+    replyBtn.disabled = false;
+  };
 
-  cancel.addEventListener('click', close)
-  submit.addEventListener('click', () => {
+  cancel.addEventListener("click", close);
+  submit.addEventListener("click", () => {
     void submitReply({
       editor,
       submit,
@@ -705,18 +666,18 @@ function openReplyComposer(
       richRoot,
       ctx,
       onDone: close,
-    })
-  })
+    });
+  });
 
-  actions.append(submit, cancel, status)
-  panel.appendChild(actions)
-  slot.appendChild(panel)
+  actions.append(submit, cancel, status);
+  panel.appendChild(actions);
+  slot.appendChild(panel);
 
   editor = mountCommentEditor(editorHost, {
-    placeholder: 'Reply…',
+    placeholder: "Reply…",
     onSubmit: () => submit.click(),
-  })
-  editor.focus()
+  });
+  editor.focus();
 }
 
 /**
@@ -725,60 +686,60 @@ function openReplyComposer(
  * @returns Nothing.
  */
 async function submitReply(args: {
-  editor: CommentEditorHandle | null
-  submit: HTMLButtonElement
-  status: HTMLElement
-  thread: ReviewThreadDto
-  richRoot: HTMLElement
-  ctx: RichViewContext
-  onDone: () => void
+  editor: CommentEditorHandle | null;
+  submit: HTMLButtonElement;
+  status: HTMLElement;
+  thread: ReviewThreadDto;
+  richRoot: HTMLElement;
+  ctx: RichViewContext;
+  onDone: () => void;
 }): Promise<void> {
-  const { editor, submit, status, thread, richRoot, ctx, onDone } = args
-  const body = editor?.getMarkdown().trim() ?? ''
+  const { editor, submit, status, thread, richRoot, ctx, onDone } = args;
+  const body = editor?.getMarkdown().trim() ?? "";
   if (!body) {
-    status.hidden = false
-    status.textContent = 'Write a reply first.'
-    status.classList.add('rgm-composer-status-error')
-    return
+    status.hidden = false;
+    status.textContent = "Write a reply first.";
+    status.classList.add("rgm-composer-status-error");
+    return;
   }
-  if (!ctx.owner || !ctx.repo || !ctx.pullNumber) return
+  if (!ctx.owner || !ctx.repo || !ctx.pullNumber) return;
 
-  submit.disabled = true
-  status.hidden = false
-  status.classList.remove('rgm-composer-status-error')
-  status.textContent = 'Posting…'
+  submit.disabled = true;
+  status.hidden = false;
+  status.classList.remove("rgm-composer-status-error");
+  status.textContent = "Posting…";
 
   const response = (await chrome.runtime.sendMessage({
-    type: 'REPLY_REVIEW_COMMENT',
+    type: "REPLY_REVIEW_COMMENT",
     owner: ctx.owner,
     repo: ctx.repo,
     pullNumber: ctx.pullNumber,
     inReplyToId: thread.rootId,
     body,
-  })) as ReviewCommentDto | { error: string }
+  })) as ReviewCommentDto | { error: string };
 
-  if (response && 'error' in response) {
-    submit.disabled = false
-    status.textContent = response.error
-    status.classList.add('rgm-composer-status-error')
-    return
+  if (response && "error" in response) {
+    submit.disabled = false;
+    status.textContent = response.error;
+    status.classList.add("rgm-composer-status-error");
+    return;
   }
 
   // The reply is on the server now, so GitHub's page is already stale.
   // Flag it before the sync, which may fail for its own reasons.
-  markCommentsDirty(richRoot)
+  markCommentsDirty(richRoot);
 
-  status.textContent = 'Syncing…'
+  status.textContent = "Syncing…";
   const synced = await syncThreadsFromServer(richRoot, ctx, {
     expectCommentId: response.id,
-  })
+  });
   if (!synced.ok) {
-    submit.disabled = false
-    status.textContent = synced.error
-    status.classList.add('rgm-composer-status-error')
-    return
+    submit.disabled = false;
+    status.textContent = synced.error;
+    status.classList.add("rgm-composer-status-error");
+    return;
   }
-  onDone()
+  onDone();
 }
 
 /**
@@ -799,44 +760,44 @@ function openEditComposer(
   richRoot: HTMLElement,
   ctx: RichViewContext,
 ): void {
-  if (block.querySelector('.rgm-thread-edit')) return
+  if (block.querySelector(".rgm-thread-edit")) return;
 
-  bodyHost.hidden = true
-  actions.hidden = true
+  bodyHost.hidden = true;
+  actions.hidden = true;
 
-  const panel = document.createElement('div')
-  panel.className = 'rgm-thread-edit'
-  const editorHost = document.createElement('div')
-  panel.appendChild(editorHost)
+  const panel = document.createElement("div");
+  panel.className = "rgm-thread-edit";
+  const editorHost = document.createElement("div");
+  panel.appendChild(editorHost);
 
-  const row = document.createElement('div')
-  row.className = 'rgm-composer-actions'
-  const status = document.createElement('span')
-  status.className = 'rgm-composer-status'
-  status.hidden = true
-  const save = document.createElement('button')
-  save.type = 'button'
-  save.className = 'rgm-composer-btn rgm-composer-btn-primary'
-  save.textContent = 'Save'
-  const cancel = document.createElement('button')
-  cancel.type = 'button'
-  cancel.className = 'rgm-composer-btn'
-  cancel.textContent = 'Cancel'
+  const row = document.createElement("div");
+  row.className = "rgm-composer-actions";
+  const status = document.createElement("span");
+  status.className = "rgm-composer-status";
+  status.hidden = true;
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "rgm-composer-btn rgm-composer-btn-primary";
+  save.textContent = "Save";
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "rgm-composer-btn";
+  cancel.textContent = "Cancel";
 
-  let editor: CommentEditorHandle | null = null
+  let editor: CommentEditorHandle | null = null;
   /**
    * Close the edit panel and restore the comment body and actions.
    * @returns Nothing.
    */
   const close = () => {
-    editor?.destroy()
-    panel.remove()
-    bodyHost.hidden = false
-    actions.hidden = false
-  }
+    editor?.destroy();
+    panel.remove();
+    bodyHost.hidden = false;
+    actions.hidden = false;
+  };
 
-  cancel.addEventListener('click', close)
-  save.addEventListener('click', () => {
+  cancel.addEventListener("click", close);
+  save.addEventListener("click", () => {
     void submitEdit({
       editor,
       save,
@@ -846,18 +807,18 @@ function openEditComposer(
       ctx,
       bodyHost,
       onDone: close,
-    })
-  })
+    });
+  });
 
-  row.append(save, cancel, status)
-  panel.appendChild(row)
-  block.appendChild(panel)
+  row.append(save, cancel, status);
+  panel.appendChild(row);
+  block.appendChild(panel);
 
   editor = mountCommentEditor(editorHost, {
     initialMarkdown: comment.body,
     onSubmit: () => save.click(),
-  })
-  editor.focus()
+  });
+  editor.focus();
 }
 
 /**
@@ -866,57 +827,56 @@ function openEditComposer(
  * @returns Nothing.
  */
 async function submitEdit(args: {
-  editor: CommentEditorHandle | null
-  save: HTMLButtonElement
-  status: HTMLElement
-  comment: ReviewCommentDto
-  richRoot: HTMLElement
-  ctx: RichViewContext
-  bodyHost: HTMLElement
-  onDone: () => void
+  editor: CommentEditorHandle | null;
+  save: HTMLButtonElement;
+  status: HTMLElement;
+  comment: ReviewCommentDto;
+  richRoot: HTMLElement;
+  ctx: RichViewContext;
+  bodyHost: HTMLElement;
+  onDone: () => void;
 }): Promise<void> {
-  const { editor, save, status, comment, richRoot, ctx, bodyHost, onDone } =
-    args
-  const body = editor?.getMarkdown().trim() ?? ''
+  const { editor, save, status, comment, richRoot, ctx, bodyHost, onDone } = args;
+  const body = editor?.getMarkdown().trim() ?? "";
   if (!body) {
-    status.hidden = false
-    status.textContent = 'Comment cannot be empty.'
-    status.classList.add('rgm-composer-status-error')
-    return
+    status.hidden = false;
+    status.textContent = "Comment cannot be empty.";
+    status.classList.add("rgm-composer-status-error");
+    return;
   }
-  if (!ctx.owner || !ctx.repo || !ctx.pullNumber) return
+  if (!ctx.owner || !ctx.repo || !ctx.pullNumber) return;
 
-  save.disabled = true
-  status.hidden = false
-  status.classList.remove('rgm-composer-status-error')
-  status.textContent = 'Saving…'
+  save.disabled = true;
+  status.hidden = false;
+  status.classList.remove("rgm-composer-status-error");
+  status.textContent = "Saving…";
 
   const response = (await chrome.runtime.sendMessage({
-    type: 'UPDATE_REVIEW_COMMENT',
+    type: "UPDATE_REVIEW_COMMENT",
     owner: ctx.owner,
     repo: ctx.repo,
     pullNumber: ctx.pullNumber,
     commentId: comment.id,
     body,
-  })) as ReviewCommentDto | { error: string }
+  })) as ReviewCommentDto | { error: string };
 
-  if (response && 'error' in response) {
-    save.disabled = false
-    status.textContent = response.error
-    status.classList.add('rgm-composer-status-error')
-    return
+  if (response && "error" in response) {
+    save.disabled = false;
+    status.textContent = response.error;
+    status.classList.add("rgm-composer-status-error");
+    return;
   }
 
   // The edit is on the server now, so GitHub's page is already stale.
-  markCommentsDirty(richRoot)
+  markCommentsDirty(richRoot);
 
-  status.textContent = 'Syncing…'
-  const synced = await syncThreadsFromServer(richRoot, ctx)
+  status.textContent = "Syncing…";
+  const synced = await syncThreadsFromServer(richRoot, ctx);
   if (!synced.ok) {
     // Still update local body so the user is not stuck. Next sync will reconcile.
-    bodyHost.replaceChildren(renderMarkdownBody(body))
+    bodyHost.replaceChildren(renderMarkdownBody(body));
   }
-  onDone()
+  onDone();
 }
 
 /**
@@ -933,32 +893,32 @@ async function deleteComment(
   ctx: RichViewContext,
   button: HTMLButtonElement,
 ): Promise<void> {
-  if (!ctx.owner || !ctx.repo || !ctx.pullNumber) return
-  if (!window.confirm('Delete this comment?')) return
+  if (!ctx.owner || !ctx.repo || !ctx.pullNumber) return;
+  if (!window.confirm("Delete this comment?")) return;
 
-  button.disabled = true
+  button.disabled = true;
   const response = (await chrome.runtime.sendMessage({
-    type: 'DELETE_REVIEW_COMMENT',
+    type: "DELETE_REVIEW_COMMENT",
     owner: ctx.owner,
     repo: ctx.repo,
     pullNumber: ctx.pullNumber,
     commentId: comment.id,
-  })) as { ok: true } | { error: string }
+  })) as { ok: true } | { error: string };
 
-  if (response && 'error' in response) {
-    button.disabled = false
-    window.alert(response.error)
-    return
+  if (response && "error" in response) {
+    button.disabled = false;
+    window.alert(response.error);
+    return;
   }
 
   // The comment is gone from the server now, so GitHub's page is already
   // stale even if the sync below cannot confirm it.
-  markCommentsDirty(richRoot)
+  markCommentsDirty(richRoot);
 
-  const synced = await syncThreadsFromServer(richRoot, ctx)
+  const synced = await syncThreadsFromServer(richRoot, ctx);
   if (!synced.ok) {
-    button.disabled = false
-    window.alert(synced.error)
+    button.disabled = false;
+    window.alert(synced.error);
   }
 }
 
@@ -969,19 +929,15 @@ async function deleteComment(
  * @param reanchored - True when the thread is re-anchored.
  * @returns The formatted path and line string.
  */
-function formatPathLines(
-  fileName: string,
-  thread: ReviewThreadDto,
-  reanchored: boolean,
-): string {
-  const root = thread.comments[0]
+function formatPathLines(fileName: string, thread: ReviewThreadDto, reanchored: boolean): string {
+  const root = thread.comments[0];
   if (reanchored && root?.originalLine != null) {
-    return `${fileName} L${root.originalLine} → L${thread.line}`
+    return `${fileName} L${root.originalLine} → L${thread.line}`;
   }
   if (thread.startLine !== thread.line) {
-    return `${fileName} L${thread.startLine}–${thread.line}`
+    return `${fileName} L${thread.startLine}–${thread.line}`;
   }
-  return `${fileName} L${thread.line}`
+  return `${fileName} L${thread.line}`;
 }
 
 /**
@@ -990,9 +946,9 @@ function formatPathLines(
  * @returns One or two uppercase characters.
  */
 function initials(login: string): string {
-  const clean = login.replace(/[^a-zA-Z0-9]/g, '')
-  if (clean.length >= 2) return clean.slice(0, 2).toUpperCase()
-  return (clean || '?').toUpperCase()
+  const clean = login.replace(/[^a-zA-Z0-9]/g, "");
+  if (clean.length >= 2) return clean.slice(0, 2).toUpperCase();
+  return (clean || "?").toUpperCase();
 }
 
 /**
@@ -1001,16 +957,16 @@ function initials(login: string): string {
  * @returns A relative time string like "5m ago" or "2 days ago".
  */
 function formatRelativeTime(iso: string): string {
-  const then = Date.parse(iso)
-  if (!Number.isFinite(then)) return ''
-  const seconds = Math.round((Date.now() - then) / 1000)
-  if (seconds < 60) return 'just now'
-  const minutes = Math.round(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.round(minutes / 60)
-  if (hours < 48) return `${hours}h ago`
-  const days = Math.round(hours / 24)
-  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`
-  const months = Math.round(days / 30)
-  return `${months} mo ago`
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return "";
+  const seconds = Math.round((Date.now() - then) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const months = Math.round(days / 30);
+  return `${months} mo ago`;
 }

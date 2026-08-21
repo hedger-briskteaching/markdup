@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import '../shared/ui.css';
+@import "tailwindcss";
+@import "../shared/ui.css";
 
 html,
 body {

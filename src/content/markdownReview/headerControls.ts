@@ -4,25 +4,25 @@
  * Re-apply suppression when GitHub re-renders the header.
  */
 
-const SUPPRESSED_ATTR = 'data-rgm-rich-suppressed'
-export const FILE_COLLAPSED_ATTR = 'data-rgm-file-collapsed'
+const SUPPRESSED_ATTR = "data-rgm-rich-suppressed";
+export const FILE_COLLAPSED_ATTR = "data-rgm-file-collapsed";
 
 /** GitHub CSS-module class stamped on the file header when collapsed. */
-const COLLAPSED_HEADER_CLASS = '[class*="DiffFileHeader-module__collapsed"]'
+const COLLAPSED_HEADER_CLASS = '[class*="DiffFileHeader-module__collapsed"]';
 
 const CHEVRON_ICON =
-  'svg.octicon-chevron-down, svg.octicon-chevron-right, [class*="Chevron"], [class*="chevron"]'
+  'svg.octicon-chevron-down, svg.octicon-chevron-right, [class*="Chevron"], [class*="chevron"]';
 
 type SuppressBinding = {
-  observer: MutationObserver
-}
+  observer: MutationObserver;
+};
 
 type CollapseBinding = {
-  observer: MutationObserver
-}
+  observer: MutationObserver;
+};
 
-const suppressBindings = new WeakMap<Element, SuppressBinding>()
-const collapseBindings = new WeakMap<Element, CollapseBinding>()
+const suppressBindings = new WeakMap<Element, SuppressBinding>();
+const collapseBindings = new WeakMap<Element, CollapseBinding>();
 
 /**
  * Mark an element as suppressed with hidden and aria attributes.
@@ -30,9 +30,9 @@ const collapseBindings = new WeakMap<Element, CollapseBinding>()
  * @returns Nothing.
  */
 function suppress(el: HTMLElement): void {
-  el.setAttribute(SUPPRESSED_ATTR, '')
-  el.setAttribute('hidden', '')
-  el.setAttribute('aria-hidden', 'true')
+  el.setAttribute(SUPPRESSED_ATTR, "");
+  el.setAttribute("hidden", "");
+  el.setAttribute("aria-hidden", "true");
 }
 
 /**
@@ -41,9 +41,9 @@ function suppress(el: HTMLElement): void {
  * @returns Nothing.
  */
 function unsuppress(el: HTMLElement): void {
-  el.removeAttribute(SUPPRESSED_ATTR)
-  el.removeAttribute('hidden')
-  el.removeAttribute('aria-hidden')
+  el.removeAttribute(SUPPRESSED_ATTR);
+  el.removeAttribute("hidden");
+  el.removeAttribute("aria-hidden");
 }
 
 /**
@@ -52,11 +52,11 @@ function unsuppress(el: HTMLElement): void {
  * @returns Array of header button elements.
  */
 function headerButtons(region: Element): HTMLElement[] {
-  const header = region.querySelector('[data-diff-header-wrapper]')
-  if (!header) return []
+  const header = region.querySelector("[data-diff-header-wrapper]");
+  if (!header) return [];
   return [...header.querySelectorAll<HTMLElement>('button, a[role="button"]')].filter(
-    (el) => !el.closest('[data-rgm-toggle], [data-rgm-rich]'),
-  )
+    (el) => !el.closest("[data-rgm-toggle], [data-rgm-rich]"),
+  );
 }
 
 /**
@@ -66,21 +66,21 @@ function headerButtons(region: Element): HTMLElement[] {
  * @returns Lowercase label text.
  */
 function controlLabel(el: HTMLElement): string {
-  const labelledBy = el.getAttribute('aria-labelledby')
+  const labelledBy = el.getAttribute("aria-labelledby");
   if (labelledBy) {
     const text = labelledBy
       .split(/\s+/)
-      .map((id) => document.getElementById(id)?.textContent ?? '')
-      .join(' ')
-      .trim()
-    if (text) return text.toLowerCase()
+      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .join(" ")
+      .trim();
+    if (text) return text.toLowerCase();
   }
   return (
-    el.getAttribute('aria-label') ??
-    el.getAttribute('title') ??
+    el.getAttribute("aria-label") ??
+    el.getAttribute("title") ??
     el.textContent ??
-    ''
-  ).toLowerCase()
+    ""
+  ).toLowerCase();
 }
 
 /**
@@ -90,23 +90,21 @@ function controlLabel(el: HTMLElement): string {
  * @returns The collapse button, or null if not found.
  */
 export function findFileCollapseButton(region: Element): HTMLElement | null {
-  const buttons = headerButtons(region)
+  const buttons = headerButtons(region);
 
-  const byChevron = buttons.find((btn) =>
-    Boolean(btn.querySelector(CHEVRON_ICON)),
-  )
-  if (byChevron) return byChevron
+  const byChevron = buttons.find((btn) => Boolean(btn.querySelector(CHEVRON_ICON)));
+  if (byChevron) return byChevron;
 
   const byLabel = buttons.find((btn) => {
-    const label = controlLabel(btn)
+    const label = controlLabel(btn);
     return (
       /\bcollapse file\b/.test(label) ||
       /\bexpand file\b/.test(label) ||
-      label === 'collapse' ||
-      label === 'expand'
-    )
-  })
-  return byLabel ?? null
+      label === "collapse" ||
+      label === "expand"
+    );
+  });
+  return byLabel ?? null;
 }
 
 /**
@@ -116,18 +114,14 @@ export function findFileCollapseButton(region: Element): HTMLElement | null {
  * @returns The button element, or null if not found.
  */
 export function findExpandAllLinesButton(region: Element): HTMLElement | null {
-  const buttons = headerButtons(region)
+  const buttons = headerButtons(region);
 
-  const byLabel = buttons.find((btn) =>
-    controlLabel(btn).includes('expand all lines'),
-  )
-  if (byLabel) return byLabel
+  const byLabel = buttons.find((btn) => controlLabel(btn).includes("expand all lines"));
+  if (byLabel) return byLabel;
 
   return (
-    buttons.find((btn) =>
-      Boolean(btn.querySelector('svg.octicon-unfold, .octicon-unfold')),
-    ) ?? null
-  )
+    buttons.find((btn) => Boolean(btn.querySelector("svg.octicon-unfold, .octicon-unfold"))) ?? null
+  );
 }
 
 /**
@@ -136,28 +130,26 @@ export function findExpandAllLinesButton(region: Element): HTMLElement | null {
  * @returns The control element, or null if not found.
  */
 export function findViewedControl(region: Element): HTMLElement | null {
-  const header = region.querySelector('[data-diff-header-wrapper]') ?? region
+  const header = region.querySelector("[data-diff-header-wrapper]") ?? region;
 
   const byLabel = header.querySelector<HTMLElement>(
     'button[aria-label="Viewed"], button[aria-label="Not Viewed"]',
-  )
-  if (byLabel && !byLabel.closest('[data-rgm-toggle], [data-rgm-rich]')) {
-    return byLabel
+  );
+  if (byLabel && !byLabel.closest("[data-rgm-toggle], [data-rgm-rich]")) {
+    return byLabel;
   }
 
-  const checkbox = header.querySelector<HTMLInputElement>(
-    'input[type="checkbox"][name="viewed"]',
-  )
-  if (checkbox) return checkbox
+  const checkbox = header.querySelector<HTMLInputElement>('input[type="checkbox"][name="viewed"]');
+  if (checkbox) return checkbox;
 
   for (const btn of headerButtons(region)) {
-    const label = controlLabel(btn).trim()
-    if (label === 'viewed' || label === 'not viewed') {
-      return btn
+    const label = controlLabel(btn).trim();
+    if (label === "viewed" || label === "not viewed") {
+      return btn;
     }
   }
 
-  return null
+  return null;
 }
 
 /**
@@ -166,31 +158,25 @@ export function findViewedControl(region: Element): HTMLElement | null {
  * @returns The button element, or null if not found.
  */
 export function findFileCommentButton(region: Element): HTMLElement | null {
-  const buttons = headerButtons(region)
+  const buttons = headerButtons(region);
 
   const byLabel = buttons.find((btn) => {
-    const label = controlLabel(btn)
+    const label = controlLabel(btn);
     return (
-      label.includes('comment on this file') ||
-      label === 'comment' ||
-      /^comment\b/.test(label)
-    )
-  })
-  if (byLabel) return byLabel
+      label.includes("comment on this file") || label === "comment" || /^comment\b/.test(label)
+    );
+  });
+  if (byLabel) return byLabel;
 
   const byIcon = buttons.find((btn) =>
     Boolean(
-      btn.querySelector(
-        'svg.octicon-comment, .octicon-comment, .octicon-comment-discussion',
-      ),
+      btn.querySelector("svg.octicon-comment, .octicon-comment, .octicon-comment-discussion"),
     ),
-  )
-  if (byIcon) return byIcon
+  );
+  if (byIcon) return byIcon;
 
-  const byClass = buttons.find((btn) =>
-    Boolean(btn.querySelector('[class*="CommentIcon"]')),
-  )
-  return byClass ?? null
+  const byClass = buttons.find((btn) => Boolean(btn.querySelector('[class*="CommentIcon"]')));
+  return byClass ?? null;
 }
 
 /**
@@ -200,21 +186,21 @@ export function findFileCommentButton(region: Element): HTMLElement | null {
  * @returns True when the file section is collapsed.
  */
 export function isFileCollapsed(region: Element): boolean {
-  const header = region.querySelector('[data-diff-header-wrapper]')
-  if (!header) return false
+  const header = region.querySelector("[data-diff-header-wrapper]");
+  if (!header) return false;
 
   if (header.querySelector(COLLAPSED_HEADER_CLASS)) {
-    return true
+    return true;
   }
 
-  if (header.querySelector('svg.octicon-chevron-right')) {
-    return true
+  if (header.querySelector("svg.octicon-chevron-right")) {
+    return true;
   }
-  if (header.querySelector('svg.octicon-chevron-down')) {
-    return false
+  if (header.querySelector("svg.octicon-chevron-down")) {
+    return false;
   }
 
-  return false
+  return false;
 }
 
 /**
@@ -223,7 +209,7 @@ export function isFileCollapsed(region: Element): boolean {
  * @returns Nothing.
  */
 export function syncFileCollapsedState(region: Element): void {
-  region.toggleAttribute(FILE_COLLAPSED_ATTR, isFileCollapsed(region))
+  region.toggleAttribute(FILE_COLLAPSED_ATTR, isFileCollapsed(region));
 }
 
 /**
@@ -233,27 +219,27 @@ export function syncFileCollapsedState(region: Element): void {
  * @returns Nothing.
  */
 export function bindFileCollapseSync(region: Element): void {
-  syncFileCollapsedState(region)
+  syncFileCollapsedState(region);
   if (collapseBindings.has(region)) {
-    return
+    return;
   }
 
-  let scheduled = false
+  let scheduled = false;
   const observer = new MutationObserver(() => {
-    if (scheduled) return
-    scheduled = true
+    if (scheduled) return;
+    scheduled = true;
     queueMicrotask(() => {
-      scheduled = false
-      syncFileCollapsedState(region)
-    })
-  })
+      scheduled = false;
+      syncFileCollapsedState(region);
+    });
+  });
   observer.observe(region, {
     attributes: true,
-    attributeFilter: ['class'],
+    attributeFilter: ["class"],
     subtree: true,
     childList: true,
-  })
-  collapseBindings.set(region, { observer })
+  });
+  collapseBindings.set(region, { observer });
 }
 
 /**
@@ -262,11 +248,11 @@ export function bindFileCollapseSync(region: Element): void {
  * @returns Nothing.
  */
 export function unbindFileCollapseSync(region: Element): void {
-  const binding = collapseBindings.get(region)
-  if (!binding) return
-  binding.observer.disconnect()
-  collapseBindings.delete(region)
-  region.removeAttribute(FILE_COLLAPSED_ATTR)
+  const binding = collapseBindings.get(region);
+  if (!binding) return;
+  binding.observer.disconnect();
+  collapseBindings.delete(region);
+  region.removeAttribute(FILE_COLLAPSED_ATTR);
 }
 
 /**
@@ -281,7 +267,7 @@ export function hideInterferingHeaderControls(region: Element): void {
     findFileCommentButton(region),
     findExpandAllLinesButton(region),
   ]) {
-    if (el) suppress(el)
+    if (el) suppress(el);
   }
 }
 
@@ -291,12 +277,10 @@ export function hideInterferingHeaderControls(region: Element): void {
  * @returns Nothing.
  */
 export function showInterferingHeaderControls(region: Element): void {
-  unbindHeaderControlSuppress(region)
-  const header = region.querySelector('[data-diff-header-wrapper]') ?? region
-  for (const el of header.querySelectorAll<HTMLElement>(
-    `[${SUPPRESSED_ATTR}]`,
-  )) {
-    unsuppress(el)
+  unbindHeaderControlSuppress(region);
+  const header = region.querySelector("[data-diff-header-wrapper]") ?? region;
+  for (const el of header.querySelectorAll<HTMLElement>(`[${SUPPRESSED_ATTR}]`)) {
+    unsuppress(el);
   }
 }
 
@@ -307,27 +291,26 @@ export function showInterferingHeaderControls(region: Element): void {
  * @returns Nothing.
  */
 export function bindHeaderControlSuppress(region: Element): void {
-  hideInterferingHeaderControls(region)
+  hideInterferingHeaderControls(region);
   if (suppressBindings.has(region)) {
-    return
+    return;
   }
 
-  const header =
-    region.querySelector('[data-diff-header-wrapper]') ?? region
-  let scheduled = false
+  const header = region.querySelector("[data-diff-header-wrapper]") ?? region;
+  let scheduled = false;
   const observer = new MutationObserver(() => {
-    if (scheduled) return
-    scheduled = true
+    if (scheduled) return;
+    scheduled = true;
     queueMicrotask(() => {
-      scheduled = false
-      hideInterferingHeaderControls(region)
-    })
-  })
+      scheduled = false;
+      hideInterferingHeaderControls(region);
+    });
+  });
   observer.observe(header, {
     childList: true,
     subtree: true,
-  })
-  suppressBindings.set(region, { observer })
+  });
+  suppressBindings.set(region, { observer });
 }
 
 /**
@@ -336,8 +319,8 @@ export function bindHeaderControlSuppress(region: Element): void {
  * @returns Nothing.
  */
 export function unbindHeaderControlSuppress(region: Element): void {
-  const binding = suppressBindings.get(region)
-  if (!binding) return
-  binding.observer.disconnect()
-  suppressBindings.delete(region)
+  const binding = suppressBindings.get(region);
+  if (!binding) return;
+  binding.observer.disconnect();
+  suppressBindings.delete(region);
 }

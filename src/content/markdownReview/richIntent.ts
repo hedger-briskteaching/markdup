@@ -6,11 +6,11 @@
  * Intent lives outside the DOM so we can restore rich mode afterward.
  */
 
-const richPaths = new Set<string>()
+const richPaths = new Set<string>();
 
-export type RichLayout = 'before' | 'after' | 'split'
+export type RichLayout = "before" | "after" | "split";
 
-const layoutsByPath = new Map<string, RichLayout>()
+const layoutsByPath = new Map<string, RichLayout>();
 
 /**
  * Record or clear the rich-mode intent for a file path.
@@ -20,21 +20,21 @@ const layoutsByPath = new Map<string, RichLayout>()
  */
 export function setRichPathIntent(path: string, rich: boolean): void {
   if (rich) {
-    richPaths.add(path)
+    richPaths.add(path);
   } else {
-    richPaths.delete(path)
-    layoutsByPath.delete(path)
+    richPaths.delete(path);
+    layoutsByPath.delete(path);
   }
 }
 
 /** Store the preferred rich-diff layout for one file while rich mode is on. */
 export function setRichLayoutIntent(path: string, layout: RichLayout): void {
-  layoutsByPath.set(path, layout)
+  layoutsByPath.set(path, layout);
 }
 
 /** Return the file's selected layout, defaulting to the full Before/After view. */
 export function getRichLayoutIntent(path: string | undefined): RichLayout {
-  return path ? (layoutsByPath.get(path) ?? 'split') : 'split'
+  return path ? (layoutsByPath.get(path) ?? "split") : "split";
 }
 
 /**
@@ -43,7 +43,7 @@ export function getRichLayoutIntent(path: string | undefined): RichLayout {
  * @returns True when rich mode intent exists for this path.
  */
 export function hasRichPathIntent(path: string): boolean {
-  return richPaths.has(path)
+  return richPaths.has(path);
 }
 
 /**
@@ -52,6 +52,6 @@ export function hasRichPathIntent(path: string): boolean {
  * @returns Nothing.
  */
 export function clearRichPathIntents(): void {
-  richPaths.clear()
-  layoutsByPath.clear()
+  richPaths.clear();
+  layoutsByPath.clear();
 }

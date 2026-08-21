@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react"],
+  "categories": {
+    "correctness": "error"
+  },
+  "jsPlugins": ["./scripts/oxlint-jsx-sort-props-plugin.js"],
+  "rules": {
+    "local-jsx-sort-props/jsx-sort-props": "error",
+    "react/set-state-in-effect": "off"
+  },
+  "ignorePatterns": ["dist/**", "coverage/**"],
+  "env": {
+    "builtin": true,
+    "browser": true
+  },
+  "globals": {
+    "chrome": "readonly"
+  }
+}

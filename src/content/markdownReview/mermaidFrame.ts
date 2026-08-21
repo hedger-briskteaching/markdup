@@ -1,11 +1,11 @@
-import Panzoom, { type PanzoomObject } from '@panzoom/panzoom'
-import mermaid from 'mermaid'
-import type { MermaidRenderRequest } from './mermaidProtocol'
+import Panzoom, { type PanzoomObject } from "@panzoom/panzoom";
+import mermaid from "mermaid";
+import type { MermaidRenderRequest } from "./mermaidProtocol";
 
-const host = document.getElementById('app')
-if (!host) throw new Error('Mermaid frame is missing its app host.')
+const host = document.getElementById("app");
+if (!host) throw new Error("Mermaid frame is missing its app host.");
 
-const style = document.createElement('style')
+const style = document.createElement("style");
 style.textContent = `
   :root { color-scheme: light dark; }
   html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; }
@@ -17,124 +17,121 @@ style.textContent = `
   .rgm-mermaid-controls button:hover { background: #f6f8fa; }
   :root[data-rgm-theme="dark"] .rgm-mermaid-controls button { border-color: #3d444d; background: #21262d; color: #f0f6fc; }
   :root[data-rgm-theme="dark"] .rgm-mermaid-controls button:hover { background: #30363d; }
-`
-document.head.appendChild(style)
+`;
+document.head.appendChild(style);
 
-const canvas = document.createElement('div')
-canvas.className = 'rgm-mermaid-canvas'
-canvas.setAttribute('aria-live', 'polite')
-host.appendChild(canvas)
+const canvas = document.createElement("div");
+canvas.className = "rgm-mermaid-canvas";
+canvas.setAttribute("aria-live", "polite");
+host.appendChild(canvas);
 
-let panzoom: PanzoomObject | null = null
+let panzoom: PanzoomObject | null = null;
 
-window.addEventListener('message', (event: MessageEvent<unknown>) => {
-  if (event.source !== window.parent || !isRenderRequest(event.data)) return
-  void render(event.data)
-})
+window.addEventListener("message", (event: MessageEvent<unknown>) => {
+  if (event.source !== window.parent || !isRenderRequest(event.data)) return;
+  void render(event.data);
+});
 
-window.parent.postMessage({ type: 'rgm:mermaid:ready' }, '*')
+window.parent.postMessage({ type: "rgm:mermaid:ready" }, "*");
 
 function isRenderRequest(value: unknown): value is MermaidRenderRequest {
-  if (!value || typeof value !== 'object') return false
-  const request = value as Partial<MermaidRenderRequest>
+  if (!value || typeof value !== "object") return false;
+  const request = value as Partial<MermaidRenderRequest>;
   return (
-    request.type === 'rgm:mermaid:render' &&
-    typeof request.requestId === 'string' &&
-    typeof request.source === 'string' &&
-    (request.theme === 'light' || request.theme === 'dark')
-  )
+    request.type === "rgm:mermaid:render" &&
+    typeof request.requestId === "string" &&
+    typeof request.source === "string" &&
+    (request.theme === "light" || request.theme === "dark")
+  );
 }
 
 async function render(request: MermaidRenderRequest): Promise<void> {
-  panzoom?.destroy()
-  canvas.replaceChildren()
-  document.documentElement.dataset.rgmTheme = request.theme
+  panzoom?.destroy();
+  canvas.replaceChildren();
+  document.documentElement.dataset.rgmTheme = request.theme;
   mermaid.initialize({
     startOnLoad: false,
-    securityLevel: 'strict',
-    theme: request.theme === 'dark' ? 'dark' : 'default',
-  })
+    securityLevel: "strict",
+    theme: request.theme === "dark" ? "dark" : "default",
+  });
 
   try {
-    const { svg } = await mermaid.render(
-      `rgm-mermaid-${request.requestId}`,
-      request.source,
-    )
-    const fragment = document.createRange().createContextualFragment(svg)
-    const graphic = fragment.querySelector('svg')
-    if (!graphic) throw new Error('Mermaid did not return an SVG.')
+    const { svg } = await mermaid.render(`rgm-mermaid-${request.requestId}`, request.source);
+    const fragment = document.createRange().createContextualFragment(svg);
+    const graphic = fragment.querySelector("svg");
+    if (!graphic) throw new Error("Mermaid did not return an SVG.");
 
-    graphic.classList.add('rgm-mermaid-graphic')
-    graphic.setAttribute('preserveAspectRatio', 'xMidYMid meet')
-    canvas.appendChild(graphic)
-    const metrics = svgMetrics(graphic)
-    installControls(graphic)
+    graphic.classList.add("rgm-mermaid-graphic");
+    graphic.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    canvas.appendChild(graphic);
+    const metrics = svgMetrics(graphic);
+    installControls(graphic);
     panzoom = Panzoom(graphic, {
       minScale: 1,
       maxScale: 6,
-      cursor: 'grab',
+      cursor: "grab",
       panOnlyWhenZoomed: false,
-    })
-    canvas.addEventListener('wheel', onWheel, { passive: false })
+    });
+    canvas.addEventListener("wheel", onWheel, { passive: false });
     window.parent.postMessage(
-      { type: 'rgm:mermaid:metrics', requestId: request.requestId, ...metrics },
-      '*',
-    )
+      { type: "rgm:mermaid:metrics", requestId: request.requestId, ...metrics },
+      "*",
+    );
   } catch (error) {
     window.parent.postMessage(
       {
-        type: 'rgm:mermaid:error',
+        type: "rgm:mermaid:error",
         requestId: request.requestId,
         message: errorMessage(error),
       },
-      '*',
-    )
+      "*",
+    );
   }
 }
 
 function svgMetrics(svg: SVGSVGElement): { width: number; height: number } {
-  const viewBox = svg.viewBox.baseVal
+  const viewBox = svg.viewBox.baseVal;
   if (viewBox.width > 0 && viewBox.height > 0) {
-    return { width: viewBox.width, height: viewBox.height }
+    return { width: viewBox.width, height: viewBox.height };
   }
-  const width = Number.parseFloat(svg.getAttribute('width') ?? '')
-  const height = Number.parseFloat(svg.getAttribute('height') ?? '')
+  const width = Number.parseFloat(svg.getAttribute("width") ?? "");
+  const height = Number.parseFloat(svg.getAttribute("height") ?? "");
   if (!(width > 0) || !(height > 0)) {
-    throw new Error('Mermaid returned a diagram without dimensions.')
+    throw new Error("Mermaid returned a diagram without dimensions.");
   }
-  return { width, height }
+  return { width, height };
 }
 
 function installControls(graphic: SVGSVGElement): void {
-  const controls = document.createElement('div')
-  controls.className = 'rgm-mermaid-controls panzoom-exclude'
-  controls.setAttribute('aria-label', 'Diagram controls')
-  const zoomIn = controlButton('+', 'Zoom in')
-  const zoomOut = controlButton('−', 'Zoom out')
-  const reset = controlButton('↺', 'Reset view')
-  controls.append(zoomIn, zoomOut, reset)
-  canvas.appendChild(controls)
+  const controls = document.createElement("div");
+  controls.className = "rgm-mermaid-controls panzoom-exclude";
+  controls.setAttribute("aria-label", "Diagram controls");
+  const zoomIn = controlButton("+", "Zoom in");
+  const zoomOut = controlButton("−", "Zoom out");
+  const reset = controlButton("↺", "Reset view");
+  controls.append(zoomIn, zoomOut, reset);
+  canvas.appendChild(controls);
 
-  zoomIn.addEventListener('click', () => panzoom?.zoomIn())
-  zoomOut.addEventListener('click', () => panzoom?.zoomOut())
-  reset.addEventListener('click', () => panzoom?.reset())
-  graphic.setAttribute('aria-label', 'Mermaid diagram. Drag to pan.')
+  zoomIn.addEventListener("click", () => panzoom?.zoomIn());
+  zoomOut.addEventListener("click", () => panzoom?.zoomOut());
+  reset.addEventListener("click", () => panzoom?.reset());
+  graphic.setAttribute("aria-label", "Mermaid diagram. Drag to pan.");
 }
 
 function controlButton(label: string, ariaLabel: string): HTMLButtonElement {
-  const button = document.createElement('button')
-  button.type = 'button'
-  button.textContent = label
-  button.setAttribute('aria-label', ariaLabel)
-  return button
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.setAttribute("aria-label", ariaLabel);
+  return button;
 }
 
 function onWheel(event: WheelEvent): void {
-  if (!event.ctrlKey && !event.metaKey) return
-  event.preventDefault()
-  panzoom?.zoomWithWheel(event)
+  if (!event.ctrlKey && !event.metaKey) return;
+  event.preventDefault();
+  panzoom?.zoomWithWheel(event);
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown Mermaid error.'
+  return error instanceof Error ? error.message : "Unknown Mermaid error.";
 }

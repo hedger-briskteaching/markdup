@@ -1,9 +1,9 @@
 export type DiffSegment = {
-  text: string
-  tone?: 'ins' | 'del'
+  text: string;
+  tone?: "ins" | "del";
   /** Length in this side's plain text. Always equals `text.length`. */
-  srcLen: number
-}
+  srcLen: number;
+};
 
 /**
  * Compute a word-level diff for inline text in changed rows.
@@ -12,59 +12,62 @@ export type DiffSegment = {
  * @param newText - The updated plain text.
  * @returns Old-side and new-side segment arrays.
  */
-export function wordDiff(oldText: string, newText: string): {
-  oldSegments: DiffSegment[]
-  newSegments: DiffSegment[]
+export function wordDiff(
+  oldText: string,
+  newText: string,
+): {
+  oldSegments: DiffSegment[];
+  newSegments: DiffSegment[];
 } {
-  const oldWords = tokenize(oldText)
-  const newWords = tokenize(newText)
-  const n = oldWords.length
-  const m = newWords.length
+  const oldWords = tokenize(oldText);
+  const newWords = tokenize(newText);
+  const n = oldWords.length;
+  const m = newWords.length;
   const dp: number[][] = Array.from({ length: n + 1 }, () =>
     Array.from({ length: m + 1 }, () => 0),
-  )
+  );
 
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
       if (oldWords[i] === newWords[j]) {
-        dp[i]![j] = dp[i + 1]![j + 1]! + 1
+        dp[i]![j] = dp[i + 1]![j + 1]! + 1;
       } else {
-        dp[i]![j] = Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!)
+        dp[i]![j] = Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
       }
     }
   }
 
-  const oldSegments: DiffSegment[] = []
-  const newSegments: DiffSegment[] = []
-  let i = 0
-  let j = 0
+  const oldSegments: DiffSegment[] = [];
+  const newSegments: DiffSegment[] = [];
+  let i = 0;
+  let j = 0;
   while (i < n && j < m) {
     if (oldWords[i] === newWords[j]) {
-      pushSeg(oldSegments, oldWords[i]!)
-      pushSeg(newSegments, newWords[j]!)
-      i++
-      j++
+      pushSeg(oldSegments, oldWords[i]!);
+      pushSeg(newSegments, newWords[j]!);
+      i++;
+      j++;
     } else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
-      pushSeg(oldSegments, oldWords[i]!, 'del')
-      i++
+      pushSeg(oldSegments, oldWords[i]!, "del");
+      i++;
     } else {
-      pushSeg(newSegments, newWords[j]!, 'ins')
-      j++
+      pushSeg(newSegments, newWords[j]!, "ins");
+      j++;
     }
   }
   while (i < n) {
-    pushSeg(oldSegments, oldWords[i]!, 'del')
-    i++
+    pushSeg(oldSegments, oldWords[i]!, "del");
+    i++;
   }
   while (j < m) {
-    pushSeg(newSegments, newWords[j]!, 'ins')
-    j++
+    pushSeg(newSegments, newWords[j]!, "ins");
+    j++;
   }
 
   return {
     oldSegments: mergeSegments(oldSegments),
     newSegments: mergeSegments(newSegments),
-  }
+  };
 }
 
 /**
@@ -73,8 +76,8 @@ export function wordDiff(oldText: string, newText: string): {
  * @returns Array of token strings.
  */
 function tokenize(text: string): string[] {
-  const matches = text.match(/\s+|[^\s]+/g)
-  return matches ?? []
+  const matches = text.match(/\s+|[^\s]+/g);
+  return matches ?? [];
 }
 
 /**
@@ -84,12 +87,8 @@ function tokenize(text: string): string[] {
  * @param tone - `'ins'`, `'del'`, or `undefined` for unchanged.
  * @returns Nothing.
  */
-function pushSeg(
-  list: DiffSegment[],
-  text: string,
-  tone?: 'ins' | 'del',
-): void {
-  list.push({ text, tone, srcLen: text.length })
+function pushSeg(list: DiffSegment[], text: string, tone?: "ins" | "del"): void {
+  list.push({ text, tone, srcLen: text.length });
 }
 
 /**
@@ -98,17 +97,17 @@ function pushSeg(
  * @returns A new array with adjacent same-tone segments combined.
  */
 function mergeSegments(segments: DiffSegment[]): DiffSegment[] {
-  if (segments.length === 0) return segments
-  const out: DiffSegment[] = [{ ...segments[0]! }]
+  if (segments.length === 0) return segments;
+  const out: DiffSegment[] = [{ ...segments[0]! }];
   for (let i = 1; i < segments.length; i++) {
-    const prev = out[out.length - 1]!
-    const cur = segments[i]!
+    const prev = out[out.length - 1]!;
+    const cur = segments[i]!;
     if (prev.tone === cur.tone) {
-      prev.text += cur.text
-      prev.srcLen += cur.srcLen
+      prev.text += cur.text;
+      prev.srcLen += cur.srcLen;
     } else {
-      out.push({ ...cur })
+      out.push({ ...cur });
     }
   }
-  return out
+  return out;
 }

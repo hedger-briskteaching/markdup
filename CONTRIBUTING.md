@@ -16,15 +16,21 @@ Load the unpacked extension from the `dist/` folder in Chrome (`chrome://extensi
 
 ## Development
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Dev server with hot reload (writes `dist/`) |
-| `pnpm type-check` | TypeScript check |
-| `pnpm test` | Unit tests |
-| `pnpm test:coverage` | Unit tests with coverage summary |
-| `pnpm build` | Production build |
-| `pnpm package` | Build a release zip under `releases/release-X.Y.Z/` (local only, no bump) |
-| `pnpm release` | Patch-bump, package, and print GitHub Release publish steps |
+| Command              | Purpose                                                                   |
+| -------------------- | ------------------------------------------------------------------------- |
+| `pnpm dev`           | Dev server with hot reload (writes `dist/`)                               |
+| `pnpm lint`          | Oxlint (includes alphabetical JSX props)                                  |
+| `pnpm lint:fix`      | Apply safe Oxlint fixes                                                   |
+| `pnpm fmt`           | Format with Oxfmt (semicolons on)                                         |
+| `pnpm fmt:check`     | Check formatting without writing                                          |
+| `pnpm type-check`    | TypeScript check                                                          |
+| `pnpm test`          | Unit tests                                                                |
+| `pnpm test:coverage` | Unit tests with coverage summary                                          |
+| `pnpm build`         | Production build                                                          |
+| `pnpm package`       | Build a release zip under `releases/release-X.Y.Z/` (local only, no bump) |
+| `pnpm release`       | Patch-bump, package, and print GitHub Release publish steps               |
+
+Git hooks (installed on `pnpm install`) run Oxlint and Oxfmt on staged files before commit, and a full `pnpm lint` plus `pnpm fmt:check` before push.
 
 After you change `manifest.config.ts`, refresh the extension card on `chrome://extensions`.
 
@@ -32,7 +38,7 @@ After you change `manifest.config.ts`, refresh the extension card on `chrome://e
 
 1. Keep changes focused on one concern.
 2. Add or update tests when behavior changes.
-3. Make sure `pnpm type-check`, `pnpm test`, and `pnpm build` pass locally.
+3. Make sure `pnpm lint`, `pnpm fmt:check`, `pnpm type-check`, `pnpm test`, and `pnpm build` pass locally.
 4. For UI or content-script changes, smoke-test on a real GitHub PR **Files changed** page.
 5. Use the PR template checklist.
 

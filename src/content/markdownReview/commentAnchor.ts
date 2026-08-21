@@ -11,20 +11,20 @@
  * assuming it names a thread.
  */
 
-import { scrollToThreadCard } from './threadFocus'
+import { scrollToThreadCard } from "./threadFocus";
 
 /** GitHub review comment anchors look like `#r123456789`. */
-const COMMENT_HASH = /^#r(\d+)$/
+const COMMENT_HASH = /^#r(\d+)$/;
 
 /**
  * Thread cards are rendered after the file snapshot and thread index load,
  * so a hash present at page load usually arrives before them.
  */
-const ATTEMPTS = 12
-const RETRY_DELAY_MS = 250
+const ATTEMPTS = 12;
+const RETRY_DELAY_MS = 250;
 
-let bound = false
-let pending = 0
+let bound = false;
+let pending = 0;
 
 /**
  * Read the comment id out of a URL hash.
@@ -32,7 +32,7 @@ let pending = 0
  * @returns The comment id, or null when the hash is not a comment anchor.
  */
 export function commentIdFromHash(hash: string): string | null {
-  return COMMENT_HASH.exec(hash)?.[1] ?? null
+  return COMMENT_HASH.exec(hash)?.[1] ?? null;
 }
 
 /**
@@ -41,22 +41,20 @@ export function commentIdFromHash(hash: string): string | null {
  * @returns True when a matching card was found and scrolled to.
  */
 export function focusCommentFromHash(hash: string): boolean {
-  const commentId = commentIdFromHash(hash)
-  if (!commentId) return false
+  const commentId = commentIdFromHash(hash);
+  if (!commentId) return false;
 
   // The hash can name a reply, so find the card that contains the comment
   // and scroll to the card as a whole. The id is digits only, per the
   // pattern above, so it is safe to drop straight into a selector.
-  const comment = document.querySelector(
-    `[data-rgm-rich] [data-comment-id="${commentId}"]`,
-  )
-  const card = comment?.closest<HTMLElement>('[data-rgm-thread-card]')
-  const threadId = card?.getAttribute('data-thread-id')
-  const richRoot = card?.closest('[data-rgm-rich]')
-  if (!card || !threadId || !richRoot) return false
+  const comment = document.querySelector(`[data-rgm-rich] [data-comment-id="${commentId}"]`);
+  const card = comment?.closest<HTMLElement>("[data-rgm-thread-card]");
+  const threadId = card?.getAttribute("data-thread-id");
+  const richRoot = card?.closest("[data-rgm-rich]");
+  if (!card || !threadId || !richRoot) return false;
 
-  scrollToThreadCard(richRoot, threadId)
-  return true
+  scrollToThreadCard(richRoot, threadId);
+  return true;
 }
 
 /**
@@ -64,10 +62,10 @@ export function focusCommentFromHash(hash: string): boolean {
  * @returns Nothing.
  */
 export function followCommentHash(): void {
-  if (!commentIdFromHash(location.hash)) return
+  if (!commentIdFromHash(location.hash)) return;
 
-  const attempt = ++pending
-  let tries = 0
+  const attempt = ++pending;
+  let tries = 0;
 
   /**
    * Retry until the card exists, the attempts run out, or a newer hash wins.
@@ -75,13 +73,13 @@ export function followCommentHash(): void {
    */
   const run = (): void => {
     // A newer navigation started, so abandon this one.
-    if (attempt !== pending) return
-    if (focusCommentFromHash(location.hash)) return
-    if (++tries >= ATTEMPTS) return
-    window.setTimeout(run, RETRY_DELAY_MS)
-  }
+    if (attempt !== pending) return;
+    if (focusCommentFromHash(location.hash)) return;
+    if (++tries >= ATTEMPTS) return;
+    window.setTimeout(run, RETRY_DELAY_MS);
+  };
 
-  run()
+  run();
 }
 
 /**
@@ -90,10 +88,10 @@ export function followCommentHash(): void {
  * @returns Nothing.
  */
 export function bindCommentAnchor(): void {
-  if (bound) return
-  bound = true
-  window.addEventListener('hashchange', followCommentHash)
-  followCommentHash()
+  if (bound) return;
+  bound = true;
+  window.addEventListener("hashchange", followCommentHash);
+  followCommentHash();
 }
 
 /**
@@ -101,7 +99,7 @@ export function bindCommentAnchor(): void {
  * @returns Nothing.
  */
 export function resetCommentAnchorForTests(): void {
-  window.removeEventListener('hashchange', followCommentHash)
-  bound = false
-  pending = 0
+  window.removeEventListener("hashchange", followCommentHash);
+  bound = false;
+  pending = 0;
 }

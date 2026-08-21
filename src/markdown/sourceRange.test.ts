@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from "vitest";
 import {
   expandSourceRangeToWholeLines,
   linesForRange,
@@ -6,20 +6,20 @@ import {
   offsetsToSourceRange,
   plainOffsetToPos,
   type SourceRange,
-} from './sourceRange'
+} from "./sourceRange";
 
-describe('linesForRange', () => {
-  it('slices 1-based inclusive lines', () => {
-    const text = 'a\nb\nc\n'
-    expect(linesForRange(text, 1, 1)).toEqual(['a'])
-    expect(linesForRange(text, 2, 3)).toEqual(['b', 'c'])
-  })
-})
+describe("linesForRange", () => {
+  it("slices 1-based inclusive lines", () => {
+    const text = "a\nb\nc\n";
+    expect(linesForRange(text, 1, 1)).toEqual(["a"]);
+    expect(linesForRange(text, 2, 3)).toEqual(["b", "c"]);
+  });
+});
 
-describe('plainOffsetToPos', () => {
-  it('maps offsets inside a single source line via plain-text locate', () => {
-    const sourceLines = ['# Hello world']
-    const plainText = 'Hello world'
+describe("plainOffsetToPos", () => {
+  it("maps offsets inside a single source line via plain-text locate", () => {
+    const sourceLines = ["# Hello world"];
+    const plainText = "Hello world";
     expect(
       plainOffsetToPos({
         plainText,
@@ -28,7 +28,7 @@ describe('plainOffsetToPos', () => {
         sourceLines,
         offset: 0,
       }),
-    ).toEqual({ line: 3, col: 3 })
+    ).toEqual({ line: 3, col: 3 });
     expect(
       plainOffsetToPos({
         plainText,
@@ -37,12 +37,12 @@ describe('plainOffsetToPos', () => {
         sourceLines,
         offset: 6,
       }),
-    ).toEqual({ line: 3, col: 9 })
-  })
+    ).toEqual({ line: 3, col: 9 });
+  });
 
-  it('maps multiline plain text through a fenced code block', () => {
-    const sourceLines = ['```ts', 'one', 'two', '```']
-    const plainText = 'one\ntwo'
+  it("maps multiline plain text through a fenced code block", () => {
+    const sourceLines = ["```ts", "one", "two", "```"];
+    const plainText = "one\ntwo";
     expect(
       plainOffsetToPos({
         plainText,
@@ -51,7 +51,7 @@ describe('plainOffsetToPos', () => {
         sourceLines,
         offset: 0,
       }),
-    ).toEqual({ line: 11, col: 1 })
+    ).toEqual({ line: 11, col: 1 });
     expect(
       plainOffsetToPos({
         plainText,
@@ -60,7 +60,7 @@ describe('plainOffsetToPos', () => {
         sourceLines,
         offset: 4,
       }),
-    ).toEqual({ line: 12, col: 1 })
+    ).toEqual({ line: 12, col: 1 });
     expect(
       plainOffsetToPos({
         plainText,
@@ -69,12 +69,12 @@ describe('plainOffsetToPos', () => {
         sourceLines,
         offset: 6,
       }),
-    ).toEqual({ line: 12, col: 3 })
-  })
+    ).toEqual({ line: 12, col: 3 });
+  });
 
-  it('pins wrapped paragraph endpoints to srcFrom/srcTo', () => {
-    const sourceLines = ['hello', 'world']
-    const plainText = 'hello world'
+  it("pins wrapped paragraph endpoints to srcFrom/srcTo", () => {
+    const sourceLines = ["hello", "world"];
+    const plainText = "hello world";
     expect(
       plainOffsetToPos({
         plainText,
@@ -83,7 +83,7 @@ describe('plainOffsetToPos', () => {
         sourceLines,
         offset: 0,
       }),
-    ).toEqual({ line: 4, col: 1 })
+    ).toEqual({ line: 4, col: 1 });
     expect(
       plainOffsetToPos({
         plainText,
@@ -92,12 +92,12 @@ describe('plainOffsetToPos', () => {
         sourceLines,
         offset: plainText.length,
       }),
-    ).toEqual({ line: 5, col: 6 })
-  })
+    ).toEqual({ line: 5, col: 6 });
+  });
 
-  it('maps mid-offsets in a soft-wrapped paragraph to the correct source line', () => {
-    const sourceLines = ['hello', 'world']
-    const plainText = 'hello world'
+  it("maps mid-offsets in a soft-wrapped paragraph to the correct source line", () => {
+    const sourceLines = ["hello", "world"];
+    const plainText = "hello world";
     expect(
       plainOffsetToPos({
         plainText,
@@ -106,7 +106,7 @@ describe('plainOffsetToPos', () => {
         sourceLines,
         offset: 6,
       }),
-    ).toEqual({ line: 5, col: 1 })
+    ).toEqual({ line: 5, col: 1 });
     expect(
       plainOffsetToPos({
         plainText,
@@ -115,12 +115,12 @@ describe('plainOffsetToPos', () => {
         sourceLines,
         offset: 8,
       }),
-    ).toEqual({ line: 5, col: 3 })
-  })
+    ).toEqual({ line: 5, col: 3 });
+  });
 
-  it('maps soft-wrapped plain text with no inserted space', () => {
-    const sourceLines = ['hello', 'world']
-    const plainText = 'helloworld'
+  it("maps soft-wrapped plain text with no inserted space", () => {
+    const sourceLines = ["hello", "world"];
+    const plainText = "helloworld";
     expect(
       plainOffsetToPos({
         plainText,
@@ -129,150 +129,150 @@ describe('plainOffsetToPos', () => {
         sourceLines,
         offset: 5,
       }),
-    ).toEqual({ line: 11, col: 1 })
-  })
-})
+    ).toEqual({ line: 11, col: 1 });
+  });
+});
 
-describe('offsetsToSourceRange', () => {
-  it('builds a LEFT range for a partial single-line selection', () => {
+describe("offsetsToSourceRange", () => {
+  it("builds a LEFT range for a partial single-line selection", () => {
     const range = offsetsToSourceRange(
       {
-        side: 'LEFT',
+        side: "LEFT",
         srcFrom: 2,
         srcTo: 2,
-        plainText: 'Hello world',
-        sourceLines: ['Hello world'],
+        plainText: "Hello world",
+        sourceLines: ["Hello world"],
       },
       0,
       5,
-      'Hello',
-    )
+      "Hello",
+    );
     expect(range).toEqual({
-      side: 'LEFT',
+      side: "LEFT",
       startLine: 2,
       startCol: 1,
       endLine: 2,
       endCol: 6,
-      quotedText: 'Hello',
-    })
-  })
+      quotedText: "Hello",
+    });
+  });
 
-  it('normalizes reversed offsets', () => {
+  it("normalizes reversed offsets", () => {
     const range = offsetsToSourceRange(
       {
-        side: 'RIGHT',
+        side: "RIGHT",
         srcFrom: 1,
         srcTo: 1,
-        plainText: 'abcd',
-        sourceLines: ['abcd'],
+        plainText: "abcd",
+        sourceLines: ["abcd"],
       },
       4,
       1,
-      'bcd',
-    )
-    expect(range.startCol).toBe(2)
-    expect(range.endCol).toBe(5)
-  })
-})
+      "bcd",
+    );
+    expect(range.startCol).toBe(2);
+    expect(range.endCol).toBe(5);
+  });
+});
 
-describe('expandSourceRangeToWholeLines', () => {
-  it('snaps columns to the full source line span', () => {
-    const file = 'one\ntwo three\nfour\n'
+describe("expandSourceRangeToWholeLines", () => {
+  it("snaps columns to the full source line span", () => {
+    const file = "one\ntwo three\nfour\n";
     expect(
       expandSourceRangeToWholeLines(
         {
-          side: 'RIGHT',
+          side: "RIGHT",
           startLine: 2,
           startCol: 5,
           endLine: 2,
           endCol: 8,
-          quotedText: 'thr',
+          quotedText: "thr",
         },
         file,
       ),
     ).toEqual({
-      side: 'RIGHT',
+      side: "RIGHT",
       startLine: 2,
       startCol: 1,
       endLine: 2,
       endCol: 10,
-      quotedText: 'two three',
-    })
-  })
+      quotedText: "two three",
+    });
+  });
 
-  it('covers multiple lines including newlines in quotedText', () => {
-    const file = 'a\nb\nc\n'
+  it("covers multiple lines including newlines in quotedText", () => {
+    const file = "a\nb\nc\n";
     expect(
       expandSourceRangeToWholeLines(
         {
-          side: 'LEFT',
+          side: "LEFT",
           startLine: 1,
           startCol: 1,
           endLine: 3,
           endCol: 2,
-          quotedText: 'x',
+          quotedText: "x",
         },
         file,
       ),
     ).toEqual({
-      side: 'LEFT',
+      side: "LEFT",
       startLine: 1,
       startCol: 1,
       endLine: 3,
       endCol: 2,
-      quotedText: 'a\nb\nc',
-    })
-  })
-})
+      quotedText: "a\nb\nc",
+    });
+  });
+});
 
-describe('mergeSourceRanges', () => {
-  it('merges same-side ranges in document order', () => {
+describe("mergeSourceRanges", () => {
+  it("merges same-side ranges in document order", () => {
     const a: SourceRange = {
-      side: 'RIGHT',
+      side: "RIGHT",
       startLine: 1,
       startCol: 1,
       endLine: 1,
       endCol: 4,
-      quotedText: 'One',
-    }
+      quotedText: "One",
+    };
     const b: SourceRange = {
-      side: 'RIGHT',
+      side: "RIGHT",
       startLine: 3,
       startCol: 1,
       endLine: 3,
       endCol: 5,
-      quotedText: 'Two',
-    }
+      quotedText: "Two",
+    };
     expect(mergeSourceRanges(a, b)).toEqual({
-      side: 'RIGHT',
+      side: "RIGHT",
       startLine: 1,
       startCol: 1,
       endLine: 3,
       endCol: 5,
-      quotedText: 'OneTwo',
-    })
-  })
+      quotedText: "OneTwo",
+    });
+  });
 
-  it('rejects cross-side merges', () => {
+  it("rejects cross-side merges", () => {
     expect(
       mergeSourceRanges(
         {
-          side: 'LEFT',
+          side: "LEFT",
           startLine: 1,
           startCol: 1,
           endLine: 1,
           endCol: 2,
-          quotedText: 'a',
+          quotedText: "a",
         },
         {
-          side: 'RIGHT',
+          side: "RIGHT",
           startLine: 1,
           startCol: 1,
           endLine: 1,
           endCol: 2,
-          quotedText: 'a',
+          quotedText: "a",
         },
       ),
-    ).toBeNull()
-  })
-})
+    ).toBeNull();
+  });
+});

@@ -1,5 +1,5 @@
-import { Schema, type MarkSpec, type NodeSpec } from 'prosemirror-model'
-import { SRC_RANGE_ATTRS, srcDataAttrs } from './positions'
+import { Schema, type MarkSpec, type NodeSpec } from "prosemirror-model";
+import { SRC_RANGE_ATTRS, srcDataAttrs } from "./positions";
 
 /**
  * Add source-range attributes to a block node spec.
@@ -14,9 +14,9 @@ const blockWithSrc = (spec: NodeSpec): NodeSpec => ({
   ...spec,
   attrs: {
     ...SRC_RANGE_ATTRS,
-    ...(spec.attrs ?? {}),
+    ...spec.attrs,
   },
-})
+});
 
 /**
  * ProseMirror schema for GitHub-flavored Markdown review documents.
@@ -24,33 +24,33 @@ const blockWithSrc = (spec: NodeSpec): NodeSpec => ({
 export const markdownSchema = new Schema({
   nodes: {
     doc: {
-      content: 'block+',
+      content: "block+",
     },
 
     paragraph: blockWithSrc({
-      content: 'inline*',
-      group: 'block',
-      parseDOM: [{ tag: 'p' }],
+      content: "inline*",
+      group: "block",
+      parseDOM: [{ tag: "p" }],
       toDOM() {
-        return ['p', 0]
+        return ["p", 0];
       },
     }),
 
     blockquote: blockWithSrc({
-      content: 'block+',
-      group: 'block',
+      content: "block+",
+      group: "block",
       defining: true,
-      parseDOM: [{ tag: 'blockquote' }],
+      parseDOM: [{ tag: "blockquote" }],
       toDOM() {
-        return ['blockquote', 0]
+        return ["blockquote", 0];
       },
     }),
 
     horizontal_rule: blockWithSrc({
-      group: 'block',
-      parseDOM: [{ tag: 'hr' }],
+      group: "block",
+      parseDOM: [{ tag: "hr" }],
       toDOM() {
-        return ['hr']
+        return ["hr"];
       },
     }),
 
@@ -58,111 +58,101 @@ export const markdownSchema = new Schema({
       attrs: {
         level: { default: 1 },
       },
-      content: 'inline*',
-      group: 'block',
+      content: "inline*",
+      group: "block",
       defining: true,
       parseDOM: [
-        { tag: 'h1', attrs: { level: 1 } },
-        { tag: 'h2', attrs: { level: 2 } },
-        { tag: 'h3', attrs: { level: 3 } },
-        { tag: 'h4', attrs: { level: 4 } },
-        { tag: 'h5', attrs: { level: 5 } },
-        { tag: 'h6', attrs: { level: 6 } },
+        { tag: "h1", attrs: { level: 1 } },
+        { tag: "h2", attrs: { level: 2 } },
+        { tag: "h3", attrs: { level: 3 } },
+        { tag: "h4", attrs: { level: 4 } },
+        { tag: "h5", attrs: { level: 5 } },
+        { tag: "h6", attrs: { level: 6 } },
       ],
       toDOM(node) {
-        return [`h${node.attrs.level as number}`, 0]
+        return [`h${node.attrs.level as number}`, 0];
       },
     }),
 
     code_block: blockWithSrc({
-      content: 'text*',
-      marks: '',
-      group: 'block',
+      content: "text*",
+      marks: "",
+      group: "block",
       code: true,
       defining: true,
       attrs: {
-        params: { default: '' },
+        params: { default: "" },
       },
       parseDOM: [
         {
-          tag: 'pre',
-          preserveWhitespace: 'full',
+          tag: "pre",
+          preserveWhitespace: "full",
           getAttrs(dom) {
-            const el = dom as HTMLElement
-            return { params: el.getAttribute('data-params') ?? '' }
+            const el = dom as HTMLElement;
+            return { params: el.getAttribute("data-params") ?? "" };
           },
         },
       ],
       toDOM(node) {
-        const params = node.attrs.params as string
-        return [
-          'pre',
-          params ? { 'data-params': params } : {},
-          ['code', 0],
-        ]
+        const params = node.attrs.params as string;
+        return ["pre", params ? { "data-params": params } : {}, ["code", 0]];
       },
     }),
 
     ordered_list: blockWithSrc({
-      content: 'list_item+',
-      group: 'block',
+      content: "list_item+",
+      group: "block",
       attrs: {
         order: { default: 1 },
         tight: { default: true },
       },
       parseDOM: [
         {
-          tag: 'ol',
+          tag: "ol",
           getAttrs(dom) {
-            const el = dom as HTMLElement
+            const el = dom as HTMLElement;
             return {
-              order: el.hasAttribute('start')
-                ? Number(el.getAttribute('start'))
-                : 1,
-              tight: el.hasAttribute('data-tight'),
-            }
+              order: el.hasAttribute("start") ? Number(el.getAttribute("start")) : 1,
+              tight: el.hasAttribute("data-tight"),
+            };
           },
         },
       ],
       toDOM(node) {
         return [
-          'ol',
+          "ol",
           {
             start: node.attrs.order === 1 ? null : node.attrs.order,
-            'data-tight': node.attrs.tight ? 'true' : null,
+            "data-tight": node.attrs.tight ? "true" : null,
           },
           0,
-        ]
+        ];
       },
     }),
 
     bullet_list: blockWithSrc({
-      content: 'list_item+',
-      group: 'block',
+      content: "list_item+",
+      group: "block",
       attrs: {
         tight: { default: true },
       },
       parseDOM: [
         {
-          tag: 'ul',
+          tag: "ul",
           getAttrs(dom) {
             return {
-              tight: (dom as HTMLElement).hasAttribute('data-tight'),
-            }
+              tight: (dom as HTMLElement).hasAttribute("data-tight"),
+            };
           },
         },
       ],
       toDOM(node) {
-        return [
-          'ul',
-          { 'data-tight': node.attrs.tight ? 'true' : null },
-          0,
-        ]
+        return ["ul", { "data-tight": node.attrs.tight ? "true" : null }, 0];
       },
     }),
 
     list_item: blockWithSrc({
-      content: 'block+',
+      content: "block+",
       defining: true,
       attrs: {
         /** `null` = normal list item. `true` / `false` = GFM task item. */
@@ -170,252 +160,246 @@ export const markdownSchema = new Schema({
       },
       parseDOM: [
         {
-          tag: 'li',
+          tag: "li",
           getAttrs(dom) {
-            const el = dom as HTMLElement
-            if (el.getAttribute('data-task') === 'true') {
+            const el = dom as HTMLElement;
+            if (el.getAttribute("data-task") === "true") {
               return {
-                checked: el.getAttribute('data-checked') === 'true',
-              }
+                checked: el.getAttribute("data-checked") === "true",
+              };
             }
-            return { checked: null }
+            return { checked: null };
           },
         },
       ],
       toDOM(node) {
-        const checked = node.attrs.checked as boolean | null
-        const src = srcDataAttrs(node.attrs)
+        const checked = node.attrs.checked as boolean | null;
+        const src = srcDataAttrs(node.attrs);
         if (checked === null) {
-          return ['li', src, 0]
+          return ["li", src, 0];
         }
         return [
-          'li',
+          "li",
           {
             ...src,
-            'data-task': 'true',
-            'data-checked': checked ? 'true' : 'false',
+            "data-task": "true",
+            "data-checked": checked ? "true" : "false",
           },
           0,
-        ]
+        ];
       },
     }),
 
     table: blockWithSrc({
-      content: 'table_row+',
-      group: 'block',
+      content: "table_row+",
+      group: "block",
       isolating: true,
-      parseDOM: [{ tag: 'table' }],
+      parseDOM: [{ tag: "table" }],
       toDOM() {
-        return ['table', ['tbody', 0]]
+        return ["table", ["tbody", 0]];
       },
     }),
 
     table_row: {
-      content: '(table_header | table_cell)+',
+      content: "(table_header | table_cell)+",
       attrs: { ...SRC_RANGE_ATTRS },
-      parseDOM: [{ tag: 'tr' }],
+      parseDOM: [{ tag: "tr" }],
       toDOM(node) {
-        return ['tr', srcDataAttrs(node.attrs), 0]
+        return ["tr", srcDataAttrs(node.attrs), 0];
       },
     },
 
     table_header: {
-      content: 'inline*',
+      content: "inline*",
       attrs: {
         ...SRC_RANGE_ATTRS,
         align: { default: null as string | null },
       },
-      parseDOM: [{ tag: 'th' }],
+      parseDOM: [{ tag: "th" }],
       toDOM(node) {
-        const align = node.attrs.align as string | null
-        return ['th', align ? { style: `text-align: ${align}` } : {}, 0]
+        const align = node.attrs.align as string | null;
+        return ["th", align ? { style: `text-align: ${align}` } : {}, 0];
       },
     },
 
     table_cell: {
-      content: 'inline*',
+      content: "inline*",
       attrs: {
         ...SRC_RANGE_ATTRS,
         align: { default: null as string | null },
       },
-      parseDOM: [{ tag: 'td' }],
+      parseDOM: [{ tag: "td" }],
       toDOM(node) {
-        const align = node.attrs.align as string | null
-        return ['td', align ? { style: `text-align: ${align}` } : {}, 0]
+        const align = node.attrs.align as string | null;
+        return ["td", align ? { style: `text-align: ${align}` } : {}, 0];
       },
     },
 
     front_matter: blockWithSrc({
-      group: 'block',
+      group: "block",
       atom: true,
       attrs: {
-        value: { default: '' },
+        value: { default: "" },
       },
       parseDOM: [
         {
-          tag: 'div[data-front-matter]',
+          tag: "div[data-front-matter]",
           getAttrs(dom) {
             return {
-              value: (dom as HTMLElement).getAttribute('data-value') ?? '',
-            }
+              value: (dom as HTMLElement).getAttribute("data-value") ?? "",
+            };
           },
         },
       ],
       toDOM(node) {
         return [
-          'div',
+          "div",
           {
-            'data-front-matter': 'true',
-            'data-value': node.attrs.value as string,
+            "data-front-matter": "true",
+            "data-value": node.attrs.value as string,
           },
-        ]
+        ];
       },
     }),
 
     html_block: blockWithSrc({
-      group: 'block',
+      group: "block",
       atom: true,
       attrs: {
-        html: { default: '' },
+        html: { default: "" },
       },
       parseDOM: [
         {
-          tag: 'div[data-html-block]',
+          tag: "div[data-html-block]",
           getAttrs(dom) {
             return {
-              html: (dom as HTMLElement).getAttribute('data-html') ?? '',
-            }
+              html: (dom as HTMLElement).getAttribute("data-html") ?? "",
+            };
           },
         },
       ],
       toDOM(node) {
         return [
-          'div',
+          "div",
           {
-            'data-html-block': 'true',
-            'data-html': node.attrs.html as string,
+            "data-html-block": "true",
+            "data-html": node.attrs.html as string,
           },
-        ]
+        ];
       },
     }),
 
     text: {
-      group: 'inline',
+      group: "inline",
     },
 
     image: {
       inline: true,
-      group: 'inline',
+      group: "inline",
       draggable: true,
       attrs: {
-        src: { default: '' },
+        src: { default: "" },
         alt: { default: null as string | null },
         title: { default: null as string | null },
       },
       parseDOM: [
         {
-          tag: 'img[src]',
+          tag: "img[src]",
           getAttrs(dom) {
-            const el = dom as HTMLElement
+            const el = dom as HTMLElement;
             return {
-              src: el.getAttribute('src') ?? '',
-              alt: el.getAttribute('alt'),
-              title: el.getAttribute('title'),
-            }
+              src: el.getAttribute("src") ?? "",
+              alt: el.getAttribute("alt"),
+              title: el.getAttribute("title"),
+            };
           },
         },
       ],
       toDOM(node) {
-        return ['img', node.attrs]
+        return ["img", node.attrs];
       },
     },
 
     hard_break: {
       inline: true,
-      group: 'inline',
+      group: "inline",
       selectable: false,
-      parseDOM: [{ tag: 'br' }],
+      parseDOM: [{ tag: "br" }],
       toDOM() {
-        return ['br']
+        return ["br"];
       },
     },
   },
 
   marks: {
     em: {
-      parseDOM: [
-        { tag: 'i' },
-        { tag: 'em' },
-        { style: 'font-style=italic' },
-      ],
+      parseDOM: [{ tag: "i" }, { tag: "em" }, { style: "font-style=italic" }],
       toDOM() {
-        return ['em']
+        return ["em"];
       },
     } satisfies MarkSpec,
 
     strong: {
       parseDOM: [
-        { tag: 'strong' },
+        { tag: "strong" },
         {
-          tag: 'b',
-          getAttrs: (node) =>
-            (node as HTMLElement).style.fontWeight !== 'normal' && null,
+          tag: "b",
+          getAttrs: (node) => (node as HTMLElement).style.fontWeight !== "normal" && null,
         },
         {
-          style: 'font-weight',
-          getAttrs: (value) =>
-            /^(bold(er)?|[5-9]\d{2,})$/.test(value as string) && null,
+          style: "font-weight",
+          getAttrs: (value) => /^(bold(er)?|[5-9]\d{2,})$/.test(value as string) && null,
         },
       ],
       toDOM() {
-        return ['strong']
+        return ["strong"];
       },
     } satisfies MarkSpec,
 
     code: {
       code: true,
-      parseDOM: [{ tag: 'code' }],
+      parseDOM: [{ tag: "code" }],
       toDOM() {
-        return ['code']
+        return ["code"];
       },
     } satisfies MarkSpec,
 
     link: {
       attrs: {
-        href: { default: '' },
+        href: { default: "" },
         title: { default: null as string | null },
       },
       inclusive: false,
       parseDOM: [
         {
-          tag: 'a[href]',
+          tag: "a[href]",
           getAttrs(dom) {
-            const el = dom as HTMLElement
+            const el = dom as HTMLElement;
             return {
-              href: el.getAttribute('href') ?? '',
-              title: el.getAttribute('title'),
-            }
+              href: el.getAttribute("href") ?? "",
+              title: el.getAttribute("title"),
+            };
           },
         },
       ],
       toDOM(node) {
-        return ['a', node.attrs]
+        return ["a", node.attrs];
       },
     } satisfies MarkSpec,
 
     strikethrough: {
       parseDOM: [
-        { tag: 's' },
-        { tag: 'del' },
-        { tag: 'strike' },
-        { style: 'text-decoration=line-through' },
+        { tag: "s" },
+        { tag: "del" },
+        { tag: "strike" },
+        { style: "text-decoration=line-through" },
       ],
       toDOM() {
-        return ['s']
+        return ["s"];
       },
     } satisfies MarkSpec,
   },
-})
+});
 
 /** Type alias for the concrete schema instance used across the codebase. */
-export type MarkdownSchema = typeof markdownSchema
+export type MarkdownSchema = typeof markdownSchema;

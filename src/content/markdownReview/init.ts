@@ -3,35 +3,35 @@
  * Runs on every GitHub page, so it stays light: the scan module and its
  * markdown dependencies load on demand once a Files or Changes URL is active.
  */
-import { bindCommentAnchor, followCommentHash } from './commentAnchor'
-import { isPrFilesPage } from './detect'
-import { PROGRESSIVE_DIFFS_LIST } from './selectors'
-import { injectStyles, removeStyles } from './styles'
+import { bindCommentAnchor, followCommentHash } from "./commentAnchor";
+import { isPrFilesPage } from "./detect";
+import { PROGRESSIVE_DIFFS_LIST } from "./selectors";
+import { injectStyles, removeStyles } from "./styles";
 
 /** Milliseconds to wait after a DOM mutation before scanning again. */
-const DEBOUNCE_MS = 75
+const DEBOUNCE_MS = 75;
 
 /** Diff-list observer used while the Files page is active. */
-let observer: MutationObserver | null = null
+let observer: MutationObserver | null = null;
 /** Persistent observer that detects soft navigations via pathname changes. */
-let pathObserver: MutationObserver | null = null
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
-let started = false
-let pageActive = false
+let pathObserver: MutationObserver | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let started = false;
+let pageActive = false;
 /** Last pathname handled by navigation logic. Null before the first check. */
-let lastPathname: string | null = null
+let lastPathname: string | null = null;
 
 /**
  * Load the scan module on demand and enhance markdown regions.
  * @returns A promise that resolves after the scan, or after a skipped scan.
  */
 async function runScan(): Promise<void> {
-  const { enhanceMarkdownRegions } = await import('./enhance')
+  const { enhanceMarkdownRegions } = await import("./enhance");
   // The page can navigate away while the module is still loading.
   if (!pageActive) {
-    return
+    return;
   }
-  enhanceMarkdownRegions()
+  enhanceMarkdownRegions();
 }
 
 /**
@@ -40,12 +40,12 @@ async function runScan(): Promise<void> {
  */
 function scheduleScan(): void {
   if (debounceTimer !== null) {
-    clearTimeout(debounceTimer)
+    clearTimeout(debounceTimer);
   }
   debounceTimer = setTimeout(() => {
-    debounceTimer = null
-    void runScan()
-  }, DEBOUNCE_MS)
+    debounceTimer = null;
+    void runScan();
+  }, DEBOUNCE_MS);
 }
 
 /**
@@ -53,15 +53,14 @@ function scheduleScan(): void {
  * @returns Nothing.
  */
 function observeRoot(): void {
-  observer?.disconnect()
+  observer?.disconnect();
 
-  const root =
-    document.querySelector(PROGRESSIVE_DIFFS_LIST) ?? document.body
+  const root = document.querySelector(PROGRESSIVE_DIFFS_LIST) ?? document.body;
 
   observer = new MutationObserver(() => {
-    scheduleScan()
-  })
-  observer.observe(root, { childList: true, subtree: true })
+    scheduleScan();
+  });
+  observer.observe(root, { childList: true, subtree: true });
 }
 
 /**
@@ -71,13 +70,13 @@ function observeRoot(): void {
  */
 function deactivatePage(): void {
   if (debounceTimer !== null) {
-    clearTimeout(debounceTimer)
-    debounceTimer = null
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
   }
-  observer?.disconnect()
-  observer = null
-  removeStyles()
-  pageActive = false
+  observer?.disconnect();
+  observer = null;
+  removeStyles();
+  pageActive = false;
 }
 
 /**
@@ -85,10 +84,10 @@ function deactivatePage(): void {
  * @returns Nothing.
  */
 function activatePage(): void {
-  pageActive = true
-  injectStyles()
-  observeRoot()
-  scheduleScan()
+  pageActive = true;
+  injectStyles();
+  observeRoot();
+  scheduleScan();
 }
 
 /**
@@ -98,11 +97,11 @@ function activatePage(): void {
 function onNavigation(): void {
   if (!isPrFilesPage()) {
     if (pageActive) {
-      deactivatePage()
+      deactivatePage();
     }
-    return
+    return;
   }
-  activatePage()
+  activatePage();
 }
 
 /**
@@ -110,10 +109,10 @@ function onNavigation(): void {
  * @returns Nothing.
  */
 function handleNavigation(): void {
-  handleLocationChange()
+  handleLocationChange();
   // A soft navigation can carry a comment anchor without changing the
   // pathname, which handleLocationChange ignores.
-  followCommentHash()
+  followCommentHash();
 }
 
 /**
@@ -121,17 +120,17 @@ function handleNavigation(): void {
  * @returns Nothing.
  */
 function handleLocationChange(): void {
-  let pathname: string
+  let pathname: string;
   try {
-    pathname = window.location.pathname
+    pathname = window.location.pathname;
   } catch {
-    return
+    return;
   }
   if (!pathname || pathname === lastPathname) {
-    return
+    return;
   }
-  lastPathname = pathname
-  onNavigation()
+  lastPathname = pathname;
+  onNavigation();
 }
 
 /**
@@ -140,14 +139,14 @@ function handleLocationChange(): void {
  * @returns Nothing.
  */
 function observePathname(): void {
-  pathObserver?.disconnect()
+  pathObserver?.disconnect();
   pathObserver = new MutationObserver(() => {
-    handleLocationChange()
-  })
+    handleLocationChange();
+  });
   pathObserver.observe(document.documentElement, {
     childList: true,
     subtree: true,
-  })
+  });
 }
 
 /**
@@ -156,17 +155,17 @@ function observePathname(): void {
  */
 export function resetInitForTests(): void {
   if (debounceTimer !== null) {
-    clearTimeout(debounceTimer)
-    debounceTimer = null
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
   }
-  observer?.disconnect()
-  observer = null
-  pathObserver?.disconnect()
-  pathObserver = null
-  removeStyles()
-  pageActive = false
-  started = false
-  lastPathname = null
+  observer?.disconnect();
+  observer = null;
+  pathObserver?.disconnect();
+  pathObserver = null;
+  removeStyles();
+  pageActive = false;
+  started = false;
+  lastPathname = null;
 }
 
 /**
@@ -178,14 +177,14 @@ export function resetInitForTests(): void {
  */
 export function initMarkdownReview(): void {
   if (started) {
-    handleLocationChange()
-    return
+    handleLocationChange();
+    return;
   }
-  started = true
+  started = true;
 
-  handleLocationChange()
-  observePathname()
-  bindCommentAnchor()
+  handleLocationChange();
+  observePathname();
+  bindCommentAnchor();
 
   // GitHub soft-nav events (not standard DOM events). GitHub is an SPA: many
   // clicks swap page content without a full reload, so content scripts must
@@ -193,20 +192,20 @@ export function initMarkdownReview(): void {
   // - turbo:load — Hotwire Turbo: visit finished and the new page is in the DOM
   // - turbo:render — Hotwire Turbo: body was re-rendered (incl. cache restore)
   // - pjax:end — legacy jQuery pjax; still used on some older GitHub flows
-  document.addEventListener('turbo:load', handleNavigation)
-  document.addEventListener('turbo:render', handleNavigation)
-  document.addEventListener('pjax:end', handleNavigation)
+  document.addEventListener("turbo:load", handleNavigation);
+  document.addEventListener("turbo:render", handleNavigation);
+  document.addEventListener("pjax:end", handleNavigation);
 
   // Soft SPA navigations that do not fire turbo/pjax events (same JS world).
-  const pushState = history.pushState.bind(history)
+  const pushState = history.pushState.bind(history);
   history.pushState = (...args) => {
-    pushState(...args)
-    handleNavigation()
-  }
-  const replaceState = history.replaceState.bind(history)
+    pushState(...args);
+    handleNavigation();
+  };
+  const replaceState = history.replaceState.bind(history);
   history.replaceState = (...args) => {
-    replaceState(...args)
-    handleNavigation()
-  }
-  window.addEventListener('popstate', handleNavigation)
+    replaceState(...args);
+    handleNavigation();
+  };
+  window.addEventListener("popstate", handleNavigation);
 }

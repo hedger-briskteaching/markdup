@@ -1,4 +1,4 @@
-import type { Mark, Node as PMNode } from 'prosemirror-model'
+import type { Mark, Node as PMNode } from "prosemirror-model";
 
 /**
  * Serialize a ProseMirror document (`markdownSchema`) back to CommonMark / GFM text.
@@ -7,12 +7,17 @@ import type { Mark, Node as PMNode } from 'prosemirror-model'
  * @returns The Markdown string, with a trailing newline.
  */
 export function docToMarkdown(doc: PMNode): string {
-  const parts: string[] = []
+  const parts: string[] = [];
   doc.forEach((child, _offset, index) => {
-    if (index > 0) parts.push('\n\n')
-    parts.push(serializeBlock(child, 0))
-  })
-  return parts.join('').replace(/\n{3,}/g, '\n\n').trimEnd() + (parts.length ? '\n' : '')
+    if (index > 0) parts.push("\n\n");
+    parts.push(serializeBlock(child, 0));
+  });
+  return (
+    parts
+      .join("")
+      .replace(/\n{3,}/g, "\n\n")
+      .trimEnd() + (parts.length ? "\n" : "")
+  );
 }
 
 /**
@@ -23,38 +28,38 @@ export function docToMarkdown(doc: PMNode): string {
  */
 function serializeBlock(node: PMNode, listDepth: number): string {
   switch (node.type.name) {
-    case 'paragraph':
-      return serializeInline(node)
-    case 'heading': {
-      const level = Math.min(6, Math.max(1, Number(node.attrs.level) || 1))
-      return `${'#'.repeat(level)} ${serializeInline(node)}`
+    case "paragraph":
+      return serializeInline(node);
+    case "heading": {
+      const level = Math.min(6, Math.max(1, Number(node.attrs.level) || 1));
+      return `${"#".repeat(level)} ${serializeInline(node)}`;
     }
-    case 'blockquote': {
-      const inner = serializeChildrenBlocks(node, listDepth)
+    case "blockquote": {
+      const inner = serializeChildrenBlocks(node, listDepth);
       return inner
-        .split('\n')
-        .map((line) => (line.length ? `> ${line}` : '>'))
-        .join('\n')
+        .split("\n")
+        .map((line) => (line.length ? `> ${line}` : ">"))
+        .join("\n");
     }
-    case 'code_block': {
-      const lang = String(node.attrs.params ?? '')
-      const text = node.textContent
-      return `\`\`\`${lang}\n${text}${text.endsWith('\n') ? '' : '\n'}\`\`\``
+    case "code_block": {
+      const lang = String(node.attrs.params ?? "");
+      const text = node.textContent;
+      return `\`\`\`${lang}\n${text}${text.endsWith("\n") ? "" : "\n"}\`\`\``;
     }
-    case 'bullet_list':
-      return serializeList(node, listDepth, 'bullet')
-    case 'ordered_list':
-      return serializeList(node, listDepth, 'ordered')
-    case 'horizontal_rule':
-      return '---'
-    case 'front_matter':
-      return `---\n${String(node.attrs.value ?? '').trimEnd()}\n---`
-    case 'html_block':
-      return String(node.attrs.html ?? '')
-    case 'table':
-      return serializeTable(node)
+    case "bullet_list":
+      return serializeList(node, listDepth, "bullet");
+    case "ordered_list":
+      return serializeList(node, listDepth, "ordered");
+    case "horizontal_rule":
+      return "---";
+    case "front_matter":
+      return `---\n${String(node.attrs.value ?? "").trimEnd()}\n---`;
+    case "html_block":
+      return String(node.attrs.html ?? "");
+    case "table":
+      return serializeTable(node);
     default:
-      return serializeInline(node)
+      return serializeInline(node);
   }
 }
 
@@ -65,12 +70,12 @@ function serializeBlock(node: PMNode, listDepth: number): string {
  * @returns Combined Markdown for the child blocks.
  */
 function serializeChildrenBlocks(node: PMNode, listDepth: number): string {
-  const parts: string[] = []
+  const parts: string[] = [];
   node.forEach((child, _o, i) => {
-    if (i > 0) parts.push('\n\n')
-    parts.push(serializeBlock(child, listDepth))
-  })
-  return parts.join('')
+    if (i > 0) parts.push("\n\n");
+    parts.push(serializeBlock(child, listDepth));
+  });
+  return parts.join("");
 }
 
 /**
@@ -80,32 +85,28 @@ function serializeChildrenBlocks(node: PMNode, listDepth: number): string {
  * @param kind - `'bullet'` or `'ordered'`.
  * @returns The Markdown list text.
  */
-function serializeList(
-  node: PMNode,
-  listDepth: number,
-  kind: 'bullet' | 'ordered',
-): string {
-  const lines: string[] = []
-  let index = Number(node.attrs.order ?? 1) || 1
+function serializeList(node: PMNode, listDepth: number, kind: "bullet" | "ordered"): string {
+  const lines: string[] = [];
+  let index = Number(node.attrs.order ?? 1) || 1;
   node.forEach((item) => {
-    const checked = item.attrs.checked as boolean | null
-    let marker: string
-    if (checked === true) marker = '- [x]'
-    else if (checked === false) marker = '- [ ]'
-    else if (kind === 'ordered') marker = `${index}.`
-    else marker = '-'
+    const checked = item.attrs.checked as boolean | null;
+    let marker: string;
+    if (checked === true) marker = "- [x]";
+    else if (checked === false) marker = "- [ ]";
+    else if (kind === "ordered") marker = `${index}.`;
+    else marker = "-";
 
-    const indent = '  '.repeat(listDepth)
-    const body = serializeListItemBody(item, listDepth + 1)
-    const bodyLines = body.split('\n')
-    lines.push(`${indent}${marker} ${bodyLines[0] ?? ''}`)
+    const indent = "  ".repeat(listDepth);
+    const body = serializeListItemBody(item, listDepth + 1);
+    const bodyLines = body.split("\n");
+    lines.push(`${indent}${marker} ${bodyLines[0] ?? ""}`);
     for (let i = 1; i < bodyLines.length; i++) {
-      const line = bodyLines[i]!
-      lines.push(line.length ? `${indent}  ${line}` : '')
+      const line = bodyLines[i]!;
+      lines.push(line.length ? `${indent}  ${line}` : "");
     }
-    index += 1
-  })
-  return lines.join('\n')
+    index += 1;
+  });
+  return lines.join("\n");
 }
 
 /**
@@ -115,17 +116,17 @@ function serializeList(
  * @returns The Markdown body text.
  */
 function serializeListItemBody(item: PMNode, nestedDepth: number): string {
-  const parts: string[] = []
+  const parts: string[] = [];
   item.forEach((child, _o, i) => {
-    if (child.type.name === 'bullet_list' || child.type.name === 'ordered_list') {
-      if (parts.length) parts.push('\n')
-      parts.push(serializeBlock(child, nestedDepth))
-      return
+    if (child.type.name === "bullet_list" || child.type.name === "ordered_list") {
+      if (parts.length) parts.push("\n");
+      parts.push(serializeBlock(child, nestedDepth));
+      return;
     }
-    if (i > 0 && parts.length) parts.push('\n\n')
-    parts.push(serializeBlock(child, nestedDepth))
-  })
-  return parts.join('')
+    if (i > 0 && parts.length) parts.push("\n\n");
+    parts.push(serializeBlock(child, nestedDepth));
+  });
+  return parts.join("");
 }
 
 /**
@@ -134,34 +135,34 @@ function serializeListItemBody(item: PMNode, nestedDepth: number): string {
  * @returns The Markdown table string, or an empty string if there are no rows.
  */
 function serializeTable(node: PMNode): string {
-  const rows: string[][] = []
+  const rows: string[][] = [];
   node.forEach((row) => {
-    const cells: string[] = []
+    const cells: string[] = [];
     row.forEach((cell) => {
-      cells.push(serializeInline(cell).replace(/\|/g, '\\|'))
-    })
-    rows.push(cells)
-  })
-  if (rows.length === 0) return ''
-  const width = Math.max(...rows.map((r) => r.length))
+      cells.push(serializeInline(cell).replace(/\|/g, "\\|"));
+    });
+    rows.push(cells);
+  });
+  if (rows.length === 0) return "";
+  const width = Math.max(...rows.map((r) => r.length));
   /**
    * Pad a table row with empty cells up to the table width.
    * @param r - Cell strings for one row.
    * @returns A new row array with length equal to width.
    */
   const pad = (r: string[]) => {
-    const copy = [...r]
-    while (copy.length < width) copy.push('')
-    return copy
-  }
-  const header = pad(rows[0]!)
-  const sep = header.map(() => '---')
+    const copy = [...r];
+    while (copy.length < width) copy.push("");
+    return copy;
+  };
+  const header = pad(rows[0]!);
+  const sep = header.map(() => "---");
   const out = [
-    `| ${header.join(' | ')} |`,
-    `| ${sep.join(' | ')} |`,
-    ...rows.slice(1).map((r) => `| ${pad(r).join(' | ')} |`),
-  ]
-  return out.join('\n')
+    `| ${header.join(" | ")} |`,
+    `| ${sep.join(" | ")} |`,
+    ...rows.slice(1).map((r) => `| ${pad(r).join(" | ")} |`),
+  ];
+  return out.join("\n");
 }
 
 /**
@@ -170,28 +171,26 @@ function serializeTable(node: PMNode): string {
  * @returns The Markdown inline text.
  */
 function serializeInline(node: PMNode): string {
-  let out = ''
+  let out = "";
   node.forEach((child) => {
     if (child.isText) {
-      out += serializeTextWithMarks(child.text ?? '', child.marks)
-      return
+      out += serializeTextWithMarks(child.text ?? "", child.marks);
+      return;
     }
-    if (child.type.name === 'hard_break') {
-      out += '  \n'
-      return
+    if (child.type.name === "hard_break") {
+      out += "  \n";
+      return;
     }
-    if (child.type.name === 'image') {
-      const alt = String(child.attrs.alt ?? '')
-      const src = String(child.attrs.src ?? '')
-      const title = child.attrs.title
-        ? ` "${String(child.attrs.title)}"`
-        : ''
-      out += `![${alt}](${src}${title})`
-      return
+    if (child.type.name === "image") {
+      const alt = String(child.attrs.alt ?? "");
+      const src = String(child.attrs.src ?? "");
+      const title = child.attrs.title ? ` "${String(child.attrs.title)}"` : "";
+      out += `![${alt}](${src}${title})`;
+      return;
     }
-    out += serializeInline(child)
-  })
-  return out
+    out += serializeInline(child);
+  });
+  return out;
 }
 
 /**
@@ -202,7 +201,7 @@ function serializeInline(node: PMNode): string {
  * @returns The text with Markdown formatting applied.
  */
 function serializeTextWithMarks(text: string, marks: readonly Mark[]): string {
-  if (!text) return ''
+  if (!text) return "";
   const ordered = [...marks].sort((a, b) => {
     /**
      * Rank a mark for stable nesting order (code first, then link, strong, em).
@@ -210,46 +209,47 @@ function serializeTextWithMarks(text: string, marks: readonly Mark[]): string {
      * @returns Sort rank (lower binds first).
      */
     const rank = (m: Mark) =>
-      m.type.name === 'code'
+      m.type.name === "code"
         ? 0
-        : m.type.name === 'link'
+        : m.type.name === "link"
           ? 1
-          : m.type.name === 'strong'
+          : m.type.name === "strong"
             ? 2
-            : m.type.name === 'em'
+            : m.type.name === "em"
               ? 3
-              : 4
-    return rank(a) - rank(b)
-  })
+              : 4;
+    return rank(a) - rank(b);
+  });
 
-  let result = escapeMarkdownText(text, ordered.some((m) => m.type.name === 'code'))
+  let result = escapeMarkdownText(
+    text,
+    ordered.some((m) => m.type.name === "code"),
+  );
   for (const mark of ordered) {
     switch (mark.type.name) {
-      case 'code':
-        result = wrapCode(result)
-        break
-      case 'strong':
-        result = `**${result}**`
-        break
-      case 'em':
-        result = `*${result}*`
-        break
-      case 'strikethrough':
-        result = `~~${result}~~`
-        break
-      case 'link': {
-        const href = String(mark.attrs.href ?? '')
-        const title = mark.attrs.title
-          ? ` "${String(mark.attrs.title)}"`
-          : ''
-        result = `[${result}](${href}${title})`
-        break
+      case "code":
+        result = wrapCode(result);
+        break;
+      case "strong":
+        result = `**${result}**`;
+        break;
+      case "em":
+        result = `*${result}*`;
+        break;
+      case "strikethrough":
+        result = `~~${result}~~`;
+        break;
+      case "link": {
+        const href = String(mark.attrs.href ?? "");
+        const title = mark.attrs.title ? ` "${String(mark.attrs.title)}"` : "";
+        result = `[${result}](${href}${title})`;
+        break;
       }
       default:
-        break
+        break;
     }
   }
-  return result
+  return result;
 }
 
 /**
@@ -258,9 +258,9 @@ function serializeTextWithMarks(text: string, marks: readonly Mark[]): string {
  * @returns The backtick-wrapped string.
  */
 function wrapCode(text: string): string {
-  const ticks = text.includes('``') ? '```' : text.includes('`') ? '``' : '`'
-  const pad = text.startsWith('`') || text.endsWith('`') ? ' ' : ''
-  return `${ticks}${pad}${text}${pad}${ticks}`
+  const ticks = text.includes("``") ? "```" : text.includes("`") ? "``" : "`";
+  const pad = text.startsWith("`") || text.endsWith("`") ? " " : "";
+  return `${ticks}${pad}${text}${pad}${ticks}`;
 }
 
 /**
@@ -271,12 +271,12 @@ function wrapCode(text: string): string {
  * @returns The escaped text.
  */
 function escapeMarkdownText(text: string, inCode: boolean): string {
-  if (inCode) return text
+  if (inCode) return text;
   return text
-    .replace(/\\/g, '\\\\')
-    .replace(/`/g, '\\`')
-    .replace(/\*/g, '\\*')
-    .replace(/_/g, '\\_')
-    .replace(/\[/g, '\\[')
-    .replace(/\]/g, '\\]')
+    .replace(/\\/g, "\\\\")
+    .replace(/`/g, "\\`")
+    .replace(/\*/g, "\\*")
+    .replace(/_/g, "\\_")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]");
 }

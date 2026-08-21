@@ -11,28 +11,25 @@
  * @param threadId - The thread id to scroll to.
  * @returns Nothing.
  */
-export function scrollToThreadCard(
-  richRoot: Element,
-  threadId: string,
-): void {
+export function scrollToThreadCard(richRoot: Element, threadId: string): void {
   const card = richRoot.querySelector<HTMLElement>(
     `[data-rgm-thread-card][data-thread-id="${threadId}"]`,
-  )
-  if (!card) return
+  );
+  if (!card) return;
 
-  const detail = card.querySelector<HTMLElement>('.rgm-thread-detail')
+  const detail = card.querySelector<HTMLElement>(".rgm-thread-detail");
   if (detail?.hidden) {
-    detail.hidden = false
-    const show = card.querySelector<HTMLButtonElement>('.rgm-thread-show')
+    detail.hidden = false;
+    const show = card.querySelector<HTMLButtonElement>(".rgm-thread-show");
     if (show) {
-      show.textContent = 'Hide'
-      show.setAttribute('aria-expanded', 'true')
+      show.textContent = "Hide";
+      show.setAttribute("aria-expanded", "true");
     }
   }
 
-  card.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
-  card.classList.add('rgm-thread-card-flash')
+  card.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  card.classList.add("rgm-thread-card-flash");
   window.setTimeout(() => {
-    card.classList.remove('rgm-thread-card-flash')
-  }, 1600)
+    card.classList.remove("rgm-thread-card-flash");
+  }, 1600);
 }

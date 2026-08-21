@@ -1,9 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  copyToolbarText,
-  findFilesToolbar,
-  syncFilesToolbar,
-} from './toolbarSync'
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { copyToolbarText, findFilesToolbar, syncFilesToolbar } from "./toolbarSync";
 
 /**
  * Build the Files toolbar the way GitHub renders it: a counter on the Submit
@@ -43,145 +39,139 @@ function toolbarHtml(count: number, viewed = 0): string {
           </span>
         </span>
       </button>
-    </div>`
+    </div>`;
 }
 
 /** Read both counter values from a root element. */
 function counters(root: ParentNode): string[] {
   return [...root.querySelectorAll('[data-component="ButtonCounter"]')].map(
-    (el) => el.textContent?.trim() ?? '',
-  )
+    (el) => el.textContent?.trim() ?? "",
+  );
 }
 
-describe('findFilesToolbar', () => {
+describe("findFilesToolbar", () => {
   beforeEach(() => {
-    document.body.innerHTML = ''
-  })
+    document.body.innerHTML = "";
+  });
 
-  it('finds the toolbar from its divider test id', () => {
-    document.body.innerHTML = toolbarHtml(6)
-    const toolbar = findFilesToolbar(document)
+  it("finds the toolbar from its divider test id", () => {
+    document.body.innerHTML = toolbarHtml(6);
+    const toolbar = findFilesToolbar(document);
 
-    expect(toolbar).not.toBeNull()
-    expect(toolbar?.getAttribute('data-component')).toBe('Stack')
-  })
+    expect(toolbar).not.toBeNull();
+    expect(toolbar?.getAttribute("data-component")).toBe("Stack");
+  });
 
-  it('still finds it when the test id is gone', () => {
-    document.body.innerHTML = toolbarHtml(6).replace(
-      ' data-testid="file-controls-divider"',
-      '',
-    )
+  it("still finds it when the test id is gone", () => {
+    document.body.innerHTML = toolbarHtml(6).replace(' data-testid="file-controls-divider"', "");
 
-    expect(findFilesToolbar(document)).not.toBeNull()
-  })
+    expect(findFilesToolbar(document)).not.toBeNull();
+  });
 
-  it('returns null when the toolbar is absent', () => {
-    document.body.innerHTML = '<div>no toolbar here</div>'
+  it("returns null when the toolbar is absent", () => {
+    document.body.innerHTML = "<div>no toolbar here</div>";
 
-    expect(findFilesToolbar(document)).toBeNull()
-  })
-})
+    expect(findFilesToolbar(document)).toBeNull();
+  });
+});
 
-describe('copyToolbarText', () => {
+describe("copyToolbarText", () => {
   beforeEach(() => {
-    document.body.innerHTML = ''
-  })
+    document.body.innerHTML = "";
+  });
 
   /** Parse standalone toolbar markup into a detached element. */
   function parse(html: string): Element {
-    return new DOMParser().parseFromString(html, 'text/html').body
-      .firstElementChild!
+    return new DOMParser().parseFromString(html, "text/html").body.firstElementChild!;
   }
 
-  it('copies both counters across', () => {
-    document.body.innerHTML = toolbarHtml(6)
-    const live = findFilesToolbar(document)!
+  it("copies both counters across", () => {
+    document.body.innerHTML = toolbarHtml(6);
+    const live = findFilesToolbar(document)!;
 
-    expect(copyToolbarText(live, parse(toolbarHtml(7)))).toBeGreaterThan(0)
-    expect(counters(live)).toEqual(['7', '7'])
-  })
+    expect(copyToolbarText(live, parse(toolbarHtml(7)))).toBeGreaterThan(0);
+    expect(counters(live)).toEqual(["7", "7"]);
+  });
 
-  it('updates the screen-reader count alongside the visible one', () => {
-    document.body.innerHTML = toolbarHtml(6)
-    const live = findFilesToolbar(document)!
-    copyToolbarText(live, parse(toolbarHtml(7)))
+  it("updates the screen-reader count alongside the visible one", () => {
+    document.body.innerHTML = toolbarHtml(6);
+    const live = findFilesToolbar(document)!;
+    copyToolbarText(live, parse(toolbarHtml(7)));
 
-    const hidden = live.querySelector('.prc-VisuallyHidden-VisuallyHidden-Q0qSB')
-    expect(hidden?.textContent).toContain('7')
-    expect(hidden?.textContent).not.toContain('6')
-  })
+    const hidden = live.querySelector(".prc-VisuallyHidden-VisuallyHidden-Q0qSB");
+    expect(hidden?.textContent).toContain("7");
+    expect(hidden?.textContent).not.toContain("6");
+  });
 
-  it('never replaces an element, so React keeps its references', () => {
-    document.body.innerHTML = toolbarHtml(6)
-    const live = findFilesToolbar(document)!
-    const before = [...live.querySelectorAll('*')]
+  it("never replaces an element, so React keeps its references", () => {
+    document.body.innerHTML = toolbarHtml(6);
+    const live = findFilesToolbar(document)!;
+    const before = [...live.querySelectorAll("*")];
 
-    copyToolbarText(live, parse(toolbarHtml(7)))
+    copyToolbarText(live, parse(toolbarHtml(7)));
 
-    const after = [...live.querySelectorAll('*')]
-    expect(after).toHaveLength(before.length)
-    after.forEach((el, i) => expect(el).toBe(before[i]))
-  })
+    const after = [...live.querySelectorAll("*")];
+    expect(after).toHaveLength(before.length);
+    after.forEach((el, i) => expect(el).toBe(before[i]));
+  });
 
-  it('writes nothing when the toolbars already agree', () => {
-    document.body.innerHTML = toolbarHtml(6)
-    const live = findFilesToolbar(document)!
+  it("writes nothing when the toolbars already agree", () => {
+    document.body.innerHTML = toolbarHtml(6);
+    const live = findFilesToolbar(document)!;
 
-    expect(copyToolbarText(live, parse(toolbarHtml(6)))).toBe(0)
-  })
+    expect(copyToolbarText(live, parse(toolbarHtml(6)))).toBe(0);
+  });
 
-  it('leaves unrelated counts alone', () => {
-    document.body.innerHTML = toolbarHtml(6, 2)
-    const live = findFilesToolbar(document)!
-    copyToolbarText(live, parse(toolbarHtml(7, 2)))
+  it("leaves unrelated counts alone", () => {
+    document.body.innerHTML = toolbarHtml(6, 2);
+    const live = findFilesToolbar(document)!;
+    copyToolbarText(live, parse(toolbarHtml(7, 2)));
 
-    expect(live.querySelector('.sr-only')?.textContent).toBe(
-      '2 of 6 files viewed',
-    )
-  })
-})
+    expect(live.querySelector(".sr-only")?.textContent).toBe("2 of 6 files viewed");
+  });
+});
 
-describe('syncFilesToolbar', () => {
+describe("syncFilesToolbar", () => {
   beforeEach(() => {
-    document.body.innerHTML = ''
-    vi.unstubAllGlobals()
-  })
+    document.body.innerHTML = "";
+    vi.unstubAllGlobals();
+  });
 
-  it('patches the live toolbar from the served page', async () => {
-    document.body.innerHTML = toolbarHtml(6)
+  it("patches the live toolbar from the served page", async () => {
+    document.body.innerHTML = toolbarHtml(6);
     vi.stubGlobal(
-      'fetch',
+      "fetch",
       vi.fn().mockResolvedValue({ ok: true, text: async () => toolbarHtml(7) }),
-    )
+    );
 
-    expect(await syncFilesToolbar()).toBe(true)
-    expect(counters(document)).toEqual(['7', '7'])
-  })
+    expect(await syncFilesToolbar()).toBe(true);
+    expect(counters(document)).toEqual(["7", "7"]);
+  });
 
-  it('reports no change when the server agrees', async () => {
-    document.body.innerHTML = toolbarHtml(6)
+  it("reports no change when the server agrees", async () => {
+    document.body.innerHTML = toolbarHtml(6);
     vi.stubGlobal(
-      'fetch',
+      "fetch",
       vi.fn().mockResolvedValue({ ok: true, text: async () => toolbarHtml(6) }),
-    )
+    );
 
-    expect(await syncFilesToolbar()).toBe(false)
-  })
+    expect(await syncFilesToolbar()).toBe(false);
+  });
 
-  it('gives up quietly when the fetch fails', async () => {
-    document.body.innerHTML = toolbarHtml(6)
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+  it("gives up quietly when the fetch fails", async () => {
+    document.body.innerHTML = toolbarHtml(6);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
 
-    expect(await syncFilesToolbar()).toBe(false)
-    expect(counters(document)).toEqual(['6', '6'])
-  })
+    expect(await syncFilesToolbar()).toBe(false);
+    expect(counters(document)).toEqual(["6", "6"]);
+  });
 
-  it('does not fetch at all when there is no toolbar', async () => {
-    document.body.innerHTML = '<div>not a files page</div>'
-    const fetchMock = vi.fn()
-    vi.stubGlobal('fetch', fetchMock)
+  it("does not fetch at all when there is no toolbar", async () => {
+    document.body.innerHTML = "<div>not a files page</div>";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
 
-    expect(await syncFilesToolbar()).toBe(false)
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-})
+    expect(await syncFilesToolbar()).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

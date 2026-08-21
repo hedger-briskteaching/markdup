@@ -1,13 +1,13 @@
 /** Detect GitHub org OAuth App access restrictions and build user-facing copy. */
 
 export type AccessWarning = {
-  kind: 'oauth_org_restricted'
+  kind: "oauth_org_restricted";
   /** Organization login when known (for example briskedu). */
-  org?: string
-  message: string
-}
+  org?: string;
+  message: string;
+};
 
-const RESTRICTION_SNIPPET = 'OAuth App access restrictions'
+const RESTRICTION_SNIPPET = "OAuth App access restrictions";
 
 /**
  * Return true when GitHub rejected the request because an org blocks the OAuth App.
@@ -15,7 +15,7 @@ const RESTRICTION_SNIPPET = 'OAuth App access restrictions'
  * @returns True when the message names OAuth App access restrictions.
  */
 export function isOrgOauthRestrictionError(message: string): boolean {
-  return message.includes(RESTRICTION_SNIPPET)
+  return message.includes(RESTRICTION_SNIPPET);
 }
 
 /**
@@ -24,10 +24,8 @@ export function isOrgOauthRestrictionError(message: string): boolean {
  * @returns Organization login, or null when the pattern does not match.
  */
 export function parseOrgFromOauthRestriction(message: string): string | null {
-  const match = message.match(
-    /'([^']+)' organization has enabled OAuth App access restrictions/i,
-  )
-  return match?.[1] ?? null
+  const match = message.match(/'([^']+)' organization has enabled OAuth App access restrictions/i);
+  return match?.[1] ?? null;
 }
 
 /**
@@ -37,14 +35,14 @@ export function parseOrgFromOauthRestriction(message: string): string | null {
  */
 export function accessWarningFromApiError(message: string): AccessWarning | null {
   if (!isOrgOauthRestrictionError(message)) {
-    return null
+    return null;
   }
-  const org = parseOrgFromOauthRestriction(message) ?? undefined
+  const org = parseOrgFromOauthRestriction(message) ?? undefined;
   return {
-    kind: 'oauth_org_restricted',
+    kind: "oauth_org_restricted",
     org,
     message: formatOrgOauthRestrictionGuidance(org),
-  }
+  };
 }
 
 /**
@@ -53,8 +51,8 @@ export function accessWarningFromApiError(message: string): AccessWarning | null
  * @returns User-facing guidance string.
  */
 export function formatOrgOauthRestrictionGuidance(org?: string): string {
-  const who = org ? `The ${org} organization` : 'This organization'
-  return `${who} blocks the Markdup OAuth App. Use Option 2 below — paste a personal access token — so Markdup can access those repos.`
+  const who = org ? `The ${org} organization` : "This organization";
+  return `${who} blocks the Markdup OAuth App. Use Option 2 below — paste a personal access token — so Markdup can access those repos.`;
 }
 
 /**
@@ -63,6 +61,6 @@ export function formatOrgOauthRestrictionGuidance(org?: string): string {
  * @returns Short user-facing error string.
  */
 export function formatOrgOauthRestrictionRichError(org?: string): string {
-  const who = org ? `The ${org} organization` : 'This organization'
-  return `${who} blocks the Markdup OAuth App. Open Markdup Settings and use Option 2 (personal access token).`
+  const who = org ? `The ${org} organization` : "This organization";
+  return `${who} blocks the Markdup OAuth App. Open Markdup Settings and use Option 2 (personal access token).`;
 }
