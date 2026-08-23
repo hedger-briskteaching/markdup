@@ -16,19 +16,19 @@ Load the unpacked extension from the `dist/` folder in Chrome (`chrome://extensi
 
 ## Development
 
-| Command              | Purpose                                                                   |
-| -------------------- | ------------------------------------------------------------------------- |
-| `pnpm dev`           | Dev server with hot reload (writes `dist/`)                               |
-| `pnpm lint`          | Oxlint (includes alphabetical JSX props)                                  |
-| `pnpm lint:fix`      | Apply safe Oxlint fixes                                                   |
-| `pnpm fmt`           | Format with Oxfmt (semicolons on)                                         |
-| `pnpm fmt:check`     | Check formatting without writing                                          |
-| `pnpm type-check`    | TypeScript check                                                          |
-| `pnpm test`          | Unit tests                                                                |
-| `pnpm test:coverage` | Unit tests with coverage summary                                          |
-| `pnpm build`         | Production build                                                          |
+| Command              | Purpose                                                                                      |
+| -------------------- | -------------------------------------------------------------------------------------------- |
+| `pnpm dev`           | Dev server with hot reload (writes `dist/`)                                                  |
+| `pnpm lint`          | Oxlint (includes alphabetical JSX props)                                                     |
+| `pnpm lint:fix`      | Apply safe Oxlint fixes                                                                      |
+| `pnpm fmt`           | Format with Oxfmt (semicolons on)                                                            |
+| `pnpm fmt:check`     | Check formatting without writing                                                             |
+| `pnpm type-check`    | TypeScript check                                                                             |
+| `pnpm test`          | Unit tests                                                                                   |
+| `pnpm test:coverage` | Unit tests with coverage summary                                                             |
+| `pnpm build`         | Production build                                                                             |
 | `pnpm package`       | Build GitHub and Chrome Web Store zips under `releases/release-X.Y.Z/` (local only, no bump) |
-| `pnpm release`       | Patch-bump, package, and print GitHub Release publish steps               |
+| `pnpm release`       | Patch-bump, package, and print GitHub Release publish steps                                  |
 
 Git hooks (installed on `pnpm install`) run Oxlint and Oxfmt on staged files before commit, and a full `pnpm lint` plus `pnpm fmt:check` before push.
 
@@ -50,9 +50,9 @@ Maintainers cut a release with `pnpm release` (always bumps; default **patch**).
 
 `pnpm package` writes two archives under `releases/release-X.Y.Z/`:
 
-| File | Use |
-| --- | --- |
-| `markdup-X.Y.Z.zip` | GitHub Release asset. Manifest keeps `key` so unpacked installs stay on ID `knlaahnhnocjejneaobpbbnfibfnoiei`. |
+| File                      | Use                                                                                                                                                                                                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `markdup-X.Y.Z.zip`       | GitHub Release asset. Manifest keeps `key` so unpacked installs stay on ID `knlaahnhnocjejneaobpbbnfibfnoiei`.                                                                                                                                                 |
 | `markdup-X.Y.Z-store.zip` | First Chrome Web Store upload only. The dashboard rejects a manifest `key` field, so this zip strips `key` and puts `brand/extension-private.pem` at the archive root as `key.pem` so the store listing gets the same ID. Built only when that pem is present. |
 
 Do **not** attach the store zip to a GitHub Release — it contains the private key. After the first store listing exists, later Chrome Web Store updates must **not** include `key.pem`. If the dashboard still rejects `key`, strip that field from the GitHub zip (or remove `key.pem` from a copy of the store zip) before uploading.

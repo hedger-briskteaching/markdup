@@ -166,15 +166,15 @@ This command type-checks and writes an optimized bundle to `dist/`. Load that fo
 
 ### Scripts
 
-| Command              | Description                                                                                            |
-| -------------------- | ------------------------------------------------------------------------------------------------------ |
-| `pnpm dev`           | Dev server with hot reload (output in `dist/`)                                                         |
-| `pnpm build`         | Production build into `dist/`                                                                          |
-| `pnpm type-check`    | TypeScript check only                                                                                  |
-| `pnpm test`          | Run unit tests                                                                                         |
-| `pnpm test:coverage` | Unit tests with a coverage summary                                                                     |
+| Command              | Description                                                                                                                                                                             |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`           | Dev server with hot reload (output in `dist/`)                                                                                                                                          |
+| `pnpm build`         | Production build into `dist/`                                                                                                                                                           |
+| `pnpm type-check`    | TypeScript check only                                                                                                                                                                   |
+| `pnpm test`          | Run unit tests                                                                                                                                                                          |
+| `pnpm test:coverage` | Unit tests with a coverage summary                                                                                                                                                      |
 | `pnpm package`       | Type-check, test, build, and write GitHub + Chrome Web Store zips under `releases/release-X.Y.Z/` (requires `releases/release-notes.md`; store zip needs `brand/extension-private.pem`) |
-| `pnpm release`       | Patch-bump version, package, and print publish steps                                                   |
+| `pnpm release`       | Patch-bump version, package, and print publish steps                                                                                                                                    |
 
 ### Project layout
 
