@@ -27,7 +27,7 @@ Load the unpacked extension from the `dist/` folder in Chrome (`chrome://extensi
 | `pnpm test`          | Unit tests                                                                |
 | `pnpm test:coverage` | Unit tests with coverage summary                                          |
 | `pnpm build`         | Production build                                                          |
-| `pnpm package`       | Build a release zip under `releases/release-X.Y.Z/` (local only, no bump) |
+| `pnpm package`       | Build GitHub and Chrome Web Store zips under `releases/release-X.Y.Z/` (local only, no bump) |
 | `pnpm release`       | Patch-bump, package, and print GitHub Release publish steps               |
 
 Git hooks (installed on `pnpm install`) run Oxlint and Oxfmt on staged files before commit, and a full `pnpm lint` plus `pnpm fmt:check` before push.
@@ -46,7 +46,16 @@ After you change `manifest.config.ts`, refresh the extension card on `chrome://e
 
 End users install from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases). See [releases/README.md](releases/README.md).
 
-Maintainers cut a release with `pnpm release` (always bumps; default **patch**). Use `pnpm release -- minor`, `pnpm release -- major`, or `pnpm release -- X.Y.Z` when needed. Before packaging, rewrite [`releases/release-notes.md`](releases/release-notes.md) with short, clear notes for that version (used as the GitHub Release body via `--notes-file`). That script packages a zip locally and prints tag / `gh release create` commands. Do **not** commit files under `releases/release-*/` — zips are gitignored and uploaded as Release assets only.
+Maintainers cut a release with `pnpm release` (always bumps; default **patch**). Use `pnpm release -- minor`, `pnpm release -- major`, or `pnpm release -- X.Y.Z` when needed. Before packaging, rewrite [`releases/release-notes.md`](releases/release-notes.md) with short, clear notes for that version (used as the GitHub Release body via `--notes-file`). That script packages zips locally and prints tag / `gh release create` commands. Do **not** commit files under `releases/release-*/` — zips are gitignored.
+
+`pnpm package` writes two archives under `releases/release-X.Y.Z/`:
+
+| File | Use |
+| --- | --- |
+| `markdup-X.Y.Z.zip` | GitHub Release asset. Manifest keeps `key` so unpacked installs stay on ID `knlaahnhnocjejneaobpbbnfibfnoiei`. |
+| `markdup-X.Y.Z-store.zip` | First Chrome Web Store upload only. The dashboard rejects a manifest `key` field, so this zip strips `key` and puts `brand/extension-private.pem` at the archive root as `key.pem` so the store listing gets the same ID. Built only when that pem is present. |
+
+Do **not** attach the store zip to a GitHub Release — it contains the private key. After the first store listing exists, later Chrome Web Store updates must **not** include `key.pem`. If the dashboard still rejects `key`, strip that field from the GitHub zip (or remove `key.pem` from a copy of the store zip) before uploading.
 
 ## Code of conduct
 

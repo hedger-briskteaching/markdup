@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/markdup/knlaahnhnocjejneaobpbbnfibfnoiei"><img src="https://img.shields.io/chrome-web-store/v/knlaahnhnocjejneaobpbbnfibfnoiei.svg" alt="Chrome Web Store" /></a>
   <a href="https://github.com/hedger-briskteaching/markdup/actions/workflows/ci.yml"><img src="https://github.com/hedger-briskteaching/markdup/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg" alt="Node.js 20+" />
@@ -24,7 +25,7 @@
   <a href="#demo">Demo</a> ·
   <a href="#why-markdup">Why Markdup</a> ·
   <a href="#what-you-get">What you get</a> ·
-  <a href="#getting-started">Getting started</a> ·
+  <a href="#quick-start">Quick start</a> ·
   <a href="#use-the-extension">Use the extension</a> ·
   <a href="#privacy">Privacy</a> ·
   <a href="#develop-from-source">Develop</a> ·
@@ -64,11 +65,13 @@ Markdup runs on the pull request **Files changed** page. It targets `.md` and `.
 
 ---
 
-## Getting started
+## Quick start
 
-Download a prebuilt zip from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases) and load it in Chrome. Full steps: [releases/README.md](releases/README.md).
+Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/markdup/knlaahnhnocjejneaobpbbnfibfnoiei): open that page, click **Add to Chrome**, then continue with [Settings and GitHub access](#settings-and-github-access).
 
-To build or contribute instead, see [Develop from source](#develop-from-source).
+To load a zip instead (Developer mode), download a prebuilt zip from [GitHub Releases](https://github.com/hedger-briskteaching/markdup/releases). Full steps: [releases/README.md](releases/README.md).
+
+To build or contribute, see [Develop from source](#develop-from-source).
 
 ### Settings and GitHub access
 
@@ -109,7 +112,7 @@ Markdup has **no backend**. Your GitHub token (OAuth or personal access token) i
 <details>
 <summary>Build from source, scripts, project layout, and contributing</summary>
 
-Use this section when you want to develop Markdup or build it yourself. End users can skip it and [install from a release](#getting-started).
+Use this section when you want to develop Markdup or build it yourself. End users can skip it and [install from the Chrome Web Store](#quick-start).
 
 **Requirements**
 
@@ -170,7 +173,7 @@ This command type-checks and writes an optimized bundle to `dist/`. Load that fo
 | `pnpm type-check`    | TypeScript check only                                                                                  |
 | `pnpm test`          | Run unit tests                                                                                         |
 | `pnpm test:coverage` | Unit tests with a coverage summary                                                                     |
-| `pnpm package`       | Type-check, test, build, and zip into `releases/release-X.Y.Z/` (requires `releases/release-notes.md`) |
+| `pnpm package`       | Type-check, test, build, and write GitHub + Chrome Web Store zips under `releases/release-X.Y.Z/` (requires `releases/release-notes.md`; store zip needs `brand/extension-private.pem`) |
 | `pnpm release`       | Patch-bump version, package, and print publish steps                                                   |
 
 ### Project layout
@@ -232,7 +235,7 @@ Then:
 3. Optionally save the public key string in `brand/extension-public-key.txt` for your own notes (see [brand/README.md](brand/README.md)).
 4. Rebuild, remove any old unpacked install, and load `dist/` again. Confirm the ID on `chrome://extensions`.
 
-Keep `brand/extension-private.pem` out of git. You only need it if you pack or resign a `.crx` yourself.
+Keep `brand/extension-private.pem` out of git. You need it to build the Chrome Web Store zip (`pnpm package` writes `markdup-X.Y.Z-store.zip`) and to pack or resign a `.crx` yourself.
 
 ### 2. Register a GitHub OAuth App (if you want Connect with GitHub)
 

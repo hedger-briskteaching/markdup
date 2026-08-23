@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Always bump Markdup version, package the extension zip, and print GitHub Release steps.
+# Always bump Markdup version, package the extension zips, and print GitHub Release steps.
 # Does not create a tag or upload unless you run the printed commands yourself.
+# GitHub Release asset: markdup-X.Y.Z.zip
+# Chrome Web Store first upload (if pem is present): markdup-X.Y.Z-store.zip
 #
 # Usage:
 #   pnpm release                 # patch bump (0.1.0 → 0.1.1), then package
@@ -79,16 +81,20 @@ node -e "
 
 VERSION="$NEW_VERSION"
 ZIP_PATH="releases/release-${VERSION}/markdup-${VERSION}.zip"
+STORE_ZIP_PATH="releases/release-${VERSION}/markdup-${VERSION}-store.zip"
 TAG="v${VERSION}"
 
 bash scripts/package-extension.sh
 
 echo ""
 echo "==> Package ready: ${ZIP_PATH}"
+if [[ -f "${STORE_ZIP_PATH}" ]]; then
+  echo "==> Store zip:     ${STORE_ZIP_PATH} (first Chrome Web Store upload only; contains private key)"
+fi
 echo ""
 echo "Publish checklist (run when you are ready to cut the GitHub Release):"
 echo ""
-echo "  1. Commit the version bump (do not commit ${ZIP_PATH}):"
+echo "  1. Commit the version bump (do not commit ${ZIP_PATH} or ${STORE_ZIP_PATH}):"
 echo "       git add package.json manifest.config.ts"
 echo "       git commit -m \"Release ${TAG}\""
 echo ""
@@ -96,8 +102,11 @@ echo "  2. Tag and push:"
 echo "       git tag ${TAG}"
 echo "       git push origin HEAD ${TAG}"
 echo ""
-echo "  3. Create the GitHub Release and attach the zip:"
+echo "  3. Create the GitHub Release and attach the GitHub zip only:"
 echo "       gh release create ${TAG} ${ZIP_PATH} \\"
 echo "         --title \"${TAG}\" \\"
 echo "         --notes-file releases/release-notes.md"
+echo ""
+echo "  4. Chrome Web Store (first listing): upload ${STORE_ZIP_PATH}"
+echo "     Later CWS updates must not include key.pem."
 echo ""
