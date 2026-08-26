@@ -1,6 +1,6 @@
 import { TextSelection } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { getCommentEditorForTest, mountCommentEditor } from "./commentEditor";
 import { injectStyles } from "./styles";
 
@@ -34,6 +34,8 @@ beforeAll(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   document.body.innerHTML = "";
   document.getElementById("rgm-markdown-review-styles")?.remove();
 });
@@ -63,6 +65,38 @@ describe("mountCommentEditor", () => {
     expect(getCommentEditorForTest(host)).toBe(editor);
     editor.destroy();
     expect(getCommentEditorForTest(host)).toBeUndefined();
+  });
+
+  it("compresses a pasted image before adding it to the comment", async () => {
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn().mockResolvedValue({ width: 2400, height: 1200, close: vi.fn() }),
+    );
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      fillStyle: "",
+      fillRect: vi.fn(),
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue(
+      `data:image/jpeg;base64,${"a".repeat(20_000)}`,
+    );
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const editor = mountCommentEditor(host);
+    const image = new File(["large image"], "screenshot.png", { type: "image/png" });
+    const paste = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, "clipboardData", {
+      value: { files: [image], getData: () => "", types: ["Files"] },
+    });
+
+    editor.view.dom.dispatchEvent(paste);
+
+    await vi.waitFor(() => {
+      expect(editor.getMarkdown()).toContain("data:image/jpeg;base64,");
+    });
+    expect(editor.getMarkdown().length).toBeLessThan(65_536);
+    expect(paste.defaultPrevented).toBe(true);
   });
 
   it("omits Link, Paragraph, and Italic toolbar controls", () => {
@@ -242,5 +276,7 @@ describe("mountCommentEditor", () => {
     expect(css).toContain("padding-left: 1.5em");
     expect(css).toContain(".rgm-comment-editor-content code");
     expect(css).toContain("ui-monospace");
+    expect(css).toContain(".rgm-comment-editor-content img");
+    expect(css).toContain("max-width: 100%");
   });
 });

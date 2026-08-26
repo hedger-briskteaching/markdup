@@ -339,6 +339,13 @@
   margin-bottom: 0;
 }
 
+.rgm-comment-editor-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
 .rgm-comment-editor-content ul,
 .rgm-comment-editor-content ol {
   margin: 0.35em 0;
@@ -395,6 +402,16 @@
 
 .rgm-comment-editor-content blockquote p {
   margin: 0;
+}
+
+.rgm-comment-editor-image-status {
+  margin-left: auto;
+  color: var(--fgColor-muted, #59636e);
+  font-size: 11px;
+}
+
+.rgm-comment-editor-image-status-error {
+  color: var(--fgColor-danger, #d1242f);
 }
 
 .rgm-md-body {

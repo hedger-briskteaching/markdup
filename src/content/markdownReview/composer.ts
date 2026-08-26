@@ -1,6 +1,7 @@
 import { createPayloadFromRange } from "../../shared/reviewComment";
 import type { SourceRange } from "../../markdown/sourceRange";
 import type { ReviewCommentDto } from "../../shared/messages";
+import { commentBodyLengthError } from "../../shared/commentBody";
 import { mountCommentEditor, type CommentEditorHandle } from "./commentEditor";
 import {
   applySelectionHighlight,
@@ -438,6 +439,13 @@ async function submitComment(args: {
   if (!body) {
     status.hidden = false;
     status.textContent = "Write a comment first.";
+    status.classList.add("rgm-composer-status-error");
+    return;
+  }
+  const lengthError = commentBodyLengthError(body);
+  if (lengthError) {
+    status.hidden = false;
+    status.textContent = lengthError;
     status.classList.add("rgm-composer-status-error");
     return;
   }

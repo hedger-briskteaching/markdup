@@ -12,6 +12,8 @@ import { liftListItem, sinkListItem, splitListItem, wrapInList } from "prosemirr
 import { EditorState, type Transaction } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { markdownSchema } from "../../markdown";
+import { GITHUB_COMMENT_BODY_SAFE_LENGTH } from "../../shared/commentBody";
+import { compressCommentImage, MAX_COMMENT_IMAGE_CHARS, pastedImageFiles } from "./commentImages";
 import { docFromMarkdown, docToMarkdown } from "./markdownBody";
 
 export type CommentEditorHandle = {
@@ -50,6 +52,11 @@ export function mountCommentEditor(
 
   const surface = document.createElement("div");
   surface.className = "rgm-comment-editor-surface";
+
+  const imageStatus = document.createElement("span");
+  imageStatus.className = "rgm-comment-editor-image-status";
+  imageStatus.setAttribute("role", "status");
+  imageStatus.hidden = true;
 
   host.append(toolbar, surface);
 
@@ -92,9 +99,38 @@ export function mountCommentEditor(
       updatePlaceholder(view);
       updateToolbar(toolbar, view);
     },
+    handlePaste(view, event) {
+      const files = pastedImageFiles(event);
+      if (files.length === 0) return false;
+
+      event.preventDefault();
+      imageStatus.hidden = false;
+      imageStatus.classList.remove("rgm-comment-editor-image-status-error");
+      imageStatus.textContent = files.length === 1 ? "Optimizing image…" : "Optimizing images…";
+
+      const currentLength = docToMarkdown(view.state.doc).length;
+      const available = Math.max(0, GITHUB_COMMENT_BODY_SAFE_LENGTH - currentLength);
+      const perImageBudget = Math.min(
+        MAX_COMMENT_IMAGE_CHARS,
+        Math.floor(available / files.length),
+      );
+
+      void insertPastedImages(view, files, perImageBudget)
+        .then(() => {
+          imageStatus.textContent = "";
+          imageStatus.hidden = true;
+        })
+        .catch((error: unknown) => {
+          imageStatus.textContent =
+            error instanceof Error ? error.message : "Could not resize the pasted image.";
+          imageStatus.classList.add("rgm-comment-editor-image-status-error");
+        });
+      return true;
+    },
   });
 
   buildToolbar(toolbar, view);
+  toolbar.appendChild(imageStatus);
   updatePlaceholder(view);
   updateToolbar(toolbar, view);
 
@@ -118,6 +154,28 @@ export function mountCommentEditor(
   };
   editorsByHost.set(host, handle);
   return handle;
+}
+
+/** Compress pasted images and insert them at the editor's current selection. */
+async function insertPastedImages(
+  view: EditorView,
+  files: File[],
+  perImageBudget: number,
+): Promise<void> {
+  if (perImageBudget < 1_000) {
+    throw new Error("The comment has no room for another image.");
+  }
+
+  for (const file of files) {
+    const src = await compressCommentImage(file, perImageBudget);
+    const image = markdownSchema.nodes.image!.create({
+      src,
+      alt: file.name || "Pasted image",
+      title: null,
+    });
+    view.dispatch(view.state.tr.replaceSelectionWith(image));
+  }
+  view.focus();
 }
 
 const editorsByHost = new WeakMap<HTMLElement, CommentEditorHandle>();

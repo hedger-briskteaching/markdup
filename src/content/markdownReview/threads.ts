@@ -1,6 +1,7 @@
 import type { RowModel } from "../../markdown/align";
 import { buildViewSections, findUnchangedSectionForRow } from "../../markdown/viewSections";
 import type { ReviewCommentDto, ReviewThreadDto } from "../../shared/messages";
+import { commentBodyLengthError } from "../../shared/commentBody";
 import { mountCommentEditor, type CommentEditorHandle } from "./commentEditor";
 import { markCommentsDirty } from "./composer";
 import { renderMarkdownBody } from "./markdownBody";
@@ -702,6 +703,13 @@ async function submitReply(args: {
     status.classList.add("rgm-composer-status-error");
     return;
   }
+  const lengthError = commentBodyLengthError(body);
+  if (lengthError) {
+    status.hidden = false;
+    status.textContent = lengthError;
+    status.classList.add("rgm-composer-status-error");
+    return;
+  }
   if (!ctx.owner || !ctx.repo || !ctx.pullNumber) return;
 
   submit.disabled = true;
@@ -841,6 +849,13 @@ async function submitEdit(args: {
   if (!body) {
     status.hidden = false;
     status.textContent = "Comment cannot be empty.";
+    status.classList.add("rgm-composer-status-error");
+    return;
+  }
+  const lengthError = commentBodyLengthError(body);
+  if (lengthError) {
+    status.hidden = false;
+    status.textContent = lengthError;
     status.classList.add("rgm-composer-status-error");
     return;
   }
