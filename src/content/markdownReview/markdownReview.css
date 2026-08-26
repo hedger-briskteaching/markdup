@@ -441,6 +441,13 @@
   color: var(--fgColor-accent, #0969da);
 }
 
+.rgm-md-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
 .rgm-md-body blockquote {
   position: relative;
   margin: 0.5em 0;
@@ -836,6 +843,18 @@
 [data-rgm-rich] .rgm-rich-content a {
   color: var(--rgm-ocean-700);
   text-decoration: underline;
+}
+
+[data-rgm-rich] .rgm-rich-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+[data-rgm-rich] .rgm-rich-images {
+  display: grid;
+  gap: 8px;
 }
 
 [data-rgm-rich] .rgm-rich-content code {

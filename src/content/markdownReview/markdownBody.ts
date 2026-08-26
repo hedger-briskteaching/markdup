@@ -1,6 +1,7 @@
 import { DOMSerializer, type Node as PMNode } from "prosemirror-model";
 import { emptyDoc, markdownToDoc, markdownSchema } from "../../markdown";
 import { docToMarkdown } from "../../markdown/toMarkdown";
+import { renderHtmlImages } from "./htmlImages";
 
 const serializer = DOMSerializer.fromSchema(markdownSchema);
 
@@ -25,6 +26,13 @@ export function renderMarkdownBody(markdown: string): DocumentFragment {
   try {
     const doc = markdownToDoc(source);
     doc.forEach((child) => {
+      if (child.type.name === "html_block") {
+        const images = renderHtmlImages(String(child.attrs.html ?? ""));
+        if (images) {
+          wrap.appendChild(images);
+          return;
+        }
+      }
       const dom = serializer.serializeNode(child);
       wrap.appendChild(dom);
     });

@@ -10,6 +10,7 @@ import {
 import { wordDiff, type DiffSegment } from "../../markdown/wordDiff";
 import { disposeMermaidDiagrams, isMermaidBlock, renderMermaidDiagram } from "./mermaid";
 import { applyRichLayout, type RichLayout } from "./layout";
+import { renderHtmlImages } from "./htmlImages";
 import { expandUnchangedSection, getRichViewContext, toggleUnchangedSection } from "./selection";
 import { findRowIdForThread, renderThreadCards } from "./threads";
 
@@ -366,6 +367,14 @@ function buildBlockContent(
   if (block.type === "front_matter") {
     wrap.appendChild(renderFrontMatter(block));
     return wrap;
+  }
+
+  if (block.type === "html_block") {
+    const images = renderHtmlImages(String(block.node.attrs.html ?? ""));
+    if (images) {
+      wrap.appendChild(images);
+      return wrap;
+    }
   }
 
   if (isMermaidBlock(block.node)) {
